@@ -7,6 +7,19 @@ function getInput(): HTMLInputElement {
   return screen.getByLabelText('브랜드 메인 컬러') as HTMLInputElement
 }
 
+function getColorPicker(hex: string): HTMLInputElement {
+  return screen.getByLabelText(`${hex} 색상 직접 수정`) as HTMLInputElement
+}
+
+/** Finds a lock button whose current lock state is `locked`, and returns its HEX. */
+function findLockButtonHex(list: HTMLElement, locked: boolean): string {
+  const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+  const button = lockButtons.find(
+    (candidate) => candidate.getAttribute('aria-pressed') === String(locked),
+  )!
+  return button.getAttribute('aria-label')!.split(' ')[0]
+}
+
 /** All 5 rendered hex codes, in palette slot order. */
 function getHexes(list: HTMLElement): string[] {
   return within(list)
@@ -212,5 +225,66 @@ describe('M-2: 잠금/재생성 통합', () => {
 
     fireEvent.click(regenerateButton)
     expect(screen.queryByText(targetHex)).not.toBeInTheDocument()
+  })
+})
+
+describe('grain-2: 컬러 피커로 팔레트 색상 직접 수정', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('컬러 피커로 파생 슬롯 색상을 변경하면 스와치 배경과 HEX 텍스트가 즉시 갱신된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const originalHex = findLockButtonHex(list, false)
+
+    fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
+
+    expect(screen.queryByText(originalHex)).not.toBeInTheDocument()
+    const updatedHexText = screen.getByText('#00ff00')
+    expect(updatedHexText).toBeInTheDocument()
+
+    const swatch = updatedHexText.closest('.palette-swatch') as HTMLElement
+    const colorPreview = swatch.querySelector('.palette-swatch__color') as HTMLElement
+    expect(colorPreview.style.backgroundColor).toBe('rgb(0, 255, 0)')
+  })
+
+  it('컬러 피커로 색상을 변경하면 해당 슬롯이 자동으로 잠금 처리된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const originalHex = findLockButtonHex(list, false)
+
+    fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
+
+    const updatedLock = screen.getByRole('button', { name: '#00ff00 색상 잠금 토글' })
+    expect(updatedLock).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('컬러 피커로 브랜드 슬롯 색상을 변경해도 즉시 반영된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    fireEvent.change(getColorPicker('#3366ff'), { target: { value: '#123456' } })
+
+    expect(screen.queryByText('#3366ff')).not.toBeInTheDocument()
+    expect(screen.getByText('#123456')).toBeInTheDocument()
+  })
+
+  it('컬러 피커로 수정한 색상은 재생성 이후에도 사라지지 않는다 (자동 잠금이 재생성으로부터 지켜준다)', () => {
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const originalHex = findLockButtonHex(list, false)
+
+    fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
+    fireEvent.click(screen.getByRole('button', { name: '재생성' }))
+
+    expect(screen.getByText('#00ff00')).toBeInTheDocument()
   })
 })

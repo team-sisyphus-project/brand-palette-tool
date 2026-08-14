@@ -8,10 +8,12 @@ export interface PaletteProps {
   locks: Locks
   /** Called with the slot index whose lock toggle was clicked. */
   onToggleLock: (index: number) => void
+  /** Called with the slot index and new HEX value when a swatch's color picker changes. */
+  onColorChange: (index: number, hex: string) => void
 }
 
 /** Renders the generated 5-color palette, brand main color first. */
-export function Palette({ colors, locks, onToggleLock }: PaletteProps) {
+export function Palette({ colors, locks, onToggleLock, onColorChange }: PaletteProps) {
   return (
     <div className="palette" role="list" aria-label="생성된 5색 팔레트">
       {colors.map((color, index) => (
@@ -21,6 +23,7 @@ export function Palette({ colors, locks, onToggleLock }: PaletteProps) {
             isBrand={index === BRAND_SLOT_INDEX}
             isLocked={locks[index] ?? false}
             onToggleLock={() => onToggleLock(index)}
+            onColorChange={(hex) => onColorChange(index, hex)}
           />
         </div>
       ))}

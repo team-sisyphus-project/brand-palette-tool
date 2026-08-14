@@ -6,11 +6,34 @@
   width: 100%;
 }
 
+.palette-swatch__preview {
+  position: relative;
+  width: 100%;
+}
+
 .palette-swatch__color {
   width: 100%;
   aspect-ratio: 1;
   border: var(--border-width-default) solid var(--color-border-default);
   border-radius: var(--radius-md);
+}
+
+/*
+ * Invisible native color-picker control layered over the preview swatch.
+ * It introduces no new design values: position/inset/opacity/cursor here
+ * are implementation settings (per policy/coding.md), and padding/border
+ * are reset to 0 rather than tokenized because they only strip the native
+ * input chrome that opacity: 0 already hides.
+ */
+.palette-swatch__color-picker {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .palette-swatch__hex {
