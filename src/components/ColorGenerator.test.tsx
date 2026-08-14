@@ -68,4 +68,59 @@ describe('ColorGenerator', () => {
     expect(screen.getByText('#ff0000')).toBeInTheDocument()
     expect(screen.queryByText('#3366ff')).not.toBeInTheDocument()
   })
+
+  it('renders the brand main color slot locked by default (aria-pressed)', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const brandLock = screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('renders derived color slots unlocked by default', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    expect(lockButtons).toHaveLength(5)
+    expect(lockButtons.filter((button) => button.getAttribute('aria-pressed') === 'true')).toHaveLength(1)
+  })
+
+  it('toggles a derived slot lock state on click', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
+
+    fireEvent.click(derivedLock)
+    expect(derivedLock).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(derivedLock)
+    expect(derivedLock).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('keeps a locked slot unchanged after clicking Regenerate, while the palette stays 5 colors (M-2)', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
+    fireEvent.click(derivedLock)
+
+    const lockedHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
+
+    fireEvent.click(screen.getByRole('button', { name: '재생성' }))
+
+    expect(screen.getByText(lockedHex)).toBeInTheDocument()
+    expect(within(list).getAllByRole('listitem')).toHaveLength(5)
+  })
+
+  it('does not render a Regenerate button before a valid palette exists', () => {
+    render(<ColorGenerator />)
+    expect(screen.queryByRole('button', { name: '재생성' })).not.toBeInTheDocument()
+  })
 })

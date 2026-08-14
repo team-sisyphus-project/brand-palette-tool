@@ -25,3 +25,19 @@
   font-weight: var(--text-weight-medium);
   color: var(--color-text-primary);
 }
+
+.palette-swatch__lock {
+  padding: var(--content-padding-sm);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--text-size-sm);
+  cursor: pointer;
+}
+
+.palette-swatch__lock[aria-pressed='true'] {
+  border-color: var(--color-action-bg);
+  color: var(--color-action-bg);
+  font-weight: var(--text-weight-medium);
+}

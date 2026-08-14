@@ -9,6 +9,8 @@
   --color-border-focus: #2563eb;
   --color-state-error: #dc2626;
   --color-state-error-bg: #fef2f2;
+  --color-action-bg: #2563eb;
+  --color-text-on-action: #ffffff;
 
   /* Design tokens — typography */
   --text-size-sm: 0.75rem;
