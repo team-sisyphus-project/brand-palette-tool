@@ -22,6 +22,7 @@
   --element-gap-md: 16px;
   --content-padding-sm: 8px;
   --content-padding-md: 12px;
+  --content-padding-lg: 2rem;
 
   /* Design tokens — radius */
   --radius-sm: 6px;
