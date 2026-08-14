@@ -212,3 +212,91 @@ export function generatePalette(input: string): PaletteColor[] | null {
 
   return palette
 }
+
+/**
+ * Per-slot lock state for a generated palette. `locks[slot] === true` means
+ * that slot's color must survive a regeneration unchanged.
+ */
+export type Locks = boolean[]
+
+/**
+ * Builds the initial lock state for a freshly generated palette: only the
+ * brand main color slot (`BRAND_SLOT_INDEX`) starts locked, every derived
+ * slot starts unlocked.
+ */
+export function createInitialLocks(): Locks {
+  return Array.from({ length: PALETTE_SIZE }, (_, slot) => slot === BRAND_SLOT_INDEX)
+}
+
+/** Returns a pseudo-random offset in the range [-range, range] using the injected `random`. */
+function randomOffset(random: () => number, range: number): number {
+  return (random() * 2 - 1) * range
+}
+
+/**
+ * Same fixed HSL arithmetic as `deriveSupportingColors`, but each offset is
+ * jittered by an injectable `random` source (defaults to `Math.random`) so
+ * repeated regeneration produces varied - but still harmonious - results.
+ * Passing a seeded/deterministic `random` makes the output reproducible,
+ * which is what regeneration tests rely on.
+ */
+function deriveSupportingColorsVaried(base: HSL, random: () => number): PaletteColor[] {
+  const jitter = () => randomOffset(random, 10)
+
+  const lighterTint: HSL = { h: base.h, s: base.s, l: clamp(base.l + 20 + jitter(), 0, 95) }
+  const darkerShade: HSL = { h: base.h, s: base.s, l: clamp(base.l - 20 + jitter(), 5, 100) }
+  const analogousAccent: HSL = {
+    h: normalizeHue(base.h + 30 + jitter()),
+    s: clamp(base.s + jitter(), 15, 100),
+    l: clamp(base.l - 10 + jitter(), 10, 90),
+  }
+  const mutedVariant: HSL = {
+    h: base.h,
+    s: clamp(base.s - 40 + jitter(), 10, 100),
+    l: clamp(base.l + (base.l < 50 ? 15 : -15) + jitter(), 5, 95),
+  }
+
+  return [lighterTint, darkerShade, analogousAccent, mutedVariant].map(hslToPaletteColor)
+}
+
+/**
+ * Recomputes a palette while respecting per-slot locks.
+ *
+ * - The brand main color slot (`BRAND_SLOT_INDEX`) always reflects the
+ *   current `brandInput`, regardless of its lock state.
+ * - Locked derived slots keep their existing color from `palette` unchanged.
+ * - Unlocked derived slots are recomputed via jittered HSL arithmetic, using
+ *   `random` (defaults to `Math.random`) as the source of variation so
+ *   callers can inject a seeded generator for deterministic tests.
+ *
+ * Returns null when `brandInput` cannot be parsed as a color.
+ */
+export function regeneratePalette(
+  palette: PaletteColor[],
+  brandInput: string,
+  locks: Locks,
+  random: () => number = Math.random,
+): PaletteColor[] | null {
+  const rgb = parseColorInput(brandInput)
+  if (!rgb) return null
+
+  const hsl = rgbToHsl(rgb)
+  const brand: PaletteColor = { hex: rgbToHex(rgb), hsl, rgb }
+  const varied = deriveSupportingColorsVaried(hsl, random)
+
+  const result: PaletteColor[] = []
+  let derivedIndex = 0
+  for (let slot = 0; slot < PALETTE_SIZE; slot += 1) {
+    if (slot === BRAND_SLOT_INDEX) {
+      result.push(brand)
+      continue
+    }
+
+    const variedColor = varied[derivedIndex]
+    derivedIndex += 1
+    const isLocked = locks[slot] ?? false
+    result.push(isLocked ? palette[slot] : variedColor)
+  }
+
+  return result
+}
