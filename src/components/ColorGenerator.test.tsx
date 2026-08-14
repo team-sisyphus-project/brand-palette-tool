@@ -1,10 +1,31 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ColorGenerator } from './ColorGenerator'
 
 function getInput(): HTMLInputElement {
   return screen.getByLabelText('브랜드 메인 컬러') as HTMLInputElement
+}
+
+/** All 5 rendered hex codes, in palette slot order. */
+function getHexes(list: HTMLElement): string[] {
+  return within(list)
+    .getAllByRole('listitem')
+    .map((item) => within(item).getByText(/^#[0-9a-f]{6}$/).textContent!)
+}
+
+/**
+ * ColorGenerator calls regeneratePalette() without an injected random source,
+ * so it falls back to Math.random(). Mocking it with a deterministic,
+ * ever-advancing sequence keeps "does regeneration actually change unlocked
+ * slots" assertions reproducible instead of relying on real randomness.
+ */
+function mockDeterministicRandom() {
+  let call = 0
+  vi.spyOn(Math, 'random').mockImplementation(() => {
+    call += 1
+    return (call % 97) / 97
+  })
 }
 
 describe('ColorGenerator', () => {
@@ -122,5 +143,74 @@ describe('ColorGenerator', () => {
   it('does not render a Regenerate button before a valid palette exists', () => {
     render(<ColorGenerator />)
     expect(screen.queryByRole('button', { name: '재생성' })).not.toBeInTheDocument()
+  })
+})
+
+describe('M-2: 잠금/재생성 통합', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('브랜드 메인 컬러는 초기 기본 잠금 상태로 시작한다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const brandLock = screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('임의 슬롯을 잠그고 반복 재생성해도 잠근 색은 불변이고 나머지 색은 계속 변한다', () => {
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
+    const lockedHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
+
+    fireEvent.click(derivedLock)
+    expect(derivedLock).toHaveAttribute('aria-pressed', 'true')
+
+    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    const snapshots = [getHexes(list)]
+    for (let round = 0; round < 3; round += 1) {
+      fireEvent.click(regenerateButton)
+      snapshots.push(getHexes(list))
+    }
+
+    // The locked hex survives every single regeneration round.
+    snapshots.forEach((hexes) => expect(hexes).toContain(lockedHex))
+
+    // The unlocked slots are not frozen: across the repeated regenerations,
+    // at least one of them actually produces a different color somewhere.
+    const unlockedSignatures = new Set(
+      snapshots.map((hexes) => hexes.filter((hex) => hex !== lockedHex).join(',')),
+    )
+    expect(unlockedSignatures.size).toBeGreaterThan(1)
+  })
+
+  it('잠금을 해제한 뒤 재생성하면 더 이상 고정되지 않고 값이 바뀐다', () => {
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
+    const targetHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
+    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+
+    fireEvent.click(derivedLock)
+    expect(derivedLock).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(regenerateButton)
+    expect(screen.getByText(targetHex)).toBeInTheDocument()
+
+    fireEvent.click(derivedLock)
+    expect(derivedLock).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(regenerateButton)
+    expect(screen.queryByText(targetHex)).not.toBeInTheDocument()
   })
 })
