@@ -1,0 +1,27 @@
+.palette-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--element-gap-xs);
+  width: 100%;
+}
+
+.palette-swatch__color {
+  width: 100%;
+  aspect-ratio: 1;
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+
+.palette-swatch__hex {
+  font-size: var(--text-size-sm);
+  font-weight: var(--text-weight-regular);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+}
+
+.palette-swatch__badge {
+  font-size: var(--text-size-sm);
+  font-weight: var(--text-weight-medium);
+  color: var(--color-text-primary);
+}

@@ -1,9 +1,12 @@
 import { defineConfig } from 'vitest/config'
 
-// Pure-logic unit tests only (no DOM needed yet) — see src/lib/palette.test.ts.
+// jsdom so component tests (src/**/*.test.tsx) can render with
+// @testing-library/react; plain logic tests (src/**/*.test.ts) run fine
+// under jsdom too, so one environment covers both.
 export default defineConfig({
   test: {
-    environment: 'node',
-    include: ['src/**/*.test.ts'],
+    environment: 'jsdom',
+    include: ['src/**/*.test.{ts,tsx}'],
+    setupFiles: ['./vitest.setup.ts'],
   },
 })

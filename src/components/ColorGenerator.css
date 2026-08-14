@@ -1,0 +1,7 @@
+.color-generator {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--element-gap-md);
+  width: 100%;
+}
