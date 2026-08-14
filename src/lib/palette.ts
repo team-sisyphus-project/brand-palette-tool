@@ -260,6 +260,37 @@ function deriveSupportingColorsVaried(base: HSL, random: () => number): PaletteC
 }
 
 /**
+ * Directly overrides a single palette slot with a user-chosen HEX color
+ * (e.g. from a color picker). Any slot - including the brand main color at
+ * `BRAND_SLOT_INDEX` - can be edited this way; there is no special-casing
+ * for the brand slot.
+ *
+ * - When `hexInput` is a valid HEX color and `index` is within bounds, returns
+ *   a new palette array with only that slot replaced by a freshly computed
+ *   `PaletteColor` (hex/rgb/hsl all recalculated from the input). All other
+ *   slots are the same object references as in the input `palette`.
+ * - When `hexInput` is not a valid HEX color, or `index` is out of range,
+ *   returns the original `palette` unchanged (same reference).
+ */
+export function updateSlotColor(
+  palette: PaletteColor[],
+  index: number,
+  hexInput: string,
+): PaletteColor[] {
+  if (index < 0 || index >= palette.length) return palette
+
+  const rgb = hexToRgb(hexInput)
+  if (!rgb) return palette
+
+  const hsl = rgbToHsl(rgb)
+  const updated: PaletteColor = { hex: rgbToHex(rgb), rgb, hsl }
+
+  const result = palette.slice()
+  result[index] = updated
+  return result
+}
+
+/**
  * Recomputes a palette while respecting per-slot locks.
  *
  * - The brand main color slot (`BRAND_SLOT_INDEX`) always reflects the

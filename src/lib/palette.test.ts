@@ -11,6 +11,7 @@ import {
   regeneratePalette,
   rgbToHex,
   rgbToHsl,
+  updateSlotColor,
 } from './palette'
 
 /** Deterministic, seedable PRNG (mulberry32) so regeneration tests are reproducible. */
@@ -282,5 +283,67 @@ describe('regeneratePalette', () => {
     for (const slot of [1, 2, 3, 4]) {
       expect(regenerated[slot]).toEqual(palette[slot])
     }
+  })
+})
+
+describe('updateSlotColor', () => {
+  it('replaces only the targeted slot, leaving the other 4 untouched', () => {
+    const palette = generatePalette('#3366ff')!
+
+    const updated = updateSlotColor(palette, 2, '#ff9900')
+
+    expect(updated[2].hex).toBe('#ff9900')
+    expect(updated[2].rgb).toEqual({ r: 255, g: 153, b: 0 })
+    for (const slot of [0, 1, 3, 4]) {
+      expect(updated[slot]).toEqual(palette[slot])
+    }
+  })
+
+  it('recomputes hex/rgb/hsl consistently for the updated slot', () => {
+    const palette = generatePalette('#3366ff')!
+    const updated = updateSlotColor(palette, 3, '#123abc')
+
+    const expectedRgb = hexToRgb('#123abc')!
+    const expectedHsl = rgbToHsl(expectedRgb)
+    expect(updated[3]).toEqual({ hex: '#123abc', rgb: expectedRgb, hsl: expectedHsl })
+  })
+
+  it('allows editing the brand slot (index 0) just like any other slot', () => {
+    const palette = generatePalette('#3366ff')!
+    const updated = updateSlotColor(palette, BRAND_SLOT_INDEX, '#00ff00')
+
+    expect(updated[BRAND_SLOT_INDEX].hex).toBe('#00ff00')
+    for (const slot of [1, 2, 3, 4]) {
+      expect(updated[slot]).toEqual(palette[slot])
+    }
+  })
+
+  it('accepts 3-digit shorthand hex input', () => {
+    const palette = generatePalette('#3366ff')!
+    const updated = updateSlotColor(palette, 1, '#0f0')
+
+    expect(updated[1].hex).toBe('#00ff00')
+  })
+
+  it('returns the original palette unchanged when hexInput is invalid', () => {
+    const palette = generatePalette('#3366ff')!
+    const updated = updateSlotColor(palette, 2, 'not-a-color')
+
+    expect(updated).toEqual(palette)
+    expect(updated).toBe(palette)
+  })
+
+  it('returns the original palette unchanged when index is out of range', () => {
+    const palette = generatePalette('#3366ff')!
+    const updated = updateSlotColor(palette, 10, '#ff9900')
+
+    expect(updated).toBe(palette)
+  })
+
+  it('returns the original palette unchanged for a negative index', () => {
+    const palette = generatePalette('#3366ff')!
+    const updated = updateSlotColor(palette, -1, '#ff9900')
+
+    expect(updated).toBe(palette)
   })
 })
