@@ -1,0 +1,179 @@
+import { describe, expect, it } from 'vitest'
+import {
+  BRAND_SLOT_INDEX,
+  PALETTE_SIZE,
+  generatePalette,
+  hexToRgb,
+  hslToRgb,
+  parseColorInput,
+  parseRgbString,
+  rgbToHex,
+  rgbToHsl,
+} from './palette'
+
+describe('hexToRgb', () => {
+  it('parses 6-digit hex with a leading #', () => {
+    expect(hexToRgb('#3366ff')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('parses 6-digit hex without a leading #', () => {
+    expect(hexToRgb('3366FF')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('expands 3-digit shorthand hex', () => {
+    expect(hexToRgb('#0f0')).toEqual({ r: 0, g: 255, b: 0 })
+  })
+
+  it('returns null for invalid hex', () => {
+    expect(hexToRgb('not-a-color')).toBeNull()
+    expect(hexToRgb('#12345')).toBeNull()
+  })
+})
+
+describe('rgbToHex', () => {
+  it('round-trips rgb to lowercase hex', () => {
+    expect(rgbToHex({ r: 51, g: 102, b: 255 })).toBe('#3366ff')
+  })
+
+  it('pads single-digit hex channels', () => {
+    expect(rgbToHex({ r: 0, g: 5, b: 255 })).toBe('#0005ff')
+  })
+})
+
+describe('parseRgbString', () => {
+  it('parses rgb(...) syntax', () => {
+    expect(parseRgbString('rgb(51, 102, 255)')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('parses bare comma-separated triplets', () => {
+    expect(parseRgbString('51,102,255')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('returns null for out-of-range channels', () => {
+    expect(parseRgbString('300,0,0')).toBeNull()
+  })
+
+  it('returns null for malformed input', () => {
+    expect(parseRgbString('red')).toBeNull()
+  })
+})
+
+describe('parseColorInput', () => {
+  it('accepts hex input', () => {
+    expect(parseColorInput('#3366ff')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('accepts rgb input', () => {
+    expect(parseColorInput('rgb(51, 102, 255)')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('returns null for garbage input', () => {
+    expect(parseColorInput('totally invalid')).toBeNull()
+  })
+})
+
+describe('rgbToHsl / hslToRgb round trip', () => {
+  it('converts pure red correctly', () => {
+    const hsl = rgbToHsl({ r: 255, g: 0, b: 0 })
+    expect(hsl.h).toBeCloseTo(0)
+    expect(hsl.s).toBeCloseTo(100)
+    expect(hsl.l).toBeCloseTo(50)
+  })
+
+  it('converts white and black correctly', () => {
+    expect(rgbToHsl({ r: 255, g: 255, b: 255 })).toEqual({ h: 0, s: 0, l: 100 })
+    expect(rgbToHsl({ r: 0, g: 0, b: 0 })).toEqual({ h: 0, s: 0, l: 0 })
+  })
+
+  it('round-trips arbitrary colors within rounding tolerance', () => {
+    const samples = [
+      { r: 51, g: 102, b: 255 },
+      { r: 200, g: 50, b: 90 },
+      { r: 10, g: 200, b: 120 },
+      { r: 128, g: 128, b: 128 },
+    ]
+
+    for (const rgb of samples) {
+      const roundTripped = hslToRgb(rgbToHsl(rgb))
+      expect(roundTripped.r).toBeCloseTo(rgb.r, 0)
+      expect(roundTripped.g).toBeCloseTo(rgb.g, 0)
+      expect(roundTripped.b).toBeCloseTo(rgb.b, 0)
+    }
+  })
+})
+
+describe('generatePalette', () => {
+  it('immediately produces a 5-color array from a hex input', () => {
+    const palette = generatePalette('#3366ff')
+    expect(palette).not.toBeNull()
+    expect(palette).toHaveLength(PALETTE_SIZE)
+  })
+
+  it('immediately produces a 5-color array from an rgb input', () => {
+    const palette = generatePalette('rgb(51, 102, 255)')
+    expect(palette).not.toBeNull()
+    expect(palette).toHaveLength(PALETTE_SIZE)
+  })
+
+  it('keeps the brand main color at the fixed slot', () => {
+    const palette = generatePalette('#3366ff')!
+    expect(palette[BRAND_SLOT_INDEX].hex).toBe('#3366ff')
+    expect(palette[BRAND_SLOT_INDEX].rgb).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('keeps the brand slot fixed across different inputs', () => {
+    const a = generatePalette('#ff0000')!
+    const b = generatePalette('#00ff00')!
+    expect(a[BRAND_SLOT_INDEX].hex).toBe('#ff0000')
+    expect(b[BRAND_SLOT_INDEX].hex).toBe('#00ff00')
+  })
+
+  it('produces 5 distinct colors for a typical brand color', () => {
+    const palette = generatePalette('#3366ff')!
+    const uniqueHexes = new Set(palette.map((c) => c.hex))
+    expect(uniqueHexes.size).toBe(PALETTE_SIZE)
+  })
+
+  it('is deterministic for the same input', () => {
+    const first = generatePalette('#3366ff')
+    const second = generatePalette('#3366ff')
+    expect(first).toEqual(second)
+  })
+
+  it('returns valid hex/rgb/hsl for every generated slot', () => {
+    const palette = generatePalette('#3366ff')!
+    for (const color of palette) {
+      expect(color.hex).toMatch(/^#[0-9a-f]{6}$/)
+      expect(color.rgb.r).toBeGreaterThanOrEqual(0)
+      expect(color.rgb.r).toBeLessThanOrEqual(255)
+      expect(color.hsl.h).toBeGreaterThanOrEqual(0)
+      expect(color.hsl.h).toBeLessThan(360)
+      expect(color.hsl.s).toBeGreaterThanOrEqual(0)
+      expect(color.hsl.s).toBeLessThanOrEqual(100)
+      expect(color.hsl.l).toBeGreaterThanOrEqual(0)
+      expect(color.hsl.l).toBeLessThanOrEqual(100)
+    }
+  })
+
+  it('returns null for unparseable input', () => {
+    expect(generatePalette('not a color')).toBeNull()
+  })
+
+  it('handles edge-case achromatic input (black) without NaN', () => {
+    const palette = generatePalette('#000000')!
+    expect(palette).toHaveLength(PALETTE_SIZE)
+    for (const color of palette) {
+      expect(Number.isNaN(color.hsl.h)).toBe(false)
+      expect(Number.isNaN(color.rgb.r)).toBe(false)
+    }
+  })
+
+  it('handles edge-case achromatic input (white) without NaN', () => {
+    const palette = generatePalette('#ffffff')!
+    expect(palette).toHaveLength(PALETTE_SIZE)
+    for (const color of palette) {
+      expect(Number.isNaN(color.hsl.h)).toBe(false)
+      expect(Number.isNaN(color.rgb.r)).toBe(false)
+    }
+  })
+})
