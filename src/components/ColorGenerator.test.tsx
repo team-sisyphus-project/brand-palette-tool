@@ -288,3 +288,70 @@ describe('grain-2: 컬러 피커로 팔레트 색상 직접 수정', () => {
     expect(screen.getByText('#00ff00')).toBeInTheDocument()
   })
 })
+
+describe('grain-2: 생성 모드 선택 (M-3)', () => {
+  const MODE_LABELS = ['차분함', '밝음', '대비', '모노톤', '명도']
+
+  it('팔레트가 있을 때 5개 생성 모드 버튼이 모두 노출된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const group = screen.getByRole('group', { name: '생성 모드 선택' })
+    MODE_LABELS.forEach((label) => {
+      expect(within(group).getByRole('button', { name: label })).toBeInTheDocument()
+    })
+  })
+
+  it('생성 모드 버튼은 팔레트가 없을 때는 렌더링되지 않는다', () => {
+    render(<ColorGenerator />)
+    expect(screen.queryByRole('group', { name: '생성 모드 선택' })).not.toBeInTheDocument()
+  })
+
+  it('기본 생성 모드(차분함)가 처음부터 선택 표시된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    expect(screen.getByRole('button', { name: '차분함' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('동일 브랜드 입력에서 5개 모드를 각각 선택하면 서로 다른 팔레트가 즉시 렌더링된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const signatures = MODE_LABELS.map((label) => {
+      const button = screen.getByRole('button', { name: label })
+      fireEvent.click(button)
+      expect(button).toHaveAttribute('aria-pressed', 'true')
+      return getHexes(list).join(',')
+    })
+
+    // Spec A's M-3: all 5 modes must produce a distinct palette for the same brand input.
+    expect(new Set(signatures).size).toBe(MODE_LABELS.length)
+  })
+
+  it('모드를 전환해도 브랜드 메인 컬러 슬롯은 그대로 유지된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    for (const label of ['밝음', '대비', '모노톤', '명도', '차분함']) {
+      fireEvent.click(screen.getByRole('button', { name: label }))
+      expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    }
+  })
+
+  it('파생 슬롯을 잠근 뒤 모드를 전환해도 잠긴 색상은 바뀌지 않는다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const derivedLock = findLockButtonHex(list, false)
+    fireEvent.click(screen.getByRole('button', { name: `${derivedLock} 색상 잠금 토글` }))
+
+    fireEvent.click(screen.getByRole('button', { name: '밝음' }))
+    expect(screen.getByText(derivedLock)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '대비' }))
+    expect(screen.getByText(derivedLock)).toBeInTheDocument()
+  })
+})
