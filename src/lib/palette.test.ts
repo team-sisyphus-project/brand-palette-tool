@@ -87,6 +87,33 @@ describe('parseColorInput', () => {
   it('returns null for garbage input', () => {
     expect(parseColorInput('totally invalid')).toBeNull()
   })
+
+  // Edge cases called out explicitly by grain-1: surrounding whitespace,
+  // upper/mixed case HEX, and 3-digit shorthand HEX must all parse the same
+  // as their canonical form so M-1 ("HEX 입력만으로 즉시 팔레트 생성") holds
+  // for real-world typed input, not just the canonical lowercase 6-digit form.
+  it('trims surrounding whitespace around hex input', () => {
+    expect(parseColorInput('  #3366ff  ')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('accepts uppercase and mixed-case hex input', () => {
+    expect(parseColorInput('#3366FF')).toEqual({ r: 51, g: 102, b: 255 })
+    expect(parseColorInput('#3366Ff')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('accepts 3-digit shorthand hex input', () => {
+    expect(parseColorInput('#36f')).toEqual({ r: 51, g: 102, b: 255 })
+    expect(parseColorInput('36F')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('trims surrounding whitespace and tolerates spacing around rgb commas', () => {
+    expect(parseColorInput('  51 , 102 , 255  ')).toEqual({ r: 51, g: 102, b: 255 })
+    expect(parseColorInput(' rgb(51,102,255) ')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('accepts uppercase RGB() function syntax', () => {
+    expect(parseColorInput('RGB(51, 102, 255)')).toEqual({ r: 51, g: 102, b: 255 })
+  })
 })
 
 describe('rgbToHsl / hslToRgb round trip', () => {
@@ -192,6 +219,22 @@ describe('generatePalette', () => {
       expect(Number.isNaN(color.hsl.h)).toBe(false)
       expect(Number.isNaN(color.rgb.r)).toBe(false)
     }
+  })
+
+  it('produces the same brand-slot color for whitespace-padded, uppercase, and 3-digit hex variants (M-1 edge cases)', () => {
+    const canonical = generatePalette('#3366ff')!
+    const paddedUpper = generatePalette('  #3366FF  ')!
+    const shorthand = generatePalette('#36f')!
+
+    expect(paddedUpper[BRAND_SLOT_INDEX].hex).toBe(canonical[BRAND_SLOT_INDEX].hex)
+    expect(shorthand[BRAND_SLOT_INDEX].hex).toBe(canonical[BRAND_SLOT_INDEX].hex)
+  })
+
+  it('produces the same brand-slot color for whitespace-padded rgb input', () => {
+    const canonical = generatePalette('#3366ff')!
+    const paddedRgb = generatePalette('  51 , 102 , 255  ')!
+
+    expect(paddedRgb[BRAND_SLOT_INDEX].hex).toBe(canonical[BRAND_SLOT_INDEX].hex)
   })
 })
 

@@ -157,6 +157,42 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     expect(screen.queryByRole('button', { name: '재생성' })).not.toBeInTheDocument()
   })
+
+  // Grain-1 edge cases: parseColorInput/generatePalette already normalize
+  // whitespace, case, and 3-digit hex — these confirm the same holds through
+  // the real ColorInput -> ColorGenerator wiring, not just the pure functions.
+  it('renders a palette immediately for whitespace-padded, uppercase hex input', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '  #3366FF  ' } })
+
+    expect(screen.getByRole('list', { name: '생성된 5색 팔레트' })).toBeInTheDocument()
+    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('renders a palette immediately for 3-digit shorthand hex input', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#36f' } })
+
+    expect(screen.getByRole('list', { name: '생성된 5색 팔레트' })).toBeInTheDocument()
+    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+  })
+
+  it('renders a palette immediately for whitespace-padded rgb input', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '  51 , 102 , 255  ' } })
+
+    expect(screen.getByRole('list', { name: '생성된 5색 팔레트' })).toBeInTheDocument()
+    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+  })
+
+  it('renders the brand slot locked by default even for uppercase/whitespace/shorthand input variants', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '  #36F  ' } })
+
+    const brandLock = screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+  })
 })
 
 describe('M-2: 잠금/재생성 통합', () => {
