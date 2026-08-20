@@ -193,6 +193,37 @@ describe('ColorGenerator', () => {
     const brandLock = screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' })
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
   })
+
+  // Grain-1 DoneWhen: "동일 입력 재입력 시 동일 결과" must hold through the real
+  // ColorInput -> useMemo(generatePalette) -> Palette wiring, not just at the
+  // pure-function level (already covered in palette.test.ts).
+  it('re-entering the exact same brand input (after typing something else) renders the identical 5-color palette', () => {
+    render(<ColorGenerator />)
+    const input = getInput()
+
+    fireEvent.change(input, { target: { value: '#3366ff' } })
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const firstPass = getHexes(list)
+
+    fireEvent.change(input, { target: { value: '#ff0000' } })
+    expect(getHexes(list)).not.toEqual(firstPass)
+
+    fireEvent.change(input, { target: { value: '#3366ff' } })
+    expect(getHexes(list)).toEqual(firstPass)
+  })
+
+  it('renders the same 5-color palette for a fresh mount given the same brand input (no hidden randomness in the base path)', () => {
+    const { unmount } = render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    const firstPass = getHexes(screen.getByRole('list', { name: '생성된 5색 팔레트' }))
+    unmount()
+
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    const secondPass = getHexes(screen.getByRole('list', { name: '생성된 5색 팔레트' }))
+
+    expect(secondPass).toEqual(firstPass)
+  })
 })
 
 describe('M-2: 잠금/재생성 통합', () => {
