@@ -466,3 +466,108 @@ export function regeneratePalette(
 
   return result
 }
+
+/**
+ * Circular (vector) mean of a set of hue angles (degrees). A plain
+ * arithmetic mean is wrong for hue because it wraps at 360 - e.g. averaging
+ * 350 and 10 arithmetically gives 180 (the opposite side of the wheel) when
+ * the perceptually correct answer is 0. Averaging each hue's unit vector
+ * (cos, sin) and taking the angle back out handles the wraparound correctly.
+ */
+function circularMeanHue(hues: number[]): number {
+  const radians = hues.map((h) => (normalizeHue(h) * Math.PI) / 180)
+  const sumSin = radians.reduce((acc, r) => acc + Math.sin(r), 0)
+  const sumCos = radians.reduce((acc, r) => acc + Math.cos(r), 0)
+  const meanRad = Math.atan2(sumSin / radians.length, sumCos / radians.length)
+  return normalizeHue((meanRad * 180) / Math.PI)
+}
+
+/**
+ * Averages every color in a generated palette (brand slot included - spec A
+ * "평균 H·S·L") into a single HSL summary used by `getMoodTags` (M-4). Hue is
+ * averaged circularly via `circularMeanHue` since it is a wraparound angle;
+ * saturation and lightness are plain arithmetic means.
+ */
+export function averageHsl(palette: PaletteColor[]): HSL {
+  const h = circularMeanHue(palette.map((color) => color.hsl.h))
+  const s = palette.reduce((sum, color) => sum + color.hsl.s, 0) / palette.length
+  const l = palette.reduce((sum, color) => sum + color.hsl.l, 0) / palette.length
+  return { h, s, l }
+}
+
+/**
+ * Deterministic, non-AI adjective mood-tag lookup for spec A's "감정/무드
+ * 태그" (M-4). Every boundary below is a fixed threshold chosen to divide
+ * the H/S/L ranges into named bands - it is not derived from a cited study,
+ * so each is marked "(가정 — 확인 필요)" per spec A's instruction to flag
+ * assumed thresholds for confirmation.
+ *
+ * - H (색온도, hue): warm/cool/neutral bands.
+ * - S (채도) x L (명도): a 3x3 lookup table, chosen per spec A's cited
+ *   rationale that saturation correlates with arousal and lightness
+ *   correlates with valence in color-psychology research.
+ */
+
+// H 색온도 구간 경계. 0-60°/300-360°(빨강~주황~자주)는 난색, 180-300°(청록~
+// 파랑~보라)는 한색, 그 사이(60-180°, 노랑~초록~청록)는 중성으로 분류한다.
+const WARM_HUE_MAX = 60 // (가정 — 확인 필요)
+const COOL_HUE_MIN = 180 // (가정 — 확인 필요)
+const COOL_HUE_MAX = 300 // (가정 — 확인 필요)
+
+function hueMoodWord(h: number): string {
+  const hue = normalizeHue(h)
+  if (hue >= COOL_HUE_MIN && hue < COOL_HUE_MAX) return '차가운'
+  if (hue >= WARM_HUE_MAX && hue < COOL_HUE_MIN) return '자연스러운'
+  return '따뜻한'
+}
+
+type Band = 'low' | 'mid' | 'high'
+
+// S 채도 구간 경계 (채도-각성 상관: 고채도 = 높은 각성, 저채도 = 낮은 각성).
+const LOW_SATURATION_MAX = 30 // (가정 — 확인 필요)
+const HIGH_SATURATION_MIN = 60 // (가정 — 확인 필요)
+
+function saturationBand(s: number): Band {
+  if (s < LOW_SATURATION_MAX) return 'low'
+  if (s >= HIGH_SATURATION_MIN) return 'high'
+  return 'mid'
+}
+
+// L 명도 구간 경계 (명도-정서 상관: 고명도 = 밝은/긍정적 정서, 저명도 = 무거운 정서).
+const LOW_LIGHTNESS_MAX = 35 // (가정 — 확인 필요)
+const HIGH_LIGHTNESS_MIN = 65 // (가정 — 확인 필요)
+
+function lightnessBand(l: number): Band {
+  if (l < LOW_LIGHTNESS_MAX) return 'low'
+  if (l >= HIGH_LIGHTNESS_MIN) return 'high'
+  return 'mid'
+}
+
+/**
+ * S(각성) x L(정서) 조합 룩업 테이블 (가정 — 확인 필요). 각 셀은 채도-각성,
+ * 명도-정서 상관에 근거한 형용사 하나로 고정 매핑되며 값 변경 시 룩업표만
+ * 갱신하면 된다 (AI 판단 없음).
+ */
+const SATURATION_LIGHTNESS_MOOD: Record<Band, Record<Band, string>> = {
+  high: { high: '발랄한', mid: '역동적인', low: '강렬한' },
+  mid: { high: '산뜻한', mid: '균형 잡힌', low: '묵직한' },
+  low: { high: '은은한', mid: '차분한', low: '고요한' },
+}
+
+function saturationLightnessMoodWord(s: number, l: number): string {
+  return SATURATION_LIGHTNESS_MOOD[saturationBand(s)][lightnessBand(l)]
+}
+
+/**
+ * Pure function: the same HSL input always yields the same 1-2 adjectives
+ * (no AI, no randomness) - spec A's M-4 requirement. Combines a hue-based
+ * color-temperature word with a saturation x lightness (arousal x valence)
+ * word, each from the fixed lookup tables above. The two lookups draw from
+ * disjoint vocabularies so they are deduped defensively in case a future
+ * table edit makes them collide, but always return at least 1 word.
+ */
+export function getMoodTags(hsl: HSL): string[] {
+  const hueWord = hueMoodWord(hsl.h)
+  const slWord = saturationLightnessMoodWord(hsl.s, hsl.l)
+  return hueWord === slWord ? [hueWord] : [hueWord, slWord]
+}

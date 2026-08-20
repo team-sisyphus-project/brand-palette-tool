@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import {
   GENERATION_MODES,
+  averageHsl,
   createInitialLocks,
   generatePalette,
+  getMoodTags,
   regeneratePalette,
   updateSlotColor,
   type GenerationMode,
@@ -11,6 +13,7 @@ import {
 } from '../lib/palette'
 import { ColorInput } from './ColorInput'
 import { ModeSelector } from './ModeSelector'
+import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
 import './ColorGenerator.css'
 
@@ -40,6 +43,12 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * Selecting a mode immediately recomputes the palette for that mode while
  * keeping locked slots unchanged (M-3; see context/decisions/ for why this
  * reuses generatePalette() instead of the jittered regenerate path).
+ *
+ * Next to the palette, a MoodTag always shows the 1-2 deterministic mood
+ * adjectives that getMoodTags(averageHsl(palette)) derives from the current
+ * palette's averaged H/S/L via a fixed lookup table - no AI judgment (M-4).
+ * It recomputes on every palette change (regenerate, mode switch, lock, or
+ * manual color edit) since all of those replace `palette`.
  */
 export function ColorGenerator() {
   const [inputValue, setInputValue] = useState('')
@@ -54,6 +63,7 @@ export function ColorGenerator() {
   )
   const isInvalid = trimmed !== '' && basePalette === null
   const palette = regenerated ?? basePalette
+  const moodTags = useMemo(() => (palette ? getMoodTags(averageHsl(palette)) : []), [palette])
 
   const handleInputChange = (value: string) => {
     setInputValue(value)
@@ -103,6 +113,7 @@ export function ColorGenerator() {
             onToggleLock={handleToggleLock}
             onColorChange={handleSlotColorChange}
           />
+          <MoodTag tags={moodTags} />
           <button
             type="button"
             className="color-generator__regenerate"

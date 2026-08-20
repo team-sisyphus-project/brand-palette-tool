@@ -3,8 +3,10 @@ import {
   BRAND_SLOT_INDEX,
   GENERATION_MODES,
   PALETTE_SIZE,
+  averageHsl,
   createInitialLocks,
   generatePalette,
+  getMoodTags,
   hexToRgb,
   hslToRgb,
   parseColorInput,
@@ -14,6 +16,8 @@ import {
   rgbToHsl,
   updateSlotColor,
   type GenerationMode,
+  type HSL,
+  type PaletteColor,
 } from './palette'
 
 /** Deterministic, seedable PRNG (mulberry32) so regeneration tests are reproducible. */
@@ -594,5 +598,113 @@ describe('updateSlotColor', () => {
     const updated = updateSlotColor(palette, -1, '#ff9900')
 
     expect(updated).toBe(palette)
+  })
+})
+
+/**
+ * Builds a `PaletteColor` from just an HSL triplet for averageHsl/getMoodTags
+ * tests - hex/rgb are irrelevant to those functions (they only read `.hsl`),
+ * so dummy values avoid coupling these tests to hslToRgb rounding.
+ */
+function colorWithHsl(hsl: HSL): PaletteColor {
+  return { hex: '#000000', rgb: { r: 0, g: 0, b: 0 }, hsl }
+}
+
+/** Shortest angular distance between two hues, wraparound-aware. */
+function hueDistance(a: number, b: number): number {
+  const diff = Math.abs(a - b) % 360
+  return Math.min(diff, 360 - diff)
+}
+
+describe('averageHsl', () => {
+  it('averages S and L arithmetically when hue is uniform (no wraparound involved)', () => {
+    const palette = [
+      { h: 0, s: 0, l: 10 },
+      { h: 0, s: 20, l: 30 },
+      { h: 0, s: 40, l: 50 },
+      { h: 0, s: 60, l: 70 },
+      { h: 0, s: 80, l: 90 },
+    ].map(colorWithHsl)
+
+    const result = averageHsl(palette)
+    expect(result.s).toBeCloseTo(40)
+    expect(result.l).toBeCloseTo(50)
+    expect(hueDistance(result.h, 0)).toBeLessThan(0.001)
+  })
+
+  it('averages hue circularly across the 0/360 wraparound instead of arithmetically', () => {
+    // Arithmetic mean of {10, 350} would be 180 (perceptually opposite side
+    // of the wheel) - the correct, wraparound-aware answer is ~0.
+    const palette = [
+      { h: 10, s: 50, l: 50 },
+      { h: 350, s: 50, l: 50 },
+      { h: 10, s: 50, l: 50 },
+      { h: 350, s: 50, l: 50 },
+      { h: 0, s: 50, l: 50 },
+    ].map(colorWithHsl)
+
+    const result = averageHsl(palette)
+    expect(hueDistance(result.h, 0)).toBeLessThan(0.001)
+    expect(hueDistance(result.h, 180)).toBeGreaterThan(100)
+    expect(result.s).toBeCloseTo(50)
+    expect(result.l).toBeCloseTo(50)
+  })
+
+  it('returns the same HSL unchanged when every palette color is identical', () => {
+    const palette = Array.from({ length: 5 }, () => colorWithHsl({ h: 123, s: 45, l: 67 }))
+    const result = averageHsl(palette)
+
+    expect(hueDistance(result.h, 123)).toBeLessThan(0.001)
+    expect(result.s).toBeCloseTo(45)
+    expect(result.l).toBeCloseTo(67)
+  })
+
+  it('is deterministic: the same palette always averages to the same HSL', () => {
+    const palette = generatePalette('#3366ff')!
+    expect(averageHsl(palette)).toEqual(averageHsl(palette))
+  })
+})
+
+describe('getMoodTags', () => {
+  it('is a pure function: the same HSL input always yields the same tags', () => {
+    const hsl: HSL = { h: 200, s: 55, l: 40 }
+    expect(getMoodTags(hsl)).toEqual(getMoodTags(hsl))
+    expect(getMoodTags({ ...hsl })).toEqual(getMoodTags({ ...hsl }))
+  })
+
+  it('always returns 1 or 2 tags across the H/S/L band grid', () => {
+    const hues = [0, 30, 60, 90, 150, 180, 240, 299, 300, 330, 359]
+    const levels = [0, 15, 30, 45, 60, 75, 90, 100]
+
+    for (const h of hues) {
+      for (const s of levels) {
+        for (const l of levels) {
+          const tags = getMoodTags({ h, s, l })
+          expect(tags.length).toBeGreaterThanOrEqual(1)
+          expect(tags.length).toBeLessThanOrEqual(2)
+          expect(new Set(tags).size).toBe(tags.length) // no duplicate tags
+        }
+      }
+    }
+  })
+
+  it('maps a warm, vivid, bright HSL to warm + high-arousal/high-valence adjectives', () => {
+    expect(getMoodTags({ h: 30, s: 70, l: 80 })).toEqual(['따뜻한', '발랄한'])
+  })
+
+  it('maps a cool, muted, dark HSL to cool + low-arousal/low-valence adjectives', () => {
+    expect(getMoodTags({ h: 240, s: 10, l: 20 })).toEqual(['차가운', '고요한'])
+  })
+
+  it('maps a neutral-hue, mid-saturation, mid-lightness HSL to neutral + balanced adjectives', () => {
+    expect(getMoodTags({ h: 120, s: 45, l: 50 })).toEqual(['자연스러운', '균형 잡힌'])
+  })
+
+  it('treats the neutral hue band boundary (60deg) as neutral, not warm', () => {
+    expect(getMoodTags({ h: 60, s: 45, l: 50 })[0]).toBe('자연스러운')
+  })
+
+  it('treats the cool hue band boundary (300deg) as warm, not cool', () => {
+    expect(getMoodTags({ h: 300, s: 45, l: 50 })[0]).toBe('따뜻한')
   })
 })

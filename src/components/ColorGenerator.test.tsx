@@ -557,3 +557,71 @@ describe('grain-2: 생성 모드 선택 (M-3)', () => {
     expect(screen.getByText(derivedLock)).toBeInTheDocument()
   })
 })
+
+// grain-1: 평균 H·S·L 기반 결정론적 감정/무드 태그 (M-4). MoodTag는
+// getMoodTags(averageHsl(palette))의 결과를 그대로 렌더링만 하므로, 여기서는
+// "팔레트가 있을 때마다 1-2개 태그가 항상 노출되는가"와 "동일 입력이면 동일
+// 태그인가(결정론성)"를 ColorGenerator 배선 레벨에서 검증한다. 개별 H/S/L
+// 구간 -> 단어 매핑의 세부 규칙은 palette.test.ts의 getMoodTags 단위 테스트가
+// 담당한다.
+describe('grain-1: 감정/무드 태그 (M-4)', () => {
+  function getMoodTagList(): HTMLElement {
+    return screen.getByRole('list', { name: '팔레트 무드 태그' })
+  }
+
+  it('팔레트가 없을 때는 무드 태그도 렌더링되지 않는다', () => {
+    render(<ColorGenerator />)
+    expect(screen.queryByRole('list', { name: '팔레트 무드 태그' })).not.toBeInTheDocument()
+  })
+
+  it('유효한 색상을 입력하면 팔레트와 함께 1~2개의 무드 태그가 즉시 표시된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const tags = within(getMoodTagList()).getAllByRole('listitem')
+    expect(tags.length).toBeGreaterThanOrEqual(1)
+    expect(tags.length).toBeLessThanOrEqual(2)
+    tags.forEach((tag) => expect(tag.textContent).not.toBe(''))
+  })
+
+  it('동일한 브랜드 입력을 재입력하면 동일한 무드 태그가 표시된다 (결정론성)', () => {
+    render(<ColorGenerator />)
+    const input = getInput()
+
+    fireEvent.change(input, { target: { value: '#3366ff' } })
+    const firstTags = within(getMoodTagList())
+      .getAllByRole('listitem')
+      .map((tag) => tag.textContent)
+
+    fireEvent.change(input, { target: { value: '#ff0000' } })
+    fireEvent.change(input, { target: { value: '#3366ff' } })
+    const secondTags = within(getMoodTagList())
+      .getAllByRole('listitem')
+      .map((tag) => tag.textContent)
+
+    expect(secondTags).toEqual(firstTags)
+  })
+
+  it('생성 모드를 바꾸며 팔레트를 재계산해도 매번 1~2개의 무드 태그가 표시된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    for (const label of ['유사색', '트라이애딕', '스플릿보색', '모노크로매틱', '보색']) {
+      fireEvent.click(screen.getByRole('button', { name: label }))
+      const tags = within(getMoodTagList()).getAllByRole('listitem')
+      expect(tags.length).toBeGreaterThanOrEqual(1)
+      expect(tags.length).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('재생성 후에도 무드 태그가 계속 1~2개 범위로 표시된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    fireEvent.click(screen.getByRole('button', { name: '재생성' }))
+
+    const tags = within(getMoodTagList()).getAllByRole('listitem')
+    expect(tags.length).toBeGreaterThanOrEqual(1)
+    expect(tags.length).toBeLessThanOrEqual(2)
+  })
+})
