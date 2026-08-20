@@ -1,0 +1,66 @@
+.palette-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--element-gap-xs);
+  width: 100%;
+}
+
+.palette-swatch__preview {
+  position: relative;
+  width: 100%;
+}
+
+.palette-swatch__color {
+  width: 100%;
+  aspect-ratio: 1;
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+
+/*
+ * Invisible native color-picker control layered over the preview swatch.
+ * It introduces no new design values: position/inset/opacity/cursor here
+ * are implementation settings (per policy/coding.md), and padding/border
+ * are reset to 0 rather than tokenized because they only strip the native
+ * input chrome that opacity: 0 already hides.
+ */
+.palette-swatch__color-picker {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.palette-swatch__hex {
+  font-size: var(--text-size-sm);
+  font-weight: var(--text-weight-regular);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+}
+
+.palette-swatch__badge {
+  font-size: var(--text-size-sm);
+  font-weight: var(--text-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.palette-swatch__lock {
+  padding: var(--content-padding-sm);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--text-size-sm);
+  cursor: pointer;
+}
+
+.palette-swatch__lock[aria-pressed='true'] {
+  border-color: var(--color-action-bg);
+  color: var(--color-action-bg);
+  font-weight: var(--text-weight-medium);
+}

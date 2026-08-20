@@ -1,0 +1,42 @@
+:root {
+  color-scheme: light dark;
+
+  /* Design tokens — color */
+  --color-bg-surface: #ffffff;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #6b7280;
+  --color-border-default: #d1d5db;
+  --color-border-focus: #2563eb;
+  --color-state-error: #dc2626;
+  --color-state-error-bg: #fef2f2;
+  --color-action-bg: #2563eb;
+  --color-text-on-action: #ffffff;
+
+  /* Design tokens — typography */
+  --text-size-sm: 0.75rem;
+  --text-size-md: 0.875rem;
+  --text-weight-regular: 400;
+  --text-weight-medium: 600;
+  --line-height-normal: 1.5;
+
+  /* Design tokens — spacing */
+  --element-gap-xs: 4px;
+  --element-gap-md: 16px;
+  --content-padding-sm: 8px;
+  --content-padding-md: 12px;
+  --content-padding-lg: 2rem;
+
+  /* Design tokens — radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+
+  /* Design tokens — border */
+  --border-width-default: 1px;
+  --border-width-focus: 2px;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}

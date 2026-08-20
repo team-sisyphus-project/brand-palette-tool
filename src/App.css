@@ -1,0 +1,6 @@
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--content-padding-lg);
+  text-align: center;
+}
