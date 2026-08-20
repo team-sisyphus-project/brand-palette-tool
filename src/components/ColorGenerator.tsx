@@ -5,12 +5,14 @@ import {
   createInitialLocks,
   generatePalette,
   getMoodTags,
+  matchAesthetic,
   regeneratePalette,
   updateSlotColor,
   type GenerationMode,
   type Locks,
   type PaletteColor,
 } from '../lib/palette'
+import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
 import { ModeSelector } from './ModeSelector'
 import { MoodTag } from './MoodTag'
@@ -49,6 +51,13 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * palette's averaged H/S/L via a fixed lookup table - no AI judgment (M-4).
  * It recomputes on every palette change (regenerate, mode switch, lock, or
  * manual color edit) since all of those replace `palette`.
+ *
+ * An AestheticMatch is always computed alongside MoodTag via
+ * matchAesthetic(averageHsl(palette)) - the closest of 10 predefined
+ * aesthetic archetypes by HSL distance, or null when even the closest one is
+ * too far (M-5). AestheticMatch itself renders nothing when the match is
+ * null, so no aesthetic name is ever forced onto the screen without a close
+ * enough candidate.
  */
 export function ColorGenerator() {
   const [inputValue, setInputValue] = useState('')
@@ -64,6 +73,10 @@ export function ColorGenerator() {
   const isInvalid = trimmed !== '' && basePalette === null
   const palette = regenerated ?? basePalette
   const moodTags = useMemo(() => (palette ? getMoodTags(averageHsl(palette)) : []), [palette])
+  const aestheticMatch = useMemo(
+    () => (palette ? matchAesthetic(averageHsl(palette)) : null),
+    [palette],
+  )
 
   const handleInputChange = (value: string) => {
     setInputValue(value)
@@ -114,6 +127,7 @@ export function ColorGenerator() {
             onColorChange={handleSlotColorChange}
           />
           <MoodTag tags={moodTags} />
+          <AestheticMatch match={aestheticMatch} />
           <button
             type="button"
             className="color-generator__regenerate"

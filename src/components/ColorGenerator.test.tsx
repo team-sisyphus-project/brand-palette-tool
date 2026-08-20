@@ -625,3 +625,47 @@ describe('grain-1: 감정/무드 태그 (M-4)', () => {
     expect(tags.length).toBeLessThanOrEqual(2)
   })
 })
+
+// grain-1: 팔레트 평균 HSL 기반 aesthetic 아키타입 매칭 (M-5). AestheticMatch는
+// matchAesthetic(averageHsl(palette))의 결과를 그대로 렌더링만 하므로, 여기서는
+// "임계값 이내면 아키타입 이름 1개가 표시되는가"와 "임계값 밖이면 아무 것도
+// 표시되지 않는가"를 ColorGenerator 배선 레벨에서 검증한다. 거리 계산/룩업
+// 자체의 세부 규칙은 palette.test.ts의 matchAesthetic 단위 테스트가 담당한다.
+//
+// #26d9ac(h≈165,s≈70,l=50, 기본 보색 모드)는 평균 HSL이 '트로피컬' 아키타입
+// 중심(h:165,s:70,l:50)과 사실상 일치해 임계값 이내로 매칭되고, #1a3300은
+// 평균 HSL이 모든 아키타입으로부터 임계값 밖(~79)이라 아무 것도 표시되지
+// 않는다 - 두 값 모두 palette.ts의 계산(node 보정 스크립트)으로 사전 확인함.
+describe('grain-1: aesthetic 이름 매칭 (M-5)', () => {
+  it('팔레트가 없을 때는 aesthetic 매칭도 렌더링되지 않는다', () => {
+    render(<ColorGenerator />)
+    expect(screen.queryByRole('status', { name: '팔레트 aesthetic 매칭' })).not.toBeInTheDocument()
+  })
+
+  it('평균 HSL이 아키타입 중심에 충분히 가까우면 아키타입 이름 1개만 표시된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
+
+    const match = screen.getByRole('status', { name: '팔레트 aesthetic 매칭' })
+    expect(match).toHaveTextContent('트로피컬')
+  })
+
+  it('평균 HSL이 모든 아키타입으로부터 임계값 밖이면 아무 것도 표시되지 않는다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#1a3300' } })
+
+    expect(screen.queryByRole('status', { name: '팔레트 aesthetic 매칭' })).not.toBeInTheDocument()
+  })
+
+  it('생성 모드를 바꾸며 팔레트를 재계산해도 매칭 여부가 매번 다시 계산된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
+    expect(screen.getByRole('status', { name: '팔레트 aesthetic 매칭' })).toHaveTextContent('트로피컬')
+
+    fireEvent.change(getInput(), { target: { value: '#1a3300' } })
+    expect(screen.queryByRole('status', { name: '팔레트 aesthetic 매칭' })).not.toBeInTheDocument()
+
+    fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
+    expect(screen.getByRole('status', { name: '팔레트 aesthetic 매칭' })).toHaveTextContent('트로피컬')
+  })
+})

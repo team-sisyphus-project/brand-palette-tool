@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  AESTHETIC_ARCHETYPES,
   BRAND_SLOT_INDEX,
   GENERATION_MODES,
   PALETTE_SIZE,
@@ -9,6 +10,7 @@ import {
   getMoodTags,
   hexToRgb,
   hslToRgb,
+  matchAesthetic,
   parseColorInput,
   parseRgbString,
   regeneratePalette,
@@ -706,5 +708,52 @@ describe('getMoodTags', () => {
 
   it('treats the cool hue band boundary (300deg) as warm, not cool', () => {
     expect(getMoodTags({ h: 300, s: 45, l: 50 })[0]).toBe('따뜻한')
+  })
+})
+
+describe('matchAesthetic', () => {
+  it('exposes exactly 10 aesthetic archetypes', () => {
+    expect(AESTHETIC_ARCHETYPES).toHaveLength(10)
+  })
+
+  it('every archetype name is unique', () => {
+    const names = new Set(AESTHETIC_ARCHETYPES.map((a) => a.name))
+    expect(names.size).toBe(AESTHETIC_ARCHETYPES.length)
+  })
+
+  it('is a pure function: the same HSL input always yields the same result', () => {
+    const hsl: HSL = { h: 165, s: 70, l: 50 }
+    expect(matchAesthetic(hsl)).toBe(matchAesthetic({ ...hsl }))
+  })
+
+  it('returns the exact archetype name when the input HSL equals that archetype center (distance 0, well within threshold)', () => {
+    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === '트로피컬')!
+    expect(matchAesthetic(tropical.hsl)).toBe('트로피컬')
+  })
+
+  it('returns the closest archetype name for an HSL near - but not exactly at - a center', () => {
+    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === '트로피컬')!
+    const nearby: HSL = { h: tropical.hsl.h + 3, s: tropical.hsl.s - 2, l: tropical.hsl.l + 2 }
+    expect(matchAesthetic(nearby)).toBe('트로피컬')
+  })
+
+  it('returns only a single name (never an array/multiple candidates) on match', () => {
+    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === '트로피컬')!
+    const result = matchAesthetic(tropical.hsl)
+    expect(typeof result).toBe('string')
+  })
+
+  it('returns null when every archetype is farther than the threshold (M-5: 임계값 밖이면 미표시)', () => {
+    // Averaged HSL of a very dark, fully-saturated yellow-green brand color -
+    // this lands ~79 distance from its nearest archetype (어스톤), far above
+    // the threshold; verified via the calibration used to derive this fixture.
+    const farFromEverything: HSL = { h: 89.41, s: 100, l: 12 }
+    expect(matchAesthetic(farFromEverything)).toBeNull()
+  })
+
+  it('is deterministic for a palette-derived average HSL', () => {
+    const palette = generatePalette('#3366ff')!
+    const avg = averageHsl(palette)
+    expect(matchAesthetic(avg)).toBe(matchAesthetic(avg))
   })
 })

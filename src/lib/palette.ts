@@ -571,3 +571,90 @@ export function getMoodTags(hsl: HSL): string[] {
   const slWord = saturationLightnessMoodWord(hsl.s, hsl.l)
   return hueWord === slWord ? [hueWord] : [hueWord, slWord]
 }
+
+/**
+ * One aesthetic archetype's display name and center HSL for `matchAesthetic`
+ * (spec A "Aesthetic 이름 매칭", M-5).
+ */
+export interface AestheticArchetype {
+  name: string
+  hsl: HSL
+}
+
+/**
+ * 10 fixed aesthetic archetypes (사전 정의된 아키타입 10종) with a representative
+ * center HSL each. Every name and center value here is "(가정 — 확인 필요)" -
+ * spec A explicitly calls out that the archetype list, center values, and
+ * match threshold are all unconfirmed assumptions to be validated later, not
+ * a cited/researched list. The 10 were picked to spread across common
+ * "aesthetic" vocabulary (mood-board style categories) and across the hue
+ * wheel / saturation / lightness space so a typical brand color has a
+ * meaningfully closest one rather than all 10 being equidistant.
+ */
+export const AESTHETIC_ARCHETYPES: AestheticArchetype[] = [
+  { name: '파스텔', hsl: { h: 330, s: 45, l: 88 } }, // (가정 — 확인 필요)
+  { name: '미니멀', hsl: { h: 210, s: 8, l: 95 } }, // (가정 — 확인 필요)
+  { name: '빈티지', hsl: { h: 35, s: 30, l: 58 } }, // (가정 — 확인 필요)
+  { name: '네온', hsl: { h: 300, s: 95, l: 55 } }, // (가정 — 확인 필요)
+  { name: '어스톤', hsl: { h: 40, s: 45, l: 40 } }, // (가정 — 확인 필요)
+  { name: '모노크롬', hsl: { h: 0, s: 0, l: 50 } }, // (가정 — 확인 필요)
+  { name: '다크 아카데미아', hsl: { h: 25, s: 35, l: 22 } }, // (가정 — 확인 필요)
+  { name: '트로피컬', hsl: { h: 165, s: 70, l: 50 } }, // (가정 — 확인 필요)
+  { name: '럭셔리', hsl: { h: 270, s: 45, l: 30 } }, // (가정 — 확인 필요)
+  { name: '코스탈', hsl: { h: 200, s: 50, l: 65 } }, // (가정 — 확인 필요)
+]
+
+/**
+ * Maximum HSL distance (see `hslDistance`) for `matchAesthetic` to still
+ * report a match. Distances at or above this are treated as "no aesthetic is
+ * actually close" per spec A's "근거 없는 매칭을 강제로 보여주지 않는다"
+ * principle. Unconfirmed assumption - "(가정 — 확인 필요)".
+ */
+const AESTHETIC_MATCH_THRESHOLD = 45 // (가정 — 확인 필요)
+
+/** Shortest angular distance between two hues (0-180), wraparound-aware. */
+function hueDistance(a: number, b: number): number {
+  const diff = Math.abs(normalizeHue(a) - normalizeHue(b)) % 360
+  return Math.min(diff, 360 - diff)
+}
+
+/**
+ * Combined HSL color distance between two HSL values, used to find the
+ * closest aesthetic archetype. Hue uses the circular (wraparound-aware)
+ * distance from `hueDistance` rather than plain subtraction - the same
+ * wraparound concern `circularMeanHue` handles for averaging applies here,
+ * since e.g. hue 350 and hue 10 are only 20deg apart, not 340. Saturation and
+ * lightness use plain linear distance. The three are combined via Euclidean
+ * distance; there is no cited perceptual color-distance formula backing this
+ * combination - it is a reasonable "(가정 — 확인 필요)" choice, same as the
+ * archetype centers and threshold above.
+ */
+function hslDistance(a: HSL, b: HSL): number {
+  const hDelta = hueDistance(a.h, b.h)
+  const sDelta = a.s - b.s
+  const lDelta = a.l - b.l
+  return Math.sqrt(hDelta * hDelta + sDelta * sDelta + lDelta * lDelta)
+}
+
+/**
+ * Pure function: compares `hsl` (typically `averageHsl(palette)`) against
+ * every `AESTHETIC_ARCHETYPES` center by `hslDistance` and returns only the
+ * single closest archetype's name (spec A's "매칭되면 1개 이름만 표시(복수
+ * 후보 동시 노출 안 함)", M-5). When even the closest archetype's distance is
+ * at or above `AESTHETIC_MATCH_THRESHOLD`, returns `null` instead - spec A's
+ * "거리가 임계값 이상이면 아무 것도 표시하지 않는다": an aesthetic match is
+ * only ever asserted when something is actually close, never forced.
+ */
+export function matchAesthetic(hsl: HSL): string | null {
+  let closest: { name: string; distance: number } | null = null
+
+  for (const archetype of AESTHETIC_ARCHETYPES) {
+    const distance = hslDistance(hsl, archetype.hsl)
+    if (!closest || distance < closest.distance) {
+      closest = { name: archetype.name, distance }
+    }
+  }
+
+  if (!closest || closest.distance >= AESTHETIC_MATCH_THRESHOLD) return null
+  return closest.name
+}
