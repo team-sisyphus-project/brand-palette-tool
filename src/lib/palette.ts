@@ -31,6 +31,32 @@ export const BRAND_SLOT_INDEX = 0
 /** Number of colors a generated palette always contains. */
 export const PALETTE_SIZE = 5
 
+/**
+ * The 5 palette generation modes from spec A. Each mode is a fixed set of
+ * HSL arithmetic rules (no AI, no randomness at the base level) that maps
+ * the same brand HSL to a different set of 4 derived colors:
+ *
+ * - `calm` (차분함): desaturated, gentle lightness gaps around the brand color.
+ * - `bright` (밝음): high saturation, high lightness across the board.
+ * - `contrast` (대비): lightness pushed to the extremes plus a complementary
+ *   (hue + 180) accent for maximum visual contrast.
+ * - `monotone` (모노톤): brand hue and saturation held fixed, only lightness
+ *   ramps up/down around the brand's own lightness.
+ * - `lightness` (명도): brand hue and saturation held fixed, lightness placed
+ *   on a fixed absolute staircase (15/35/65/85) independent of the brand's
+ *   own lightness.
+ */
+export type GenerationMode = 'calm' | 'bright' | 'contrast' | 'monotone' | 'lightness'
+
+/** All generation modes, in a stable display order. */
+export const GENERATION_MODES: GenerationMode[] = [
+  'calm',
+  'bright',
+  'contrast',
+  'monotone',
+  'lightness',
+]
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
@@ -190,19 +216,105 @@ function deriveSupportingColors(base: HSL): PaletteColor[] {
 }
 
 /**
+ * Fixed (non-jittered) HSL arithmetic rules for each `GenerationMode`. Given
+ * the same base HSL, each mode returns 4 HSL values that are numerically
+ * distinct from every other mode's output - this is what guarantees the 5
+ * generation modes produce different palettes for the same brand color.
+ */
+function deriveHslByMode(base: HSL, mode: GenerationMode): HSL[] {
+  switch (mode) {
+    case 'calm': {
+      const s = clamp(base.s * 0.45, 8, 55)
+      return [
+        { h: base.h, s, l: clamp(base.l + 12, 5, 90) },
+        { h: base.h, s, l: clamp(base.l - 12, 10, 95) },
+        { h: normalizeHue(base.h + 20), s: clamp(s - 8, 8, 45), l: clamp(base.l + 4, 15, 85) },
+        { h: normalizeHue(base.h - 20), s: clamp(s - 15, 5, 40), l: clamp(base.l - 4, 15, 85) },
+      ]
+    }
+    case 'bright': {
+      const s = clamp(Math.max(base.s, 70), 70, 100)
+      return [
+        { h: base.h, s, l: clamp(base.l + 28, 55, 96) },
+        { h: base.h, s, l: clamp(base.l + 12, 45, 92) },
+        { h: normalizeHue(base.h + 45), s, l: clamp(base.l + 20, 55, 94) },
+        {
+          h: normalizeHue(base.h - 45),
+          s: clamp(s - 10, 60, 95),
+          l: clamp(base.l + 34, 60, 97),
+        },
+      ]
+    }
+    case 'contrast': {
+      const complementHue = normalizeHue(base.h + 180)
+      return [
+        { h: base.h, s: base.s, l: clamp(base.l + 42, 82, 98) },
+        { h: base.h, s: base.s, l: clamp(base.l - 42, 2, 18) },
+        { h: complementHue, s: clamp(base.s + 15, 55, 100), l: clamp(base.l, 25, 75) },
+        { h: complementHue, s: base.s, l: clamp(100 - base.l, 8, 92) },
+      ]
+    }
+    case 'monotone': {
+      const s = base.s
+      return [
+        { h: base.h, s, l: clamp(base.l + 18, 5, 95) },
+        { h: base.h, s, l: clamp(base.l - 18, 5, 95) },
+        { h: base.h, s, l: clamp(base.l + 34, 5, 95) },
+        { h: base.h, s, l: clamp(base.l - 34, 5, 95) },
+      ]
+    }
+    case 'lightness': {
+      const { h, s } = base
+      return [15, 35, 65, 85].map((l) => ({ h, s, l }))
+    }
+    default: {
+      const exhaustive: never = mode
+      throw new Error(`Unknown generation mode: ${String(exhaustive)}`)
+    }
+  }
+}
+
+/**
+ * Same rule set as `deriveHslByMode`, jittered by an injectable `random`
+ * source so repeated regeneration within a mode still varies while staying
+ * within that mode's character (mirrors `deriveSupportingColorsVaried`).
+ */
+function deriveByModeVaried(base: HSL, mode: GenerationMode, random: () => number): PaletteColor[] {
+  const jitterH = () => randomOffset(random, 4)
+  const jitterS = () => randomOffset(random, 6)
+  const jitterL = () => randomOffset(random, 6)
+
+  return deriveHslByMode(base, mode)
+    .map((hsl) => ({
+      h: normalizeHue(hsl.h + jitterH()),
+      s: clamp(hsl.s + jitterS(), 0, 100),
+      l: clamp(hsl.l + jitterL(), 0, 100),
+    }))
+    .map(hslToPaletteColor)
+}
+
+/**
  * Generates a fixed-size 5-color palette from a brand main color input
  * (HEX or RGB string). The brand main color always occupies
  * `BRAND_SLOT_INDEX` in the returned array; the remaining 4 slots are
  * derived deterministically via HSL arithmetic. Returns null when the
  * input cannot be parsed as a color.
+ *
+ * When `mode` is omitted, the original fixed HSL offsets are used (kept for
+ * backward compatibility with existing callers). When a `GenerationMode` is
+ * passed, that mode's rules (see `GenerationMode`) drive the 4 derived
+ * colors instead, so each of the 5 modes yields a different palette for the
+ * same brand input.
  */
-export function generatePalette(input: string): PaletteColor[] | null {
+export function generatePalette(input: string, mode?: GenerationMode): PaletteColor[] | null {
   const rgb = parseColorInput(input)
   if (!rgb) return null
 
   const hsl = rgbToHsl(rgb)
   const brand: PaletteColor = { hex: rgbToHex(rgb), hsl, rgb }
-  const supporting = deriveSupportingColors(hsl)
+  const supporting = mode
+    ? deriveHslByMode(hsl, mode).map(hslToPaletteColor)
+    : deriveSupportingColors(hsl)
 
   const palette: PaletteColor[] = []
   let supportingIndex = 0
@@ -300,6 +412,10 @@ export function updateSlotColor(
  *   `random` (defaults to `Math.random`) as the source of variation so
  *   callers can inject a seeded generator for deterministic tests.
  *
+ * When `mode` is omitted, the original fixed offsets are used (unchanged
+ * behavior for existing callers). When a `GenerationMode` is passed, the
+ * unlocked slots are derived using that mode's rules instead.
+ *
  * Returns null when `brandInput` cannot be parsed as a color.
  */
 export function regeneratePalette(
@@ -307,13 +423,16 @@ export function regeneratePalette(
   brandInput: string,
   locks: Locks,
   random: () => number = Math.random,
+  mode?: GenerationMode,
 ): PaletteColor[] | null {
   const rgb = parseColorInput(brandInput)
   if (!rgb) return null
 
   const hsl = rgbToHsl(rgb)
   const brand: PaletteColor = { hex: rgbToHex(rgb), hsl, rgb }
-  const varied = deriveSupportingColorsVaried(hsl, random)
+  const varied = mode
+    ? deriveByModeVaried(hsl, mode, random)
+    : deriveSupportingColorsVaried(hsl, random)
 
   const result: PaletteColor[] = []
   let derivedIndex = 0

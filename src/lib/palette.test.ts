@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   BRAND_SLOT_INDEX,
+  GENERATION_MODES,
   PALETTE_SIZE,
   createInitialLocks,
   generatePalette,
@@ -12,6 +13,7 @@ import {
   rgbToHex,
   rgbToHsl,
   updateSlotColor,
+  type GenerationMode,
 } from './palette'
 
 /** Deterministic, seedable PRNG (mulberry32) so regeneration tests are reproducible. */
@@ -190,6 +192,103 @@ describe('generatePalette', () => {
       expect(Number.isNaN(color.hsl.h)).toBe(false)
       expect(Number.isNaN(color.rgb.r)).toBe(false)
     }
+  })
+})
+
+describe('GenerationMode', () => {
+  const BRAND = '#3366ff'
+
+  it('exposes exactly the 5 modes from spec A', () => {
+    expect(GENERATION_MODES).toEqual(['calm', 'bright', 'contrast', 'monotone', 'lightness'])
+  })
+
+  it('produces a full 5-color palette for every mode', () => {
+    for (const mode of GENERATION_MODES) {
+      const palette = generatePalette(BRAND, mode)
+      expect(palette).not.toBeNull()
+      expect(palette).toHaveLength(PALETTE_SIZE)
+    }
+  })
+
+  it('keeps the brand color fixed at BRAND_SLOT_INDEX regardless of mode', () => {
+    for (const mode of GENERATION_MODES) {
+      const palette = generatePalette(BRAND, mode)!
+      expect(palette[BRAND_SLOT_INDEX].hex).toBe(BRAND)
+    }
+  })
+
+  it('returns only valid, in-range, NaN-free colors for every mode', () => {
+    for (const mode of GENERATION_MODES) {
+      const palette = generatePalette(BRAND, mode)!
+      for (const color of palette) {
+        expect(color.hex).toMatch(/^#[0-9a-f]{6}$/)
+        expect(Number.isNaN(color.hsl.h)).toBe(false)
+        expect(color.hsl.s).toBeGreaterThanOrEqual(0)
+        expect(color.hsl.s).toBeLessThanOrEqual(100)
+        expect(color.hsl.l).toBeGreaterThanOrEqual(0)
+        expect(color.hsl.l).toBeLessThanOrEqual(100)
+      }
+    }
+  })
+
+  it('is deterministic per mode for the same input', () => {
+    for (const mode of GENERATION_MODES) {
+      expect(generatePalette(BRAND, mode)).toEqual(generatePalette(BRAND, mode))
+    }
+  })
+
+  it('produces a pairwise different hex set for every pair of the 5 modes', () => {
+    const hexSets = new Map<GenerationMode, Set<string>>()
+    for (const mode of GENERATION_MODES) {
+      const palette = generatePalette(BRAND, mode)!
+      hexSets.set(mode, new Set(palette.map((c) => c.hex)))
+    }
+
+    const setsAreEqual = (a: Set<string>, b: Set<string>) =>
+      a.size === b.size && [...a].every((hex) => b.has(hex))
+
+    for (let i = 0; i < GENERATION_MODES.length; i += 1) {
+      for (let j = i + 1; j < GENERATION_MODES.length; j += 1) {
+        const modeA = GENERATION_MODES[i]
+        const modeB = GENERATION_MODES[j]
+        expect(setsAreEqual(hexSets.get(modeA)!, hexSets.get(modeB)!)).toBe(false)
+      }
+    }
+  })
+
+  it('mode-based generation differs from the legacy no-mode default', () => {
+    const legacy = new Set(generatePalette(BRAND)!.map((c) => c.hex))
+    for (const mode of GENERATION_MODES) {
+      const modeSet = new Set(generatePalette(BRAND, mode)!.map((c) => c.hex))
+      expect([...modeSet].every((hex) => legacy.has(hex)) && modeSet.size === legacy.size).toBe(
+        false,
+      )
+    }
+  })
+
+  it('regeneratePalette respects mode for unlocked slots while keeping locked slots and brand color intact', () => {
+    const palette = generatePalette(BRAND, 'bright')!
+    const locks = createInitialLocks()
+    locks[1] = true
+
+    const regenerated = regeneratePalette(palette, BRAND, locks, seededRandom(5), 'contrast')!
+
+    expect(regenerated[BRAND_SLOT_INDEX].hex).toBe(BRAND)
+    expect(regenerated[1]).toEqual(palette[1])
+    for (const slot of [2, 3, 4]) {
+      expect(Number.isNaN(regenerated[slot].hsl.h)).toBe(false)
+    }
+  })
+
+  it('regeneratePalette with different modes yields different unlocked results for the same seed', () => {
+    const palette = generatePalette(BRAND, 'calm')!
+    const locks = createInitialLocks()
+
+    const calmRegen = regeneratePalette(palette, BRAND, locks, seededRandom(11), 'calm')!
+    const monotoneRegen = regeneratePalette(palette, BRAND, locks, seededRandom(11), 'monotone')!
+
+    const changed = [1, 2, 3, 4].some((slot) => calmRegen[slot].hex !== monotoneRegen[slot].hex)
+    expect(changed).toBe(true)
   })
 })
 
