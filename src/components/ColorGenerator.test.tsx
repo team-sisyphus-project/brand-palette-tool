@@ -270,6 +270,121 @@ describe('M-2: 잠금/재생성 통합', () => {
     expect(unlockedSignatures.size).toBeGreaterThan(1)
   })
 
+  it('브랜드 슬롯의 잠금 토글 버튼 자체를 클릭해 잠금을 해제/재잠금할 수 있다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const brandLock = screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(brandLock)
+    expect(brandLock).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(brandLock)
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('브랜드 슬롯의 잠금을 해제하고 재생성해도 브랜드 컬러 값 자체는 입력값을 그대로 반영한다', () => {
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    fireEvent.click(screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' }))
+    fireEvent.click(screen.getByRole('button', { name: '재생성' }))
+
+    // The brand slot always reflects the current brand input regardless of
+    // its own lock state (regeneratePalette's contract) - unlocking it does
+    // not make it drift to some other derived color.
+    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+  })
+
+  it('여러 파생 슬롯을 동시에 잠그고 반복 재생성해도 잠근 슬롯들만 불변이고 나머지는 계속 변한다', () => {
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const unlockedButtons = lockButtons.filter(
+      (button) => button.getAttribute('aria-pressed') === 'false',
+    )
+    // Lock 2 of the 4 derived slots simultaneously (brand slot is already locked).
+    const [firstToLock, secondToLock] = unlockedButtons
+    const lockedHexes = [firstToLock, secondToLock].map(
+      (button) => button.getAttribute('aria-label')!.split(' ')[0],
+    )
+
+    fireEvent.click(firstToLock)
+    fireEvent.click(secondToLock)
+    expect(firstToLock).toHaveAttribute('aria-pressed', 'true')
+    expect(secondToLock).toHaveAttribute('aria-pressed', 'true')
+
+    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    const snapshots: string[][] = []
+    for (let round = 0; round < 3; round += 1) {
+      fireEvent.click(regenerateButton)
+      snapshots.push(getHexes(list))
+    }
+
+    // Both locked hexes survive every regeneration round.
+    snapshots.forEach((hexes) => {
+      lockedHexes.forEach((hex) => expect(hexes).toContain(hex))
+    })
+
+    // The remaining unlocked slots still actually change across rounds.
+    const unlockedSignatures = new Set(
+      snapshots.map((hexes) => hexes.filter((hex) => !lockedHexes.includes(hex)).join(',')),
+    )
+    expect(unlockedSignatures.size).toBeGreaterThan(1)
+  })
+
+  it('무채색(#000000) 브랜드 입력과 잠금 조합에서도 NaN 없이 잠근 색은 불변, 나머지는 재생성된다', () => {
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#000000' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
+    const lockedHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
+    fireEvent.click(derivedLock)
+
+    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    fireEvent.click(regenerateButton)
+    fireEvent.click(regenerateButton)
+
+    // Locked slot survives; every rendered hex is still a valid, NaN-free code.
+    expect(screen.getByText(lockedHex)).toBeInTheDocument()
+    within(list)
+      .getAllByRole('listitem')
+      .forEach((item) => {
+        expect(within(item).getByText(/^#[0-9a-f]{6}$/)).toBeInTheDocument()
+      })
+  })
+
+  it('무채색(#ffffff) 브랜드 입력과 잠금 조합에서도 NaN 없이 잠근 색은 불변, 나머지는 재생성된다', () => {
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#ffffff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
+    const lockedHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
+    fireEvent.click(derivedLock)
+
+    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    fireEvent.click(regenerateButton)
+    fireEvent.click(regenerateButton)
+
+    expect(screen.getByText(lockedHex)).toBeInTheDocument()
+    within(list)
+      .getAllByRole('listitem')
+      .forEach((item) => {
+        expect(within(item).getByText(/^#[0-9a-f]{6}$/)).toBeInTheDocument()
+      })
+  })
+
   it('잠금을 해제한 뒤 재생성하면 더 이상 고정되지 않고 값이 바뀐다', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)

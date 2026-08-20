@@ -333,6 +333,52 @@ describe('GenerationMode', () => {
     const changed = [1, 2, 3, 4].some((slot) => calmRegen[slot].hex !== monotoneRegen[slot].hex)
     expect(changed).toBe(true)
   })
+
+  // code-analysis/unknowns.md gap: the NaN-safety checks for achromatic brand
+  // input only ran through the no-mode default path. `contrast`'s
+  // `100 - base.l` and every other mode's arithmetic must also stay
+  // NaN-free/in-range when the brand color is fully desaturated (s=0).
+  it('produces NaN-free, in-range colors for every mode with achromatic brand input (black/white)', () => {
+    for (const achromatic of ['#000000', '#ffffff']) {
+      for (const mode of GENERATION_MODES) {
+        const palette = generatePalette(achromatic, mode)!
+        expect(palette).toHaveLength(PALETTE_SIZE)
+        for (const color of palette) {
+          expect(color.hex).toMatch(/^#[0-9a-f]{6}$/)
+          expect(Number.isNaN(color.hsl.h)).toBe(false)
+          expect(Number.isNaN(color.hsl.s)).toBe(false)
+          expect(Number.isNaN(color.hsl.l)).toBe(false)
+          expect(Number.isNaN(color.rgb.r)).toBe(false)
+          expect(Number.isNaN(color.rgb.g)).toBe(false)
+          expect(Number.isNaN(color.rgb.b)).toBe(false)
+          expect(color.hsl.s).toBeGreaterThanOrEqual(0)
+          expect(color.hsl.s).toBeLessThanOrEqual(100)
+          expect(color.hsl.l).toBeGreaterThanOrEqual(0)
+          expect(color.hsl.l).toBeLessThanOrEqual(100)
+        }
+      }
+    }
+  })
+
+  it('regeneratePalette stays NaN-free for achromatic brand input combined with locks, for every mode', () => {
+    for (const achromatic of ['#000000', '#ffffff']) {
+      for (const mode of GENERATION_MODES) {
+        const palette = generatePalette(achromatic, mode)!
+        const locks = createInitialLocks()
+        locks[2] = true // lock an extra derived slot alongside the brand slot
+
+        const regenerated = regeneratePalette(palette, achromatic, locks, seededRandom(13), mode)!
+
+        expect(regenerated[BRAND_SLOT_INDEX].hex).toBe(achromatic)
+        expect(regenerated[2]).toEqual(palette[2])
+        for (const color of regenerated) {
+          expect(Number.isNaN(color.hsl.h)).toBe(false)
+          expect(Number.isNaN(color.hsl.s)).toBe(false)
+          expect(Number.isNaN(color.hsl.l)).toBe(false)
+        }
+      }
+    }
+  })
 })
 
 describe('createInitialLocks', () => {
@@ -414,6 +460,47 @@ describe('regeneratePalette', () => {
       expect(color.hsl.l).toBeGreaterThanOrEqual(0)
       expect(color.hsl.l).toBeLessThanOrEqual(100)
     }
+  })
+
+  it('keeps multiple simultaneously-locked derived slots unchanged across repeated regenerations while the rest keep varying', () => {
+    const palette = generatePalette('#3366ff')!
+    const locks = createInitialLocks()
+    // Lock two non-adjacent derived slots at once, leave 2 and 4 unlocked.
+    locks[1] = true
+    locks[3] = true
+
+    let current = palette
+    const unlockedSignatures = new Set<string>()
+    for (let seed = 1; seed <= 4; seed += 1) {
+      current = regeneratePalette(current, '#3366ff', locks, seededRandom(seed))!
+
+      expect(current[1]).toEqual(palette[1])
+      expect(current[3]).toEqual(palette[3])
+      unlockedSignatures.add(`${current[2].hex},${current[4].hex}`)
+    }
+
+    // The two unlocked slots actually vary across rounds - locking some slots
+    // does not accidentally freeze the others too.
+    expect(unlockedSignatures.size).toBeGreaterThan(1)
+  })
+
+  it('unlocking a previously-locked slot lets it change again on the next regeneration', () => {
+    const palette = generatePalette('#3366ff')!
+    const locks = createInitialLocks()
+    locks[1] = true
+    locks[3] = true
+
+    const stillLocked = regeneratePalette(palette, '#3366ff', locks, seededRandom(21))!
+    expect(stillLocked[1]).toEqual(palette[1])
+    expect(stillLocked[3]).toEqual(palette[3])
+
+    // Unlock slot 1 only; slot 3 remains locked.
+    const nextLocks = locks.slice()
+    nextLocks[1] = false
+    const afterUnlock = regeneratePalette(stillLocked, '#3366ff', nextLocks, seededRandom(22))!
+
+    expect(afterUnlock[1]).not.toEqual(stillLocked[1])
+    expect(afterUnlock[3]).toEqual(palette[3])
   })
 
   it('when all derived slots are locked, only the brand slot can change', () => {
