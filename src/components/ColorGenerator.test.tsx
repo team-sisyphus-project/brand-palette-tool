@@ -410,6 +410,16 @@ describe('M-2: 잠금/재생성 통합', () => {
   })
 })
 
+// grain-1 (컬러 피커 연동 즉시 반영): PaletteSwatch의 input[type=color] ->
+// Palette.onColorChange -> ColorGenerator.handleSlotColorChange ->
+// updateSlotColor -> setRegenerated 경로 전체를 컴포넌트 레벨에서 검증한다.
+//
+// Note: updateSlotColor는 잘못된 hex 입력 시 원본 palette 참조를 그대로
+// 반환해 조용히 no-op한다(code-analysis/risks.md "잘못된 슬롯 색상 수정에
+// 대한 무음 실패"). 네이티브 `input[type=color]`는 브라우저가 항상 유효한
+// 6자리 hex 값만 change 이벤트로 내보내므로 이 경로는 native picker로는
+// 재현 불가능하다 — 여기서는 이 사실만 주석으로 남기고 동작 변경이나 새
+// 에러 UI는 추가하지 않는다(Out of scope).
 describe('grain-2: 컬러 피커로 팔레트 색상 직접 수정', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -454,6 +464,16 @@ describe('grain-2: 컬러 피커로 팔레트 색상 직접 수정', () => {
 
     expect(screen.queryByText('#3366ff')).not.toBeInTheDocument()
     expect(screen.getByText('#123456')).toBeInTheDocument()
+  })
+
+  it('컬러 피커로 브랜드 슬롯 색상을 변경해도 잠금 상태(aria-pressed)는 그대로 유지된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    fireEvent.change(getColorPicker('#3366ff'), { target: { value: '#123456' } })
+
+    const brandLock = screen.getByRole('button', { name: '#123456 색상 잠금 토글' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('컬러 피커로 수정한 색상은 재생성 이후에도 사라지지 않는다 (자동 잠금이 재생성으로부터 지켜준다)', () => {
