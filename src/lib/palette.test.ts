@@ -242,7 +242,13 @@ describe('GenerationMode', () => {
   const BRAND = '#3366ff'
 
   it('exposes exactly the 5 modes from spec A', () => {
-    expect(GENERATION_MODES).toEqual(['calm', 'bright', 'contrast', 'monotone', 'lightness'])
+    expect(GENERATION_MODES).toEqual([
+      'complementary',
+      'analogous',
+      'triadic',
+      'splitComplementary',
+      'monochromatic',
+    ])
   })
 
   it('produces a full 5-color palette for every mode', () => {
@@ -310,11 +316,11 @@ describe('GenerationMode', () => {
   })
 
   it('regeneratePalette respects mode for unlocked slots while keeping locked slots and brand color intact', () => {
-    const palette = generatePalette(BRAND, 'bright')!
+    const palette = generatePalette(BRAND, 'analogous')!
     const locks = createInitialLocks()
     locks[1] = true
 
-    const regenerated = regeneratePalette(palette, BRAND, locks, seededRandom(5), 'contrast')!
+    const regenerated = regeneratePalette(palette, BRAND, locks, seededRandom(5), 'triadic')!
 
     expect(regenerated[BRAND_SLOT_INDEX].hex).toBe(BRAND)
     expect(regenerated[1]).toEqual(palette[1])
@@ -324,13 +330,27 @@ describe('GenerationMode', () => {
   })
 
   it('regeneratePalette with different modes yields different unlocked results for the same seed', () => {
-    const palette = generatePalette(BRAND, 'calm')!
+    const palette = generatePalette(BRAND, 'complementary')!
     const locks = createInitialLocks()
 
-    const calmRegen = regeneratePalette(palette, BRAND, locks, seededRandom(11), 'calm')!
-    const monotoneRegen = regeneratePalette(palette, BRAND, locks, seededRandom(11), 'monotone')!
+    const complementaryRegen = regeneratePalette(
+      palette,
+      BRAND,
+      locks,
+      seededRandom(11),
+      'complementary',
+    )!
+    const monochromaticRegen = regeneratePalette(
+      palette,
+      BRAND,
+      locks,
+      seededRandom(11),
+      'monochromatic',
+    )!
 
-    const changed = [1, 2, 3, 4].some((slot) => calmRegen[slot].hex !== monotoneRegen[slot].hex)
+    const changed = [1, 2, 3, 4].some(
+      (slot) => complementaryRegen[slot].hex !== monochromaticRegen[slot].hex,
+    )
     expect(changed).toBe(true)
   })
 

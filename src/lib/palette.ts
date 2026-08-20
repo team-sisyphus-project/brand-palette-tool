@@ -32,29 +32,38 @@ export const BRAND_SLOT_INDEX = 0
 export const PALETTE_SIZE = 5
 
 /**
- * The 5 palette generation modes from spec A. Each mode is a fixed set of
- * HSL arithmetic rules (no AI, no randomness at the base level) that maps
- * the same brand HSL to a different set of 4 derived colors:
+ * The 5 palette generation modes from spec A, each a standard color-wheel
+ * harmony theory (표준 색상환 조화 이론) rather than an arbitrary axis. Every
+ * mode is a fixed set of HSL arithmetic rules (no AI, no randomness at the
+ * base level) that maps the same brand HSL to a different set of 4 derived
+ * colors:
  *
- * - `calm` (차분함): desaturated, gentle lightness gaps around the brand color.
- * - `bright` (밝음): high saturation, high lightness across the board.
- * - `contrast` (대비): lightness pushed to the extremes plus a complementary
- *   (hue + 180) accent for maximum visual contrast.
- * - `monotone` (모노톤): brand hue and saturation held fixed, only lightness
- *   ramps up/down around the brand's own lightness.
- * - `lightness` (명도): brand hue and saturation held fixed, lightness placed
- *   on a fixed absolute staircase (15/35/65/85) independent of the brand's
- *   own lightness.
+ * - `complementary` (보색): brand hue and its opposite (hue + 180) each get a
+ *   lighter/darker pair.
+ * - `analogous` (유사색): the two neighboring hues (hue ± 30) each get a
+ *   lighter/darker pair.
+ * - `triadic` (트라이애딕): the two hues 120° apart on the wheel (hue + 120,
+ *   hue + 240) each get a lighter/darker pair.
+ * - `splitComplementary` (스플릿보색): the two hues flanking the complement
+ *   (hue + 150, hue + 210) each get a lighter/darker pair.
+ * - `monochromatic` (모노크로매틱): hue and saturation held fixed at the
+ *   brand's own values; only lightness varies, across 4 steps around the
+ *   brand's own lightness.
  */
-export type GenerationMode = 'calm' | 'bright' | 'contrast' | 'monotone' | 'lightness'
+export type GenerationMode =
+  | 'complementary'
+  | 'analogous'
+  | 'triadic'
+  | 'splitComplementary'
+  | 'monochromatic'
 
 /** All generation modes, in a stable display order. */
 export const GENERATION_MODES: GenerationMode[] = [
-  'calm',
-  'bright',
-  'contrast',
-  'monotone',
-  'lightness',
+  'complementary',
+  'analogous',
+  'triadic',
+  'splitComplementary',
+  'monochromatic',
 ]
 
 function clamp(value: number, min: number, max: number): number {
@@ -216,56 +225,63 @@ function deriveSupportingColors(base: HSL): PaletteColor[] {
 }
 
 /**
+ * Builds the standard "one accent hue gets a lighter/darker pair" shape
+ * shared by `complementary`/`analogous`/`triadic`/`splitComplementary`: the
+ * brand hue itself is not repeated - only the two accent hues appear, each
+ * as a tint (lighter) and a shade (darker) of the brand's own saturation.
+ */
+function tintShadePair(h: number, s: number, l: number): [HSL, HSL] {
+  return [
+    { h, s, l: clamp(l + 10, 5, 95) },
+    { h, s, l: clamp(l - 10, 5, 95) },
+  ]
+}
+
+/**
  * Fixed (non-jittered) HSL arithmetic rules for each `GenerationMode`. Given
  * the same base HSL, each mode returns 4 HSL values that are numerically
  * distinct from every other mode's output - this is what guarantees the 5
  * generation modes produce different palettes for the same brand color.
+ *
+ * Each mode implements one standard color-wheel harmony theory: the fixed
+ * hue offset(s) below are the theory itself (보색/유사색/트라이애딕/
+ * 스플릿보색/모노크로매틱), not an arbitrary choice.
  */
 function deriveHslByMode(base: HSL, mode: GenerationMode): HSL[] {
   switch (mode) {
-    case 'calm': {
-      const s = clamp(base.s * 0.45, 8, 55)
-      return [
-        { h: base.h, s, l: clamp(base.l + 12, 5, 90) },
-        { h: base.h, s, l: clamp(base.l - 12, 10, 95) },
-        { h: normalizeHue(base.h + 20), s: clamp(s - 8, 8, 45), l: clamp(base.l + 4, 15, 85) },
-        { h: normalizeHue(base.h - 20), s: clamp(s - 15, 5, 40), l: clamp(base.l - 4, 15, 85) },
-      ]
-    }
-    case 'bright': {
-      const s = clamp(Math.max(base.s, 70), 70, 100)
-      return [
-        { h: base.h, s, l: clamp(base.l + 28, 55, 96) },
-        { h: base.h, s, l: clamp(base.l + 12, 45, 92) },
-        { h: normalizeHue(base.h + 45), s, l: clamp(base.l + 20, 55, 94) },
-        {
-          h: normalizeHue(base.h - 45),
-          s: clamp(s - 10, 60, 95),
-          l: clamp(base.l + 34, 60, 97),
-        },
-      ]
-    }
-    case 'contrast': {
+    case 'complementary': {
+      // 보색: brand hue + its direct opposite (+180°).
       const complementHue = normalizeHue(base.h + 180)
       return [
-        { h: base.h, s: base.s, l: clamp(base.l + 42, 82, 98) },
-        { h: base.h, s: base.s, l: clamp(base.l - 42, 2, 18) },
-        { h: complementHue, s: clamp(base.s + 15, 55, 100), l: clamp(base.l, 25, 75) },
-        { h: complementHue, s: base.s, l: clamp(100 - base.l, 8, 92) },
+        ...tintShadePair(base.h, base.s, base.l),
+        ...tintShadePair(complementHue, base.s, base.l),
       ]
     }
-    case 'monotone': {
-      const s = base.s
+    case 'analogous': {
+      // 유사색: the two hues adjacent to the brand hue (±30°).
       return [
-        { h: base.h, s, l: clamp(base.l + 18, 5, 95) },
-        { h: base.h, s, l: clamp(base.l - 18, 5, 95) },
-        { h: base.h, s, l: clamp(base.l + 34, 5, 95) },
-        { h: base.h, s, l: clamp(base.l - 34, 5, 95) },
+        ...tintShadePair(normalizeHue(base.h + 30), base.s, base.l),
+        ...tintShadePair(normalizeHue(base.h - 30), base.s, base.l),
       ]
     }
-    case 'lightness': {
+    case 'triadic': {
+      // 트라이애딕: the two hues evenly spaced 120° apart (+120°/+240°).
+      return [
+        ...tintShadePair(normalizeHue(base.h + 120), base.s, base.l),
+        ...tintShadePair(normalizeHue(base.h + 240), base.s, base.l),
+      ]
+    }
+    case 'splitComplementary': {
+      // 스플릿보색: the two hues flanking the direct complement (+150°/+210°).
+      return [
+        ...tintShadePair(normalizeHue(base.h + 150), base.s, base.l),
+        ...tintShadePair(normalizeHue(base.h + 210), base.s, base.l),
+      ]
+    }
+    case 'monochromatic': {
+      // 모노크로매틱: hue and saturation held fixed, only lightness varies.
       const { h, s } = base
-      return [15, 35, 65, 85].map((l) => ({ h, s, l }))
+      return [30, 15, -15, -30].map((delta) => ({ h, s, l: clamp(base.l + delta, 5, 95) }))
     }
     default: {
       const exhaustive: never = mode

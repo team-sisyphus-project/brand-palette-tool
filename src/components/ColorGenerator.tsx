@@ -35,11 +35,11 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * that slot (see context/decisions/) so a manual edit is never silently
  * overwritten by the next Regenerate click.
  *
- * A ModeSelector lets the user pick one of 5 HSL-rule-based generation
- * modes (차분함/밝음/대비/모노톤/명도, see GenerationMode). Selecting a mode
- * immediately recomputes the palette for that mode while keeping locked
- * slots unchanged (M-3; see context/decisions/ for why this reuses
- * generatePalette() instead of the jittered regenerate path).
+ * A ModeSelector lets the user pick one of 5 standard color-wheel harmony
+ * modes (보색/유사색/트라이애딕/스플릿보색/모노크로매틱, see GenerationMode).
+ * Selecting a mode immediately recomputes the palette for that mode while
+ * keeping locked slots unchanged (M-3; see context/decisions/ for why this
+ * reuses generatePalette() instead of the jittered regenerate path).
  */
 export function ColorGenerator() {
   const [inputValue, setInputValue] = useState('')
