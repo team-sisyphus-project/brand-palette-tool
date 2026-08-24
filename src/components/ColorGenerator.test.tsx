@@ -3,21 +3,26 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ColorGenerator } from './ColorGenerator'
 
+/** Pulls the `#rrggbb` hex code out of an aria-label like "Toggle lock for #3366ff color". */
+function extractHex(label: string): string {
+  return label.match(/#[0-9a-f]{6}/i)![0]
+}
+
 function getInput(): HTMLInputElement {
-  return screen.getByLabelText('브랜드 메인 컬러') as HTMLInputElement
+  return screen.getByLabelText('Brand main color') as HTMLInputElement
 }
 
 function getColorPicker(hex: string): HTMLInputElement {
-  return screen.getByLabelText(`${hex} 색상 직접 수정`) as HTMLInputElement
+  return screen.getByLabelText(`Edit ${hex} color directly`) as HTMLInputElement
 }
 
 /** Finds a lock button whose current lock state is `locked`, and returns its HEX. */
 function findLockButtonHex(list: HTMLElement, locked: boolean): string {
-  const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+  const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
   const button = lockButtons.find(
     (candidate) => candidate.getAttribute('aria-pressed') === String(locked),
   )!
-  return button.getAttribute('aria-label')!.split(' ')[0]
+  return extractHex(button.getAttribute('aria-label')!)
 }
 
 /** All 5 rendered hex codes, in palette slot order. */
@@ -44,7 +49,7 @@ function mockDeterministicRandom() {
 describe('ColorGenerator', () => {
   it('renders no palette and no error before any input (M-1 baseline)', () => {
     render(<ColorGenerator />)
-    expect(screen.queryByRole('list', { name: '생성된 5색 팔레트' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -52,7 +57,7 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     expect(within(list).getAllByRole('listitem')).toHaveLength(5)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -67,7 +72,7 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '51, 102, 255' } })
 
-    expect(screen.getByRole('list', { name: '생성된 5색 팔레트' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
   })
 
@@ -76,7 +81,7 @@ describe('ColorGenerator', () => {
     fireEvent.change(getInput(), { target: { value: 'not-a-color' } })
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
-    expect(screen.queryByRole('list', { name: '생성된 5색 팔레트' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
   })
 
   it('clears the palette and error once the field is emptied again', () => {
@@ -84,10 +89,10 @@ describe('ColorGenerator', () => {
     const input = getInput()
 
     fireEvent.change(input, { target: { value: '#3366ff' } })
-    expect(screen.getByRole('list', { name: '생성된 5색 팔레트' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
 
     fireEvent.change(input, { target: { value: '' } })
-    expect(screen.queryByRole('list', { name: '생성된 5색 팔레트' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -107,7 +112,7 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const brandLock = screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' })
+    const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
   })
 
@@ -115,8 +120,8 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
-    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
     expect(lockButtons).toHaveLength(5)
     expect(lockButtons.filter((button) => button.getAttribute('aria-pressed') === 'true')).toHaveLength(1)
   })
@@ -125,8 +130,8 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
-    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
     const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
 
     fireEvent.click(derivedLock)
@@ -140,14 +145,14 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
-    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
     const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
     fireEvent.click(derivedLock)
 
-    const lockedHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
+    const lockedHex = extractHex(derivedLock.getAttribute('aria-label')!)
 
-    fireEvent.click(screen.getByRole('button', { name: '재생성' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
     expect(screen.getByText(lockedHex)).toBeInTheDocument()
     expect(within(list).getAllByRole('listitem')).toHaveLength(5)
@@ -155,7 +160,7 @@ describe('ColorGenerator', () => {
 
   it('does not render a Regenerate button before a valid palette exists', () => {
     render(<ColorGenerator />)
-    expect(screen.queryByRole('button', { name: '재생성' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument()
   })
 
   // Grain-1 edge cases: parseColorInput/generatePalette already normalize
@@ -165,7 +170,7 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '  #3366FF  ' } })
 
-    expect(screen.getByRole('list', { name: '생성된 5색 팔레트' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -174,7 +179,7 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#36f' } })
 
-    expect(screen.getByRole('list', { name: '생성된 5색 팔레트' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
   })
 
@@ -182,7 +187,7 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '  51 , 102 , 255  ' } })
 
-    expect(screen.getByRole('list', { name: '생성된 5색 팔레트' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
   })
 
@@ -190,11 +195,11 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '  #36F  ' } })
 
-    const brandLock = screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' })
+    const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
   })
 
-  // Grain-1 DoneWhen: "동일 입력 재입력 시 동일 결과" must hold through the real
+  // Grain-1 DoneWhen: "same result on re-entering the same input" must hold through the real
   // ColorInput -> useMemo(generatePalette) -> Palette wiring, not just at the
   // pure-function level (already covered in palette.test.ts).
   it('re-entering the exact same brand input (after typing something else) renders the identical 5-color palette', () => {
@@ -202,7 +207,7 @@ describe('ColorGenerator', () => {
     const input = getInput()
 
     fireEvent.change(input, { target: { value: '#3366ff' } })
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const firstPass = getHexes(list)
 
     fireEvent.change(input, { target: { value: '#ff0000' } })
@@ -215,44 +220,44 @@ describe('ColorGenerator', () => {
   it('renders the same 5-color palette for a fresh mount given the same brand input (no hidden randomness in the base path)', () => {
     const { unmount } = render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
-    const firstPass = getHexes(screen.getByRole('list', { name: '생성된 5색 팔레트' }))
+    const firstPass = getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))
     unmount()
 
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
-    const secondPass = getHexes(screen.getByRole('list', { name: '생성된 5색 팔레트' }))
+    const secondPass = getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))
 
     expect(secondPass).toEqual(firstPass)
   })
 })
 
-describe('M-2: 잠금/재생성 통합', () => {
+describe('M-2: lock/regenerate integration', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('브랜드 메인 컬러는 초기 기본 잠금 상태로 시작한다', () => {
+  it('brand main color starts locked by default', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const brandLock = screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' })
+    const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('임의 슬롯을 잠그고 반복 재생성해도 잠근 색은 불변이고 나머지 색은 계속 변한다', () => {
+  it('locking an arbitrary slot keeps it unchanged across repeated regenerations while the rest keep changing', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
-    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
     const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
-    const lockedHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
+    const lockedHex = extractHex(derivedLock.getAttribute('aria-label')!)
 
     fireEvent.click(derivedLock)
     expect(derivedLock).toHaveAttribute('aria-pressed', 'true')
 
-    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    const regenerateButton = screen.getByRole('button', { name: 'Regenerate' })
     const snapshots = [getHexes(list)]
     for (let round = 0; round < 3; round += 1) {
       fireEvent.click(regenerateButton)
@@ -270,11 +275,11 @@ describe('M-2: 잠금/재생성 통합', () => {
     expect(unlockedSignatures.size).toBeGreaterThan(1)
   })
 
-  it('브랜드 슬롯의 잠금 토글 버튼 자체를 클릭해 잠금을 해제/재잠금할 수 있다', () => {
+  it('clicking the brand slot lock toggle button itself can unlock/relock it', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const brandLock = screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' })
+    const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.click(brandLock)
@@ -284,13 +289,13 @@ describe('M-2: 잠금/재생성 통합', () => {
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('브랜드 슬롯의 잠금을 해제하고 재생성해도 브랜드 컬러 값 자체는 입력값을 그대로 반영한다', () => {
+  it('unlocking the brand slot and regenerating still reflects the input value as the brand color', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    fireEvent.click(screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' }))
-    fireEvent.click(screen.getByRole('button', { name: '재생성' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle lock for #3366ff color' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
     // The brand slot always reflects the current brand input regardless of
     // its own lock state (regeneratePalette's contract) - unlocking it does
@@ -298,20 +303,20 @@ describe('M-2: 잠금/재생성 통합', () => {
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
   })
 
-  it('여러 파생 슬롯을 동시에 잠그고 반복 재생성해도 잠근 슬롯들만 불변이고 나머지는 계속 변한다', () => {
+  it('locking multiple derived slots at once keeps only those slots unchanged across repeated regenerations while the rest keep changing', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
-    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
     const unlockedButtons = lockButtons.filter(
       (button) => button.getAttribute('aria-pressed') === 'false',
     )
     // Lock 2 of the 4 derived slots simultaneously (brand slot is already locked).
     const [firstToLock, secondToLock] = unlockedButtons
     const lockedHexes = [firstToLock, secondToLock].map(
-      (button) => button.getAttribute('aria-label')!.split(' ')[0],
+      (button) => extractHex(button.getAttribute('aria-label')!),
     )
 
     fireEvent.click(firstToLock)
@@ -319,7 +324,7 @@ describe('M-2: 잠금/재생성 통합', () => {
     expect(firstToLock).toHaveAttribute('aria-pressed', 'true')
     expect(secondToLock).toHaveAttribute('aria-pressed', 'true')
 
-    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    const regenerateButton = screen.getByRole('button', { name: 'Regenerate' })
     const snapshots: string[][] = []
     for (let round = 0; round < 3; round += 1) {
       fireEvent.click(regenerateButton)
@@ -338,18 +343,18 @@ describe('M-2: 잠금/재생성 통합', () => {
     expect(unlockedSignatures.size).toBeGreaterThan(1)
   })
 
-  it('무채색(#000000) 브랜드 입력과 잠금 조합에서도 NaN 없이 잠근 색은 불변, 나머지는 재생성된다', () => {
+  it('with an achromatic (#000000) brand input and lock combinations, the locked color stays unchanged with no NaN and the rest regenerate', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#000000' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
-    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
     const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
-    const lockedHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
+    const lockedHex = extractHex(derivedLock.getAttribute('aria-label')!)
     fireEvent.click(derivedLock)
 
-    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    const regenerateButton = screen.getByRole('button', { name: 'Regenerate' })
     fireEvent.click(regenerateButton)
     fireEvent.click(regenerateButton)
 
@@ -362,18 +367,18 @@ describe('M-2: 잠금/재생성 통합', () => {
       })
   })
 
-  it('무채색(#ffffff) 브랜드 입력과 잠금 조합에서도 NaN 없이 잠근 색은 불변, 나머지는 재생성된다', () => {
+  it('with an achromatic (#ffffff) brand input and lock combinations, the locked color stays unchanged with no NaN and the rest regenerate', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#ffffff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
-    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
     const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
-    const lockedHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
+    const lockedHex = extractHex(derivedLock.getAttribute('aria-label')!)
     fireEvent.click(derivedLock)
 
-    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    const regenerateButton = screen.getByRole('button', { name: 'Regenerate' })
     fireEvent.click(regenerateButton)
     fireEvent.click(regenerateButton)
 
@@ -385,16 +390,16 @@ describe('M-2: 잠금/재생성 통합', () => {
       })
   })
 
-  it('잠금을 해제한 뒤 재생성하면 더 이상 고정되지 않고 값이 바뀐다', () => {
+  it('after unlocking and regenerating, the slot is no longer fixed and its value changes', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
-    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
     const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
-    const targetHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
-    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    const targetHex = extractHex(derivedLock.getAttribute('aria-label')!)
+    const regenerateButton = screen.getByRole('button', { name: 'Regenerate' })
 
     fireEvent.click(derivedLock)
     expect(derivedLock).toHaveAttribute('aria-pressed', 'true')
@@ -410,26 +415,27 @@ describe('M-2: 잠금/재생성 통합', () => {
   })
 })
 
-// grain-1 (컬러 피커 연동 즉시 반영): PaletteSwatch의 input[type=color] ->
-// Palette.onColorChange -> ColorGenerator.handleSlotColorChange ->
-// updateSlotColor -> setRegenerated 경로 전체를 컴포넌트 레벨에서 검증한다.
+// grain-1 (color picker wiring reflects immediately): verifies the full
+// PaletteSwatch's input[type=color] -> Palette.onColorChange ->
+// ColorGenerator.handleSlotColorChange -> updateSlotColor -> setRegenerated
+// path at the component level.
 //
-// Note: updateSlotColor는 잘못된 hex 입력 시 원본 palette 참조를 그대로
-// 반환해 조용히 no-op한다(code-analysis/risks.md "잘못된 슬롯 색상 수정에
-// 대한 무음 실패"). 네이티브 `input[type=color]`는 브라우저가 항상 유효한
-// 6자리 hex 값만 change 이벤트로 내보내므로 이 경로는 native picker로는
-// 재현 불가능하다 — 여기서는 이 사실만 주석으로 남기고 동작 변경이나 새
-// 에러 UI는 추가하지 않는다(Out of scope).
-describe('grain-2: 컬러 피커로 팔레트 색상 직접 수정', () => {
+// Note: updateSlotColor silently no-ops by returning the original palette
+// reference when given an invalid hex input (code-analysis/risks.md "silent
+// failure on invalid slot color edit"). A native `input[type=color]` always
+// emits a valid 6-digit hex value on change, so this path is not reproducible
+// via the native picker — this is noted here only as a comment; no behavior
+// change or new error UI is added (out of scope).
+describe('grain-2: editing palette colors directly via the color picker', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('컬러 피커로 파생 슬롯 색상을 변경하면 스와치 배경과 HEX 텍스트가 즉시 갱신된다', () => {
+  it('changing a derived slot color via the color picker immediately updates the swatch background and HEX text', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const originalHex = findLockButtonHex(list, false)
 
     fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
@@ -443,20 +449,20 @@ describe('grain-2: 컬러 피커로 팔레트 색상 직접 수정', () => {
     expect(colorPreview.style.backgroundColor).toBe('rgb(0, 255, 0)')
   })
 
-  it('컬러 피커로 색상을 변경하면 해당 슬롯이 자동으로 잠금 처리된다', () => {
+  it('changing a color via the color picker automatically locks that slot', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const originalHex = findLockButtonHex(list, false)
 
     fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
 
-    const updatedLock = screen.getByRole('button', { name: '#00ff00 색상 잠금 토글' })
+    const updatedLock = screen.getByRole('button', { name: 'Toggle lock for #00ff00 color' })
     expect(updatedLock).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('컬러 피커로 브랜드 슬롯 색상을 변경해도 즉시 반영된다', () => {
+  it('changing the brand slot color via the color picker is reflected immediately', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
@@ -466,35 +472,35 @@ describe('grain-2: 컬러 피커로 팔레트 색상 직접 수정', () => {
     expect(screen.getByText('#123456')).toBeInTheDocument()
   })
 
-  it('컬러 피커로 브랜드 슬롯 색상을 변경해도 잠금 상태(aria-pressed)는 그대로 유지된다', () => {
+  it('changing the brand slot color via the color picker keeps its lock state (aria-pressed) unchanged', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
     fireEvent.change(getColorPicker('#3366ff'), { target: { value: '#123456' } })
 
-    const brandLock = screen.getByRole('button', { name: '#123456 색상 잠금 토글' })
+    const brandLock = screen.getByRole('button', { name: 'Toggle lock for #123456 color' })
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('컬러 피커로 수정한 색상은 재생성 이후에도 사라지지 않는다 (자동 잠금이 재생성으로부터 지켜준다)', () => {
+  it('a color edited via the color picker survives regeneration (auto-lock protects it from regenerate)', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const originalHex = findLockButtonHex(list, false)
 
     fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
-    fireEvent.click(screen.getByRole('button', { name: '재생성' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
     expect(screen.getByText('#00ff00')).toBeInTheDocument()
   })
 })
 
-describe('grain-2: 생성 모드 선택 (M-3)', () => {
+describe('grain-2: generation mode selection (M-3)', () => {
   const MODE_LABELS = ['Complementary', 'Analogous', 'Triadic', 'Split Complementary', 'Monochromatic']
 
-  it('팔레트가 있을 때 5개 생성 모드 버튼이 모두 노출된다', () => {
+  it('all 5 generation mode buttons are shown when a palette exists', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
@@ -504,23 +510,23 @@ describe('grain-2: 생성 모드 선택 (M-3)', () => {
     })
   })
 
-  it('생성 모드 버튼은 팔레트가 없을 때는 렌더링되지 않는다', () => {
+  it('generation mode buttons are not rendered when there is no palette', () => {
     render(<ColorGenerator />)
     expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
   })
 
-  it('기본 생성 모드(Complementary)가 처음부터 선택 표시된다', () => {
+  it('the default generation mode (Complementary) is shown selected from the start', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
     expect(screen.getByRole('button', { name: 'Complementary' })).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('동일 브랜드 입력에서 5개 모드를 각각 선택하면 서로 다른 팔레트가 즉시 렌더링된다', () => {
+  it('selecting each of the 5 modes for the same brand input immediately renders a distinct palette', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const signatures = MODE_LABELS.map((label) => {
       const button = screen.getByRole('button', { name: label })
       fireEvent.click(button)
@@ -532,7 +538,7 @@ describe('grain-2: 생성 모드 선택 (M-3)', () => {
     expect(new Set(signatures).size).toBe(MODE_LABELS.length)
   })
 
-  it('모드를 전환해도 브랜드 메인 컬러 슬롯은 그대로 유지된다', () => {
+  it('switching modes keeps the brand main color slot unchanged', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
@@ -542,13 +548,13 @@ describe('grain-2: 생성 모드 선택 (M-3)', () => {
     }
   })
 
-  it('파생 슬롯을 잠근 뒤 모드를 전환해도 잠긴 색상은 바뀌지 않는다', () => {
+  it('locking a derived slot and then switching modes leaves the locked color unchanged', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const derivedLock = findLockButtonHex(list, false)
-    fireEvent.click(screen.getByRole('button', { name: `${derivedLock} 색상 잠금 토글` }))
+    fireEvent.click(screen.getByRole('button', { name: `Toggle lock for ${derivedLock} color` }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
     expect(screen.getByText(derivedLock)).toBeInTheDocument()
@@ -558,23 +564,24 @@ describe('grain-2: 생성 모드 선택 (M-3)', () => {
   })
 })
 
-// grain-1: 평균 H·S·L 기반 결정론적 감정/무드 태그 (M-4). MoodTag는
-// getMoodTags(averageHsl(palette))의 결과를 그대로 렌더링만 하므로, 여기서는
-// "팔레트가 있을 때마다 1-2개 태그가 항상 노출되는가"와 "동일 입력이면 동일
-// 태그인가(결정론성)"를 ColorGenerator 배선 레벨에서 검증한다. 개별 H/S/L
-// 구간 -> 단어 매핑의 세부 규칙은 palette.test.ts의 getMoodTags 단위 테스트가
-// 담당한다.
-describe('grain-1: 감정/무드 태그 (M-4)', () => {
+// grain-1: deterministic emotion/mood tags based on average H/S/L (M-4).
+// MoodTag only renders whatever getMoodTags(averageHsl(palette)) returns, so
+// here we verify at the ColorGenerator wiring level whether "1-2 tags are
+// always shown whenever a palette exists" and "the same input yields the
+// same tags (determinism)". The detailed rules for individual H/S/L
+// band -> word mapping are covered by palette.test.ts's getMoodTags unit
+// tests.
+describe('grain-1: emotion/mood tags (M-4)', () => {
   function getMoodTagList(): HTMLElement {
-    return screen.getByRole('list', { name: '팔레트 무드 태그' })
+    return screen.getByRole('list', { name: 'Palette mood tags' })
   }
 
-  it('팔레트가 없을 때는 무드 태그도 렌더링되지 않는다', () => {
+  it('mood tags are not rendered when there is no palette', () => {
     render(<ColorGenerator />)
-    expect(screen.queryByRole('list', { name: '팔레트 무드 태그' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
   })
 
-  it('유효한 색상을 입력하면 팔레트와 함께 1~2개의 무드 태그가 즉시 표시된다', () => {
+  it('entering a valid color immediately shows 1-2 mood tags along with the palette', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
@@ -584,7 +591,7 @@ describe('grain-1: 감정/무드 태그 (M-4)', () => {
     tags.forEach((tag) => expect(tag.textContent).not.toBe(''))
   })
 
-  it('동일한 브랜드 입력을 재입력하면 동일한 무드 태그가 표시된다 (결정론성)', () => {
+  it('re-entering the same brand input shows the same mood tags (determinism)', () => {
     render(<ColorGenerator />)
     const input = getInput()
 
@@ -602,7 +609,7 @@ describe('grain-1: 감정/무드 태그 (M-4)', () => {
     expect(secondTags).toEqual(firstTags)
   })
 
-  it('생성 모드를 바꾸며 팔레트를 재계산해도 매번 1~2개의 무드 태그가 표시된다', () => {
+  it('recomputing the palette by switching generation modes always shows 1-2 mood tags', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
@@ -614,11 +621,11 @@ describe('grain-1: 감정/무드 태그 (M-4)', () => {
     }
   })
 
-  it('재생성 후에도 무드 태그가 계속 1~2개 범위로 표시된다', () => {
+  it('mood tags keep showing in the 1-2 range after regeneration', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    fireEvent.click(screen.getByRole('button', { name: '재생성' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
     const tags = within(getMoodTagList()).getAllByRole('listitem')
     expect(tags.length).toBeGreaterThanOrEqual(1)
@@ -626,46 +633,50 @@ describe('grain-1: 감정/무드 태그 (M-4)', () => {
   })
 })
 
-// grain-1: 팔레트 평균 HSL 기반 aesthetic 아키타입 매칭 (M-5). AestheticMatch는
-// matchAesthetic(averageHsl(palette))의 결과를 그대로 렌더링만 하므로, 여기서는
-// "임계값 이내면 아키타입 이름 1개가 표시되는가"와 "임계값 밖이면 아무 것도
-// 표시되지 않는가"를 ColorGenerator 배선 레벨에서 검증한다. 거리 계산/룩업
-// 자체의 세부 규칙은 palette.test.ts의 matchAesthetic 단위 테스트가 담당한다.
+// grain-1: aesthetic archetype matching based on palette average HSL (M-5).
+// AestheticMatch only renders whatever matchAesthetic(averageHsl(palette))
+// returns, so here we verify at the ColorGenerator wiring level whether "an
+// archetype name is shown when within the threshold" and "nothing is shown
+// when outside the threshold for every archetype". The detailed rules for
+// the distance calculation/lookup itself are covered by palette.test.ts's
+// matchAesthetic unit tests.
 //
-// #26d9ac(h≈165,s≈70,l=50, 기본 보색 모드)는 평균 HSL이 '트로피컬' 아키타입
-// 중심(h:165,s:70,l:50)과 사실상 일치해 임계값 이내로 매칭되고, #1a3300은
-// 평균 HSL이 모든 아키타입으로부터 임계값 밖(~79)이라 아무 것도 표시되지
-// 않는다 - 두 값 모두 palette.ts의 계산(node 보정 스크립트)으로 사전 확인함.
-describe('grain-1: aesthetic 이름 매칭 (M-5)', () => {
-  it('팔레트가 없을 때는 aesthetic 매칭도 렌더링되지 않는다', () => {
+// #26d9ac (h≈165,s≈70,l=50, default Complementary mode) has an average HSL
+// that is effectively identical to the 'Tropical' archetype's center
+// (h:165,s:70,l:50), so it matches within the threshold, while #1a3300's
+// average HSL is outside the threshold (~79) from every archetype, so
+// nothing is shown - both values were pre-verified via palette.ts's
+// calculation (node scratch script).
+describe('grain-1: aesthetic name matching (M-5)', () => {
+  it('aesthetic match is not rendered when there is no palette', () => {
     render(<ColorGenerator />)
-    expect(screen.queryByRole('status', { name: '팔레트 aesthetic 매칭' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
   })
 
-  it('평균 HSL이 아키타입 중심에 충분히 가까우면 아키타입 이름 1개만 표시된다', () => {
+  it('shows exactly one archetype name when the average HSL is close enough to an archetype center', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
 
-    const match = screen.getByRole('status', { name: '팔레트 aesthetic 매칭' })
-    expect(match).toHaveTextContent('트로피컬')
+    const match = screen.getByRole('status', { name: 'Palette aesthetic match' })
+    expect(match).toHaveTextContent('Tropical')
   })
 
-  it('평균 HSL이 모든 아키타입으로부터 임계값 밖이면 아무 것도 표시되지 않는다', () => {
+  it('shows nothing when the average HSL is outside the threshold from every archetype', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#1a3300' } })
 
-    expect(screen.queryByRole('status', { name: '팔레트 aesthetic 매칭' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
   })
 
-  it('생성 모드를 바꾸며 팔레트를 재계산해도 매칭 여부가 매번 다시 계산된다', () => {
+  it('recomputes the match every time the palette is recalculated by switching generation modes', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
-    expect(screen.getByRole('status', { name: '팔레트 aesthetic 매칭' })).toHaveTextContent('트로피컬')
+    expect(screen.getByRole('status', { name: 'Palette aesthetic match' })).toHaveTextContent('Tropical')
 
     fireEvent.change(getInput(), { target: { value: '#1a3300' } })
-    expect(screen.queryByRole('status', { name: '팔레트 aesthetic 매칭' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
 
     fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
-    expect(screen.getByRole('status', { name: '팔레트 aesthetic 매칭' })).toHaveTextContent('트로피컬')
+    expect(screen.getByRole('status', { name: 'Palette aesthetic match' })).toHaveTextContent('Tropical')
   })
 })
