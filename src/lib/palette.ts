@@ -294,17 +294,17 @@ function deriveHslByMode(base: HSL, mode: GenerationMode): HSL[] {
  * Same rule set as `deriveHslByMode`, jittered by an injectable `random`
  * source so repeated regeneration within a mode still varies while staying
  * within that mode's character (mirrors `deriveSupportingColorsVaried`).
+ * Uses `jitterHue`/`jitterSL` (see below) so each unlocked slot gets its own
+ * randomized hue swing width (up to +/-30deg) and its own, independently
+ * randomized S/L deviation width rather than one shared jitter magnitude for
+ * the whole palette.
  */
 function deriveByModeVaried(base: HSL, mode: GenerationMode, random: () => number): PaletteColor[] {
-  const jitterH = () => randomOffset(random, 4)
-  const jitterS = () => randomOffset(random, 6)
-  const jitterL = () => randomOffset(random, 6)
-
   return deriveHslByMode(base, mode)
     .map((hsl) => ({
-      h: normalizeHue(hsl.h + jitterH()),
-      s: clamp(hsl.s + jitterS(), 0, 100),
-      l: clamp(hsl.l + jitterL(), 0, 100),
+      h: normalizeHue(hsl.h + jitterHue(random)),
+      s: clamp(hsl.s + jitterSL(random), 0, 100),
+      l: clamp(hsl.l + jitterSL(random), 0, 100),
     }))
     .map(hslToPaletteColor)
 }
@@ -362,26 +362,61 @@ function randomOffset(random: () => number, range: number): number {
 }
 
 /**
+ * Hue jitter swing-width bounds (degrees). Regeneration no longer jitters
+ * hue within one fixed magnitude - instead, for every jittered hue, a fresh
+ * *range* is rolled from within [MIN, MAX] and the actual offset is drawn
+ * from +/- that range. That two-step randomization (range, then offset
+ * within it) is what makes the swing width itself vary between slots and
+ * between regenerations - some land near a subtle 15deg nudge, others swing
+ * close to the full 30deg - rather than every jitter looking like uniform
+ * noise of the same width.
+ */
+const HUE_JITTER_MIN_RANGE = 15
+const HUE_JITTER_MAX_RANGE = 30
+
+/** Draws one randomized-width hue offset; see `HUE_JITTER_MIN_RANGE`/`_MAX_RANGE`. */
+function jitterHue(random: () => number): number {
+  const range = HUE_JITTER_MIN_RANGE + random() * (HUE_JITTER_MAX_RANGE - HUE_JITTER_MIN_RANGE)
+  return randomOffset(random, range)
+}
+
+/**
+ * Saturation/lightness jitter swing-width bounds (percentage points), same
+ * randomized-range-then-offset shape as `jitterHue`. Every call rolls its
+ * own width independently, so S/L deviation is differentiated per slot (and
+ * per channel) instead of every slot sharing one flat jitter magnitude.
+ */
+const SL_JITTER_MIN_RANGE = 5
+const SL_JITTER_MAX_RANGE = 20
+
+/** Draws one randomized-width saturation/lightness offset; see `SL_JITTER_MIN_RANGE`/`_MAX_RANGE`. */
+function jitterSL(random: () => number): number {
+  const range = SL_JITTER_MIN_RANGE + random() * (SL_JITTER_MAX_RANGE - SL_JITTER_MIN_RANGE)
+  return randomOffset(random, range)
+}
+
+/**
  * Same fixed HSL arithmetic as `deriveSupportingColors`, but each offset is
  * jittered by an injectable `random` source (defaults to `Math.random`) so
  * repeated regeneration produces varied - but still harmonious - results.
  * Passing a seeded/deterministic `random` makes the output reproducible,
- * which is what regeneration tests rely on.
+ * which is what regeneration tests rely on. Hue jitter (`jitterHue`) only
+ * applies to `analogousAccent`, mirroring the non-jittered rule's own shape
+ * where only that slot's hue is offset from the base; S/L jitter (`jitterSL`)
+ * is rolled independently per field so deviation width differs slot-to-slot.
  */
 function deriveSupportingColorsVaried(base: HSL, random: () => number): PaletteColor[] {
-  const jitter = () => randomOffset(random, 10)
-
-  const lighterTint: HSL = { h: base.h, s: base.s, l: clamp(base.l + 20 + jitter(), 0, 95) }
-  const darkerShade: HSL = { h: base.h, s: base.s, l: clamp(base.l - 20 + jitter(), 5, 100) }
+  const lighterTint: HSL = { h: base.h, s: base.s, l: clamp(base.l + 20 + jitterSL(random), 0, 95) }
+  const darkerShade: HSL = { h: base.h, s: base.s, l: clamp(base.l - 20 + jitterSL(random), 5, 100) }
   const analogousAccent: HSL = {
-    h: normalizeHue(base.h + 30 + jitter()),
-    s: clamp(base.s + jitter(), 15, 100),
-    l: clamp(base.l - 10 + jitter(), 10, 90),
+    h: normalizeHue(base.h + 30 + jitterHue(random)),
+    s: clamp(base.s + jitterSL(random), 15, 100),
+    l: clamp(base.l - 10 + jitterSL(random), 10, 90),
   }
   const mutedVariant: HSL = {
     h: base.h,
-    s: clamp(base.s - 40 + jitter(), 10, 100),
-    l: clamp(base.l + (base.l < 50 ? 15 : -15) + jitter(), 5, 95),
+    s: clamp(base.s - 40 + jitterSL(random), 10, 100),
+    l: clamp(base.l + (base.l < 50 ? 15 : -15) + jitterSL(random), 5, 95),
   }
 
   return [lighterTint, darkerShade, analogousAccent, mutedVariant].map(hslToPaletteColor)

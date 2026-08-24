@@ -407,6 +407,102 @@ describe('GenerationMode', () => {
   })
 })
 
+describe('regeneratePalette jitter range (grain-1: widened hue/S/L variety)', () => {
+  const BRAND = '#3366ff'
+
+  /** Shortest angular distance between two hues (0-180), wraparound-aware. */
+  function hueDelta(a: number, b: number): number {
+    const diff = Math.abs(a - b) % 360
+    return Math.min(diff, 360 - diff)
+  }
+
+  it('mode-based regeneration reaches hue deltas within the +/-15..30deg band across repeated seeded runs, never beyond it', () => {
+    const palette = generatePalette(BRAND, 'complementary')!
+    const locks = createInitialLocks()
+
+    let maxDelta = 0
+    for (let seed = 1; seed <= 60; seed += 1) {
+      const regenerated = regeneratePalette(palette, BRAND, locks, seededRandom(seed), 'complementary')!
+      for (const slot of [1, 2, 3, 4]) {
+        const delta = hueDelta(regenerated[slot].hsl.h, palette[slot].hsl.h)
+        maxDelta = Math.max(maxDelta, delta)
+        // Never jitters past the documented upper bound.
+        expect(delta).toBeLessThanOrEqual(30 + 0.001)
+        expect(Number.isNaN(regenerated[slot].hsl.h)).toBe(false)
+      }
+    }
+
+    // Across enough seeded runs, the widened range actually gets used, not
+    // just a narrow sliver near 0 (old behavior maxed out around 4deg).
+    expect(maxDelta).toBeGreaterThan(15)
+  })
+
+  it('legacy (no-mode) regeneration also reaches hue deltas within the +/-15..30deg band on the analogous-accent slot', () => {
+    const palette = generatePalette(BRAND)!
+    const locks = createInitialLocks()
+
+    let maxDelta = 0
+    for (let seed = 1; seed <= 60; seed += 1) {
+      const regenerated = regeneratePalette(palette, BRAND, locks, seededRandom(seed))!
+      // Slot 3 is the analogous-accent slot in the legacy derivation order
+      // (lighterTint, darkerShade, analogousAccent, mutedVariant).
+      const delta = hueDelta(regenerated[3].hsl.h, palette[3].hsl.h)
+      maxDelta = Math.max(maxDelta, delta)
+      expect(delta).toBeLessThanOrEqual(30 + 0.001)
+      expect(Number.isNaN(regenerated[3].hsl.h)).toBe(false)
+    }
+
+    expect(maxDelta).toBeGreaterThan(15)
+  })
+
+  it('S/L deviation width is no longer uniform across unlocked slots for mode-based regeneration', () => {
+    const palette = generatePalette(BRAND, 'complementary')!
+    const locks = createInitialLocks()
+
+    const regenerated = regeneratePalette(palette, BRAND, locks, seededRandom(4), 'complementary')!
+    const sDeltas = [1, 2, 3, 4].map((slot) => Math.abs(regenerated[slot].hsl.s - palette[slot].hsl.s))
+    const lDeltas = [1, 2, 3, 4].map((slot) => Math.abs(regenerated[slot].hsl.l - palette[slot].hsl.l))
+
+    // Not every unlocked slot's S/L deviation is the same magnitude - proves
+    // the jitter width itself varies per slot rather than sharing one flat
+    // width for the whole palette.
+    expect(new Set(sDeltas.map((d) => d.toFixed(4))).size).toBeGreaterThan(1)
+    expect(new Set(lDeltas.map((d) => d.toFixed(4))).size).toBeGreaterThan(1)
+  })
+
+  it('S/L deviation width is no longer uniform across unlocked slots for legacy (no-mode) regeneration', () => {
+    const palette = generatePalette(BRAND)!
+    const locks = createInitialLocks()
+
+    const regenerated = regeneratePalette(palette, BRAND, locks, seededRandom(9))!
+    const lDeltas = [1, 2, 3, 4].map((slot) => Math.abs(regenerated[slot].hsl.l - palette[slot].hsl.l))
+
+    expect(new Set(lDeltas.map((d) => d.toFixed(4))).size).toBeGreaterThan(1)
+  })
+
+  it('stays in-range and NaN-free across many seeded mode-based regenerations, even at the widened jitter magnitude', () => {
+    for (const mode of GENERATION_MODES) {
+      const palette = generatePalette(BRAND, mode)!
+      const locks = createInitialLocks()
+
+      for (let seed = 1; seed <= 20; seed += 1) {
+        const regenerated = regeneratePalette(palette, BRAND, locks, seededRandom(seed), mode)!
+        for (const color of regenerated) {
+          expect(Number.isNaN(color.hsl.h)).toBe(false)
+          expect(Number.isNaN(color.hsl.s)).toBe(false)
+          expect(Number.isNaN(color.hsl.l)).toBe(false)
+          expect(color.hsl.h).toBeGreaterThanOrEqual(0)
+          expect(color.hsl.h).toBeLessThan(360)
+          expect(color.hsl.s).toBeGreaterThanOrEqual(0)
+          expect(color.hsl.s).toBeLessThanOrEqual(100)
+          expect(color.hsl.l).toBeGreaterThanOrEqual(0)
+          expect(color.hsl.l).toBeLessThanOrEqual(100)
+        }
+      }
+    }
+  })
+})
+
 describe('createInitialLocks', () => {
   it('locks only the brand slot by default', () => {
     const locks = createInitialLocks()
