@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  AESTHETIC_ARCHETYPES,
   BRAND_SLOT_INDEX,
   GENERATION_MODES,
   PALETTE_SIZE,
+  averageHsl,
   createInitialLocks,
   generatePalette,
+  getMoodTags,
   hexToRgb,
   hslToRgb,
+  matchAesthetic,
   parseColorInput,
   parseRgbString,
   regeneratePalette,
@@ -14,6 +18,8 @@ import {
   rgbToHsl,
   updateSlotColor,
   type GenerationMode,
+  type HSL,
+  type PaletteColor,
 } from './palette'
 
 /** Deterministic, seedable PRNG (mulberry32) so regeneration tests are reproducible. */
@@ -86,6 +92,33 @@ describe('parseColorInput', () => {
 
   it('returns null for garbage input', () => {
     expect(parseColorInput('totally invalid')).toBeNull()
+  })
+
+  // Edge cases called out explicitly by grain-1: surrounding whitespace,
+  // upper/mixed case HEX, and 3-digit shorthand HEX must all parse the same
+  // as their canonical form so M-1 ("HEX 입력만으로 즉시 팔레트 생성") holds
+  // for real-world typed input, not just the canonical lowercase 6-digit form.
+  it('trims surrounding whitespace around hex input', () => {
+    expect(parseColorInput('  #3366ff  ')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('accepts uppercase and mixed-case hex input', () => {
+    expect(parseColorInput('#3366FF')).toEqual({ r: 51, g: 102, b: 255 })
+    expect(parseColorInput('#3366Ff')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('accepts 3-digit shorthand hex input', () => {
+    expect(parseColorInput('#36f')).toEqual({ r: 51, g: 102, b: 255 })
+    expect(parseColorInput('36F')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('trims surrounding whitespace and tolerates spacing around rgb commas', () => {
+    expect(parseColorInput('  51 , 102 , 255  ')).toEqual({ r: 51, g: 102, b: 255 })
+    expect(parseColorInput(' rgb(51,102,255) ')).toEqual({ r: 51, g: 102, b: 255 })
+  })
+
+  it('accepts uppercase RGB() function syntax', () => {
+    expect(parseColorInput('RGB(51, 102, 255)')).toEqual({ r: 51, g: 102, b: 255 })
   })
 })
 
@@ -193,13 +226,35 @@ describe('generatePalette', () => {
       expect(Number.isNaN(color.rgb.r)).toBe(false)
     }
   })
+
+  it('produces the same brand-slot color for whitespace-padded, uppercase, and 3-digit hex variants (M-1 edge cases)', () => {
+    const canonical = generatePalette('#3366ff')!
+    const paddedUpper = generatePalette('  #3366FF  ')!
+    const shorthand = generatePalette('#36f')!
+
+    expect(paddedUpper[BRAND_SLOT_INDEX].hex).toBe(canonical[BRAND_SLOT_INDEX].hex)
+    expect(shorthand[BRAND_SLOT_INDEX].hex).toBe(canonical[BRAND_SLOT_INDEX].hex)
+  })
+
+  it('produces the same brand-slot color for whitespace-padded rgb input', () => {
+    const canonical = generatePalette('#3366ff')!
+    const paddedRgb = generatePalette('  51 , 102 , 255  ')!
+
+    expect(paddedRgb[BRAND_SLOT_INDEX].hex).toBe(canonical[BRAND_SLOT_INDEX].hex)
+  })
 })
 
 describe('GenerationMode', () => {
   const BRAND = '#3366ff'
 
   it('exposes exactly the 5 modes from spec A', () => {
-    expect(GENERATION_MODES).toEqual(['calm', 'bright', 'contrast', 'monotone', 'lightness'])
+    expect(GENERATION_MODES).toEqual([
+      'complementary',
+      'analogous',
+      'triadic',
+      'splitComplementary',
+      'monochromatic',
+    ])
   })
 
   it('produces a full 5-color palette for every mode', () => {
@@ -267,11 +322,11 @@ describe('GenerationMode', () => {
   })
 
   it('regeneratePalette respects mode for unlocked slots while keeping locked slots and brand color intact', () => {
-    const palette = generatePalette(BRAND, 'bright')!
+    const palette = generatePalette(BRAND, 'analogous')!
     const locks = createInitialLocks()
     locks[1] = true
 
-    const regenerated = regeneratePalette(palette, BRAND, locks, seededRandom(5), 'contrast')!
+    const regenerated = regeneratePalette(palette, BRAND, locks, seededRandom(5), 'triadic')!
 
     expect(regenerated[BRAND_SLOT_INDEX].hex).toBe(BRAND)
     expect(regenerated[1]).toEqual(palette[1])
@@ -281,14 +336,74 @@ describe('GenerationMode', () => {
   })
 
   it('regeneratePalette with different modes yields different unlocked results for the same seed', () => {
-    const palette = generatePalette(BRAND, 'calm')!
+    const palette = generatePalette(BRAND, 'complementary')!
     const locks = createInitialLocks()
 
-    const calmRegen = regeneratePalette(palette, BRAND, locks, seededRandom(11), 'calm')!
-    const monotoneRegen = regeneratePalette(palette, BRAND, locks, seededRandom(11), 'monotone')!
+    const complementaryRegen = regeneratePalette(
+      palette,
+      BRAND,
+      locks,
+      seededRandom(11),
+      'complementary',
+    )!
+    const monochromaticRegen = regeneratePalette(
+      palette,
+      BRAND,
+      locks,
+      seededRandom(11),
+      'monochromatic',
+    )!
 
-    const changed = [1, 2, 3, 4].some((slot) => calmRegen[slot].hex !== monotoneRegen[slot].hex)
+    const changed = [1, 2, 3, 4].some(
+      (slot) => complementaryRegen[slot].hex !== monochromaticRegen[slot].hex,
+    )
     expect(changed).toBe(true)
+  })
+
+  // code-analysis/unknowns.md gap: the NaN-safety checks for achromatic brand
+  // input only ran through the no-mode default path. `contrast`'s
+  // `100 - base.l` and every other mode's arithmetic must also stay
+  // NaN-free/in-range when the brand color is fully desaturated (s=0).
+  it('produces NaN-free, in-range colors for every mode with achromatic brand input (black/white)', () => {
+    for (const achromatic of ['#000000', '#ffffff']) {
+      for (const mode of GENERATION_MODES) {
+        const palette = generatePalette(achromatic, mode)!
+        expect(palette).toHaveLength(PALETTE_SIZE)
+        for (const color of palette) {
+          expect(color.hex).toMatch(/^#[0-9a-f]{6}$/)
+          expect(Number.isNaN(color.hsl.h)).toBe(false)
+          expect(Number.isNaN(color.hsl.s)).toBe(false)
+          expect(Number.isNaN(color.hsl.l)).toBe(false)
+          expect(Number.isNaN(color.rgb.r)).toBe(false)
+          expect(Number.isNaN(color.rgb.g)).toBe(false)
+          expect(Number.isNaN(color.rgb.b)).toBe(false)
+          expect(color.hsl.s).toBeGreaterThanOrEqual(0)
+          expect(color.hsl.s).toBeLessThanOrEqual(100)
+          expect(color.hsl.l).toBeGreaterThanOrEqual(0)
+          expect(color.hsl.l).toBeLessThanOrEqual(100)
+        }
+      }
+    }
+  })
+
+  it('regeneratePalette stays NaN-free for achromatic brand input combined with locks, for every mode', () => {
+    for (const achromatic of ['#000000', '#ffffff']) {
+      for (const mode of GENERATION_MODES) {
+        const palette = generatePalette(achromatic, mode)!
+        const locks = createInitialLocks()
+        locks[2] = true // lock an extra derived slot alongside the brand slot
+
+        const regenerated = regeneratePalette(palette, achromatic, locks, seededRandom(13), mode)!
+
+        expect(regenerated[BRAND_SLOT_INDEX].hex).toBe(achromatic)
+        expect(regenerated[2]).toEqual(palette[2])
+        for (const color of regenerated) {
+          expect(Number.isNaN(color.hsl.h)).toBe(false)
+          expect(Number.isNaN(color.hsl.s)).toBe(false)
+          expect(Number.isNaN(color.hsl.l)).toBe(false)
+        }
+      }
+    }
   })
 })
 
@@ -373,6 +488,47 @@ describe('regeneratePalette', () => {
     }
   })
 
+  it('keeps multiple simultaneously-locked derived slots unchanged across repeated regenerations while the rest keep varying', () => {
+    const palette = generatePalette('#3366ff')!
+    const locks = createInitialLocks()
+    // Lock two non-adjacent derived slots at once, leave 2 and 4 unlocked.
+    locks[1] = true
+    locks[3] = true
+
+    let current = palette
+    const unlockedSignatures = new Set<string>()
+    for (let seed = 1; seed <= 4; seed += 1) {
+      current = regeneratePalette(current, '#3366ff', locks, seededRandom(seed))!
+
+      expect(current[1]).toEqual(palette[1])
+      expect(current[3]).toEqual(palette[3])
+      unlockedSignatures.add(`${current[2].hex},${current[4].hex}`)
+    }
+
+    // The two unlocked slots actually vary across rounds - locking some slots
+    // does not accidentally freeze the others too.
+    expect(unlockedSignatures.size).toBeGreaterThan(1)
+  })
+
+  it('unlocking a previously-locked slot lets it change again on the next regeneration', () => {
+    const palette = generatePalette('#3366ff')!
+    const locks = createInitialLocks()
+    locks[1] = true
+    locks[3] = true
+
+    const stillLocked = regeneratePalette(palette, '#3366ff', locks, seededRandom(21))!
+    expect(stillLocked[1]).toEqual(palette[1])
+    expect(stillLocked[3]).toEqual(palette[3])
+
+    // Unlock slot 1 only; slot 3 remains locked.
+    const nextLocks = locks.slice()
+    nextLocks[1] = false
+    const afterUnlock = regeneratePalette(stillLocked, '#3366ff', nextLocks, seededRandom(22))!
+
+    expect(afterUnlock[1]).not.toEqual(stillLocked[1])
+    expect(afterUnlock[3]).toEqual(palette[3])
+  })
+
   it('when all derived slots are locked, only the brand slot can change', () => {
     const palette = generatePalette('#3366ff')!
     const locks = [true, true, true, true, true]
@@ -444,5 +600,160 @@ describe('updateSlotColor', () => {
     const updated = updateSlotColor(palette, -1, '#ff9900')
 
     expect(updated).toBe(palette)
+  })
+})
+
+/**
+ * Builds a `PaletteColor` from just an HSL triplet for averageHsl/getMoodTags
+ * tests - hex/rgb are irrelevant to those functions (they only read `.hsl`),
+ * so dummy values avoid coupling these tests to hslToRgb rounding.
+ */
+function colorWithHsl(hsl: HSL): PaletteColor {
+  return { hex: '#000000', rgb: { r: 0, g: 0, b: 0 }, hsl }
+}
+
+/** Shortest angular distance between two hues, wraparound-aware. */
+function hueDistance(a: number, b: number): number {
+  const diff = Math.abs(a - b) % 360
+  return Math.min(diff, 360 - diff)
+}
+
+describe('averageHsl', () => {
+  it('averages S and L arithmetically when hue is uniform (no wraparound involved)', () => {
+    const palette = [
+      { h: 0, s: 0, l: 10 },
+      { h: 0, s: 20, l: 30 },
+      { h: 0, s: 40, l: 50 },
+      { h: 0, s: 60, l: 70 },
+      { h: 0, s: 80, l: 90 },
+    ].map(colorWithHsl)
+
+    const result = averageHsl(palette)
+    expect(result.s).toBeCloseTo(40)
+    expect(result.l).toBeCloseTo(50)
+    expect(hueDistance(result.h, 0)).toBeLessThan(0.001)
+  })
+
+  it('averages hue circularly across the 0/360 wraparound instead of arithmetically', () => {
+    // Arithmetic mean of {10, 350} would be 180 (perceptually opposite side
+    // of the wheel) - the correct, wraparound-aware answer is ~0.
+    const palette = [
+      { h: 10, s: 50, l: 50 },
+      { h: 350, s: 50, l: 50 },
+      { h: 10, s: 50, l: 50 },
+      { h: 350, s: 50, l: 50 },
+      { h: 0, s: 50, l: 50 },
+    ].map(colorWithHsl)
+
+    const result = averageHsl(palette)
+    expect(hueDistance(result.h, 0)).toBeLessThan(0.001)
+    expect(hueDistance(result.h, 180)).toBeGreaterThan(100)
+    expect(result.s).toBeCloseTo(50)
+    expect(result.l).toBeCloseTo(50)
+  })
+
+  it('returns the same HSL unchanged when every palette color is identical', () => {
+    const palette = Array.from({ length: 5 }, () => colorWithHsl({ h: 123, s: 45, l: 67 }))
+    const result = averageHsl(palette)
+
+    expect(hueDistance(result.h, 123)).toBeLessThan(0.001)
+    expect(result.s).toBeCloseTo(45)
+    expect(result.l).toBeCloseTo(67)
+  })
+
+  it('is deterministic: the same palette always averages to the same HSL', () => {
+    const palette = generatePalette('#3366ff')!
+    expect(averageHsl(palette)).toEqual(averageHsl(palette))
+  })
+})
+
+describe('getMoodTags', () => {
+  it('is a pure function: the same HSL input always yields the same tags', () => {
+    const hsl: HSL = { h: 200, s: 55, l: 40 }
+    expect(getMoodTags(hsl)).toEqual(getMoodTags(hsl))
+    expect(getMoodTags({ ...hsl })).toEqual(getMoodTags({ ...hsl }))
+  })
+
+  it('always returns 1 or 2 tags across the H/S/L band grid', () => {
+    const hues = [0, 30, 60, 90, 150, 180, 240, 299, 300, 330, 359]
+    const levels = [0, 15, 30, 45, 60, 75, 90, 100]
+
+    for (const h of hues) {
+      for (const s of levels) {
+        for (const l of levels) {
+          const tags = getMoodTags({ h, s, l })
+          expect(tags.length).toBeGreaterThanOrEqual(1)
+          expect(tags.length).toBeLessThanOrEqual(2)
+          expect(new Set(tags).size).toBe(tags.length) // no duplicate tags
+        }
+      }
+    }
+  })
+
+  it('maps a warm, vivid, bright HSL to warm + high-arousal/high-valence adjectives', () => {
+    expect(getMoodTags({ h: 30, s: 70, l: 80 })).toEqual(['따뜻한', '발랄한'])
+  })
+
+  it('maps a cool, muted, dark HSL to cool + low-arousal/low-valence adjectives', () => {
+    expect(getMoodTags({ h: 240, s: 10, l: 20 })).toEqual(['차가운', '고요한'])
+  })
+
+  it('maps a neutral-hue, mid-saturation, mid-lightness HSL to neutral + balanced adjectives', () => {
+    expect(getMoodTags({ h: 120, s: 45, l: 50 })).toEqual(['자연스러운', '균형 잡힌'])
+  })
+
+  it('treats the neutral hue band boundary (60deg) as neutral, not warm', () => {
+    expect(getMoodTags({ h: 60, s: 45, l: 50 })[0]).toBe('자연스러운')
+  })
+
+  it('treats the cool hue band boundary (300deg) as warm, not cool', () => {
+    expect(getMoodTags({ h: 300, s: 45, l: 50 })[0]).toBe('따뜻한')
+  })
+})
+
+describe('matchAesthetic', () => {
+  it('exposes exactly 10 aesthetic archetypes', () => {
+    expect(AESTHETIC_ARCHETYPES).toHaveLength(10)
+  })
+
+  it('every archetype name is unique', () => {
+    const names = new Set(AESTHETIC_ARCHETYPES.map((a) => a.name))
+    expect(names.size).toBe(AESTHETIC_ARCHETYPES.length)
+  })
+
+  it('is a pure function: the same HSL input always yields the same result', () => {
+    const hsl: HSL = { h: 165, s: 70, l: 50 }
+    expect(matchAesthetic(hsl)).toBe(matchAesthetic({ ...hsl }))
+  })
+
+  it('returns the exact archetype name when the input HSL equals that archetype center (distance 0, well within threshold)', () => {
+    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === '트로피컬')!
+    expect(matchAesthetic(tropical.hsl)).toBe('트로피컬')
+  })
+
+  it('returns the closest archetype name for an HSL near - but not exactly at - a center', () => {
+    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === '트로피컬')!
+    const nearby: HSL = { h: tropical.hsl.h + 3, s: tropical.hsl.s - 2, l: tropical.hsl.l + 2 }
+    expect(matchAesthetic(nearby)).toBe('트로피컬')
+  })
+
+  it('returns only a single name (never an array/multiple candidates) on match', () => {
+    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === '트로피컬')!
+    const result = matchAesthetic(tropical.hsl)
+    expect(typeof result).toBe('string')
+  })
+
+  it('returns null when every archetype is farther than the threshold (M-5: 임계값 밖이면 미표시)', () => {
+    // Averaged HSL of a very dark, fully-saturated yellow-green brand color -
+    // this lands ~79 distance from its nearest archetype (어스톤), far above
+    // the threshold; verified via the calibration used to derive this fixture.
+    const farFromEverything: HSL = { h: 89.41, s: 100, l: 12 }
+    expect(matchAesthetic(farFromEverything)).toBeNull()
+  })
+
+  it('is deterministic for a palette-derived average HSL', () => {
+    const palette = generatePalette('#3366ff')!
+    const avg = averageHsl(palette)
+    expect(matchAesthetic(avg)).toBe(matchAesthetic(avg))
   })
 })

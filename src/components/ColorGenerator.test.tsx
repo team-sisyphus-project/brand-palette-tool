@@ -157,6 +157,73 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     expect(screen.queryByRole('button', { name: '재생성' })).not.toBeInTheDocument()
   })
+
+  // Grain-1 edge cases: parseColorInput/generatePalette already normalize
+  // whitespace, case, and 3-digit hex — these confirm the same holds through
+  // the real ColorInput -> ColorGenerator wiring, not just the pure functions.
+  it('renders a palette immediately for whitespace-padded, uppercase hex input', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '  #3366FF  ' } })
+
+    expect(screen.getByRole('list', { name: '생성된 5색 팔레트' })).toBeInTheDocument()
+    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('renders a palette immediately for 3-digit shorthand hex input', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#36f' } })
+
+    expect(screen.getByRole('list', { name: '생성된 5색 팔레트' })).toBeInTheDocument()
+    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+  })
+
+  it('renders a palette immediately for whitespace-padded rgb input', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '  51 , 102 , 255  ' } })
+
+    expect(screen.getByRole('list', { name: '생성된 5색 팔레트' })).toBeInTheDocument()
+    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+  })
+
+  it('renders the brand slot locked by default even for uppercase/whitespace/shorthand input variants', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '  #36F  ' } })
+
+    const brandLock = screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  // Grain-1 DoneWhen: "동일 입력 재입력 시 동일 결과" must hold through the real
+  // ColorInput -> useMemo(generatePalette) -> Palette wiring, not just at the
+  // pure-function level (already covered in palette.test.ts).
+  it('re-entering the exact same brand input (after typing something else) renders the identical 5-color palette', () => {
+    render(<ColorGenerator />)
+    const input = getInput()
+
+    fireEvent.change(input, { target: { value: '#3366ff' } })
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const firstPass = getHexes(list)
+
+    fireEvent.change(input, { target: { value: '#ff0000' } })
+    expect(getHexes(list)).not.toEqual(firstPass)
+
+    fireEvent.change(input, { target: { value: '#3366ff' } })
+    expect(getHexes(list)).toEqual(firstPass)
+  })
+
+  it('renders the same 5-color palette for a fresh mount given the same brand input (no hidden randomness in the base path)', () => {
+    const { unmount } = render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    const firstPass = getHexes(screen.getByRole('list', { name: '생성된 5색 팔레트' }))
+    unmount()
+
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    const secondPass = getHexes(screen.getByRole('list', { name: '생성된 5색 팔레트' }))
+
+    expect(secondPass).toEqual(firstPass)
+  })
 })
 
 describe('M-2: 잠금/재생성 통합', () => {
@@ -203,6 +270,121 @@ describe('M-2: 잠금/재생성 통합', () => {
     expect(unlockedSignatures.size).toBeGreaterThan(1)
   })
 
+  it('브랜드 슬롯의 잠금 토글 버튼 자체를 클릭해 잠금을 해제/재잠금할 수 있다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const brandLock = screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(brandLock)
+    expect(brandLock).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(brandLock)
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('브랜드 슬롯의 잠금을 해제하고 재생성해도 브랜드 컬러 값 자체는 입력값을 그대로 반영한다', () => {
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    fireEvent.click(screen.getByRole('button', { name: '#3366ff 색상 잠금 토글' }))
+    fireEvent.click(screen.getByRole('button', { name: '재생성' }))
+
+    // The brand slot always reflects the current brand input regardless of
+    // its own lock state (regeneratePalette's contract) - unlocking it does
+    // not make it drift to some other derived color.
+    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+  })
+
+  it('여러 파생 슬롯을 동시에 잠그고 반복 재생성해도 잠근 슬롯들만 불변이고 나머지는 계속 변한다', () => {
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const unlockedButtons = lockButtons.filter(
+      (button) => button.getAttribute('aria-pressed') === 'false',
+    )
+    // Lock 2 of the 4 derived slots simultaneously (brand slot is already locked).
+    const [firstToLock, secondToLock] = unlockedButtons
+    const lockedHexes = [firstToLock, secondToLock].map(
+      (button) => button.getAttribute('aria-label')!.split(' ')[0],
+    )
+
+    fireEvent.click(firstToLock)
+    fireEvent.click(secondToLock)
+    expect(firstToLock).toHaveAttribute('aria-pressed', 'true')
+    expect(secondToLock).toHaveAttribute('aria-pressed', 'true')
+
+    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    const snapshots: string[][] = []
+    for (let round = 0; round < 3; round += 1) {
+      fireEvent.click(regenerateButton)
+      snapshots.push(getHexes(list))
+    }
+
+    // Both locked hexes survive every regeneration round.
+    snapshots.forEach((hexes) => {
+      lockedHexes.forEach((hex) => expect(hexes).toContain(hex))
+    })
+
+    // The remaining unlocked slots still actually change across rounds.
+    const unlockedSignatures = new Set(
+      snapshots.map((hexes) => hexes.filter((hex) => !lockedHexes.includes(hex)).join(',')),
+    )
+    expect(unlockedSignatures.size).toBeGreaterThan(1)
+  })
+
+  it('무채색(#000000) 브랜드 입력과 잠금 조합에서도 NaN 없이 잠근 색은 불변, 나머지는 재생성된다', () => {
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#000000' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
+    const lockedHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
+    fireEvent.click(derivedLock)
+
+    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    fireEvent.click(regenerateButton)
+    fireEvent.click(regenerateButton)
+
+    // Locked slot survives; every rendered hex is still a valid, NaN-free code.
+    expect(screen.getByText(lockedHex)).toBeInTheDocument()
+    within(list)
+      .getAllByRole('listitem')
+      .forEach((item) => {
+        expect(within(item).getByText(/^#[0-9a-f]{6}$/)).toBeInTheDocument()
+      })
+  })
+
+  it('무채색(#ffffff) 브랜드 입력과 잠금 조합에서도 NaN 없이 잠근 색은 불변, 나머지는 재생성된다', () => {
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#ffffff' } })
+
+    const list = screen.getByRole('list', { name: '생성된 5색 팔레트' })
+    const lockButtons = within(list).getAllByRole('button', { name: /색상 잠금 토글/ })
+    const derivedLock = lockButtons.find((button) => button.getAttribute('aria-pressed') === 'false')!
+    const lockedHex = derivedLock.getAttribute('aria-label')!.split(' ')[0]
+    fireEvent.click(derivedLock)
+
+    const regenerateButton = screen.getByRole('button', { name: '재생성' })
+    fireEvent.click(regenerateButton)
+    fireEvent.click(regenerateButton)
+
+    expect(screen.getByText(lockedHex)).toBeInTheDocument()
+    within(list)
+      .getAllByRole('listitem')
+      .forEach((item) => {
+        expect(within(item).getByText(/^#[0-9a-f]{6}$/)).toBeInTheDocument()
+      })
+  })
+
   it('잠금을 해제한 뒤 재생성하면 더 이상 고정되지 않고 값이 바뀐다', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
@@ -228,6 +410,16 @@ describe('M-2: 잠금/재생성 통합', () => {
   })
 })
 
+// grain-1 (컬러 피커 연동 즉시 반영): PaletteSwatch의 input[type=color] ->
+// Palette.onColorChange -> ColorGenerator.handleSlotColorChange ->
+// updateSlotColor -> setRegenerated 경로 전체를 컴포넌트 레벨에서 검증한다.
+//
+// Note: updateSlotColor는 잘못된 hex 입력 시 원본 palette 참조를 그대로
+// 반환해 조용히 no-op한다(code-analysis/risks.md "잘못된 슬롯 색상 수정에
+// 대한 무음 실패"). 네이티브 `input[type=color]`는 브라우저가 항상 유효한
+// 6자리 hex 값만 change 이벤트로 내보내므로 이 경로는 native picker로는
+// 재현 불가능하다 — 여기서는 이 사실만 주석으로 남기고 동작 변경이나 새
+// 에러 UI는 추가하지 않는다(Out of scope).
 describe('grain-2: 컬러 피커로 팔레트 색상 직접 수정', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -274,6 +466,16 @@ describe('grain-2: 컬러 피커로 팔레트 색상 직접 수정', () => {
     expect(screen.getByText('#123456')).toBeInTheDocument()
   })
 
+  it('컬러 피커로 브랜드 슬롯 색상을 변경해도 잠금 상태(aria-pressed)는 그대로 유지된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    fireEvent.change(getColorPicker('#3366ff'), { target: { value: '#123456' } })
+
+    const brandLock = screen.getByRole('button', { name: '#123456 색상 잠금 토글' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('컬러 피커로 수정한 색상은 재생성 이후에도 사라지지 않는다 (자동 잠금이 재생성으로부터 지켜준다)', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
@@ -290,7 +492,7 @@ describe('grain-2: 컬러 피커로 팔레트 색상 직접 수정', () => {
 })
 
 describe('grain-2: 생성 모드 선택 (M-3)', () => {
-  const MODE_LABELS = ['차분함', '밝음', '대비', '모노톤', '명도']
+  const MODE_LABELS = ['보색', '유사색', '트라이애딕', '스플릿보색', '모노크로매틱']
 
   it('팔레트가 있을 때 5개 생성 모드 버튼이 모두 노출된다', () => {
     render(<ColorGenerator />)
@@ -307,11 +509,11 @@ describe('grain-2: 생성 모드 선택 (M-3)', () => {
     expect(screen.queryByRole('group', { name: '생성 모드 선택' })).not.toBeInTheDocument()
   })
 
-  it('기본 생성 모드(차분함)가 처음부터 선택 표시된다', () => {
+  it('기본 생성 모드(보색)가 처음부터 선택 표시된다', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    expect(screen.getByRole('button', { name: '차분함' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '보색' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('동일 브랜드 입력에서 5개 모드를 각각 선택하면 서로 다른 팔레트가 즉시 렌더링된다', () => {
@@ -334,7 +536,7 @@ describe('grain-2: 생성 모드 선택 (M-3)', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    for (const label of ['밝음', '대비', '모노톤', '명도', '차분함']) {
+    for (const label of ['유사색', '트라이애딕', '스플릿보색', '모노크로매틱', '보색']) {
       fireEvent.click(screen.getByRole('button', { name: label }))
       expect(screen.getByText('#3366ff')).toBeInTheDocument()
     }
@@ -348,10 +550,122 @@ describe('grain-2: 생성 모드 선택 (M-3)', () => {
     const derivedLock = findLockButtonHex(list, false)
     fireEvent.click(screen.getByRole('button', { name: `${derivedLock} 색상 잠금 토글` }))
 
-    fireEvent.click(screen.getByRole('button', { name: '밝음' }))
+    fireEvent.click(screen.getByRole('button', { name: '유사색' }))
     expect(screen.getByText(derivedLock)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '대비' }))
+    fireEvent.click(screen.getByRole('button', { name: '트라이애딕' }))
     expect(screen.getByText(derivedLock)).toBeInTheDocument()
+  })
+})
+
+// grain-1: 평균 H·S·L 기반 결정론적 감정/무드 태그 (M-4). MoodTag는
+// getMoodTags(averageHsl(palette))의 결과를 그대로 렌더링만 하므로, 여기서는
+// "팔레트가 있을 때마다 1-2개 태그가 항상 노출되는가"와 "동일 입력이면 동일
+// 태그인가(결정론성)"를 ColorGenerator 배선 레벨에서 검증한다. 개별 H/S/L
+// 구간 -> 단어 매핑의 세부 규칙은 palette.test.ts의 getMoodTags 단위 테스트가
+// 담당한다.
+describe('grain-1: 감정/무드 태그 (M-4)', () => {
+  function getMoodTagList(): HTMLElement {
+    return screen.getByRole('list', { name: '팔레트 무드 태그' })
+  }
+
+  it('팔레트가 없을 때는 무드 태그도 렌더링되지 않는다', () => {
+    render(<ColorGenerator />)
+    expect(screen.queryByRole('list', { name: '팔레트 무드 태그' })).not.toBeInTheDocument()
+  })
+
+  it('유효한 색상을 입력하면 팔레트와 함께 1~2개의 무드 태그가 즉시 표시된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    const tags = within(getMoodTagList()).getAllByRole('listitem')
+    expect(tags.length).toBeGreaterThanOrEqual(1)
+    expect(tags.length).toBeLessThanOrEqual(2)
+    tags.forEach((tag) => expect(tag.textContent).not.toBe(''))
+  })
+
+  it('동일한 브랜드 입력을 재입력하면 동일한 무드 태그가 표시된다 (결정론성)', () => {
+    render(<ColorGenerator />)
+    const input = getInput()
+
+    fireEvent.change(input, { target: { value: '#3366ff' } })
+    const firstTags = within(getMoodTagList())
+      .getAllByRole('listitem')
+      .map((tag) => tag.textContent)
+
+    fireEvent.change(input, { target: { value: '#ff0000' } })
+    fireEvent.change(input, { target: { value: '#3366ff' } })
+    const secondTags = within(getMoodTagList())
+      .getAllByRole('listitem')
+      .map((tag) => tag.textContent)
+
+    expect(secondTags).toEqual(firstTags)
+  })
+
+  it('생성 모드를 바꾸며 팔레트를 재계산해도 매번 1~2개의 무드 태그가 표시된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    for (const label of ['유사색', '트라이애딕', '스플릿보색', '모노크로매틱', '보색']) {
+      fireEvent.click(screen.getByRole('button', { name: label }))
+      const tags = within(getMoodTagList()).getAllByRole('listitem')
+      expect(tags.length).toBeGreaterThanOrEqual(1)
+      expect(tags.length).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('재생성 후에도 무드 태그가 계속 1~2개 범위로 표시된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    fireEvent.click(screen.getByRole('button', { name: '재생성' }))
+
+    const tags = within(getMoodTagList()).getAllByRole('listitem')
+    expect(tags.length).toBeGreaterThanOrEqual(1)
+    expect(tags.length).toBeLessThanOrEqual(2)
+  })
+})
+
+// grain-1: 팔레트 평균 HSL 기반 aesthetic 아키타입 매칭 (M-5). AestheticMatch는
+// matchAesthetic(averageHsl(palette))의 결과를 그대로 렌더링만 하므로, 여기서는
+// "임계값 이내면 아키타입 이름 1개가 표시되는가"와 "임계값 밖이면 아무 것도
+// 표시되지 않는가"를 ColorGenerator 배선 레벨에서 검증한다. 거리 계산/룩업
+// 자체의 세부 규칙은 palette.test.ts의 matchAesthetic 단위 테스트가 담당한다.
+//
+// #26d9ac(h≈165,s≈70,l=50, 기본 보색 모드)는 평균 HSL이 '트로피컬' 아키타입
+// 중심(h:165,s:70,l:50)과 사실상 일치해 임계값 이내로 매칭되고, #1a3300은
+// 평균 HSL이 모든 아키타입으로부터 임계값 밖(~79)이라 아무 것도 표시되지
+// 않는다 - 두 값 모두 palette.ts의 계산(node 보정 스크립트)으로 사전 확인함.
+describe('grain-1: aesthetic 이름 매칭 (M-5)', () => {
+  it('팔레트가 없을 때는 aesthetic 매칭도 렌더링되지 않는다', () => {
+    render(<ColorGenerator />)
+    expect(screen.queryByRole('status', { name: '팔레트 aesthetic 매칭' })).not.toBeInTheDocument()
+  })
+
+  it('평균 HSL이 아키타입 중심에 충분히 가까우면 아키타입 이름 1개만 표시된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
+
+    const match = screen.getByRole('status', { name: '팔레트 aesthetic 매칭' })
+    expect(match).toHaveTextContent('트로피컬')
+  })
+
+  it('평균 HSL이 모든 아키타입으로부터 임계값 밖이면 아무 것도 표시되지 않는다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#1a3300' } })
+
+    expect(screen.queryByRole('status', { name: '팔레트 aesthetic 매칭' })).not.toBeInTheDocument()
+  })
+
+  it('생성 모드를 바꾸며 팔레트를 재계산해도 매칭 여부가 매번 다시 계산된다', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
+    expect(screen.getByRole('status', { name: '팔레트 aesthetic 매칭' })).toHaveTextContent('트로피컬')
+
+    fireEvent.change(getInput(), { target: { value: '#1a3300' } })
+    expect(screen.queryByRole('status', { name: '팔레트 aesthetic 매칭' })).not.toBeInTheDocument()
+
+    fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
+    expect(screen.getByRole('status', { name: '팔레트 aesthetic 매칭' })).toHaveTextContent('트로피컬')
   })
 })
