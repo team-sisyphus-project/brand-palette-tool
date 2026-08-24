@@ -31,6 +31,10 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * palette re-renders immediately on every keystroke (M-1). Invalid input
  * shows a validation message instead of a stale/partial palette.
  *
+ * The input defaults to the brand red `#E84C40` (see context/decisions/) so
+ * a 5-color palette is already on screen at first mount, with zero user
+ * interaction required.
+ *
  * Each palette slot can be locked/unlocked (brand slot starts locked via
  * createInitialLocks()). Regenerate re-derives only the unlocked slots via
  * regeneratePalette(), leaving locked slots untouched (M-2).
@@ -61,7 +65,7 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * enough candidate.
  */
 export function ColorGenerator() {
-  const [inputValue, setInputValue] = useState('')
+  const [inputValue, setInputValue] = useState('#E84C40')
   const [locks, setLocks] = useState<Locks>(() => createInitialLocks())
   const [mode, setMode] = useState<GenerationMode>(DEFAULT_MODE)
   const [regenerated, setRegenerated] = useState<PaletteColor[] | null>(null)

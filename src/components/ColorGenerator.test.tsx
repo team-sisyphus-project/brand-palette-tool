@@ -47,9 +47,20 @@ function mockDeterministicRandom() {
 }
 
 describe('ColorGenerator', () => {
-  it('renders no palette and no error before any input (M-1 baseline)', () => {
+  it('renders no palette and no error once the input is cleared (M-1 baseline)', () => {
     render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '' } })
     expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('defaults the brand input to #E84C40 and auto-generates a 5-color palette on first mount with zero interaction', () => {
+    render(<ColorGenerator />)
+
+    expect(getInput().value).toBe('#E84C40')
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(5)
+    expect(screen.getByText('#e84c40')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -160,6 +171,7 @@ describe('ColorGenerator', () => {
 
   it('does not render a Regenerate button before a valid palette exists', () => {
     render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '' } })
     expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument()
   })
 
@@ -512,6 +524,7 @@ describe('grain-2: generation mode selection (M-3)', () => {
 
   it('generation mode buttons are not rendered when there is no palette', () => {
     render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '' } })
     expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
   })
 
@@ -578,6 +591,7 @@ describe('grain-1: emotion/mood tags (M-4)', () => {
 
   it('mood tags are not rendered when there is no palette', () => {
     render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '' } })
     expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
   })
 
@@ -650,6 +664,7 @@ describe('grain-1: emotion/mood tags (M-4)', () => {
 describe('grain-1: aesthetic name matching (M-5)', () => {
   it('aesthetic match is not rendered when there is no palette', () => {
     render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '' } })
     expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
   })
 
