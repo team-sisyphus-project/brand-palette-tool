@@ -96,7 +96,7 @@ describe('parseColorInput', () => {
 
   // Edge cases called out explicitly by grain-1: surrounding whitespace,
   // upper/mixed case HEX, and 3-digit shorthand HEX must all parse the same
-  // as their canonical form so M-1 ("HEX 입력만으로 즉시 팔레트 생성") holds
+  // as their canonical form so M-1 ("generate a palette immediately from HEX input alone") holds
   // for real-world typed input, not just the canonical lowercase 6-digit form.
   it('trims surrounding whitespace around hex input', () => {
     expect(parseColorInput('  #3366ff  ')).toEqual({ r: 51, g: 102, b: 255 })
@@ -691,23 +691,23 @@ describe('getMoodTags', () => {
   })
 
   it('maps a warm, vivid, bright HSL to warm + high-arousal/high-valence adjectives', () => {
-    expect(getMoodTags({ h: 30, s: 70, l: 80 })).toEqual(['따뜻한', '발랄한'])
+    expect(getMoodTags({ h: 30, s: 70, l: 80 })).toEqual(['Warm', 'Vibrant'])
   })
 
   it('maps a cool, muted, dark HSL to cool + low-arousal/low-valence adjectives', () => {
-    expect(getMoodTags({ h: 240, s: 10, l: 20 })).toEqual(['차가운', '고요한'])
+    expect(getMoodTags({ h: 240, s: 10, l: 20 })).toEqual(['Cold', 'Serene'])
   })
 
   it('maps a neutral-hue, mid-saturation, mid-lightness HSL to neutral + balanced adjectives', () => {
-    expect(getMoodTags({ h: 120, s: 45, l: 50 })).toEqual(['자연스러운', '균형 잡힌'])
+    expect(getMoodTags({ h: 120, s: 45, l: 50 })).toEqual(['Natural', 'Balanced'])
   })
 
   it('treats the neutral hue band boundary (60deg) as neutral, not warm', () => {
-    expect(getMoodTags({ h: 60, s: 45, l: 50 })[0]).toBe('자연스러운')
+    expect(getMoodTags({ h: 60, s: 45, l: 50 })[0]).toBe('Natural')
   })
 
   it('treats the cool hue band boundary (300deg) as warm, not cool', () => {
-    expect(getMoodTags({ h: 300, s: 45, l: 50 })[0]).toBe('따뜻한')
+    expect(getMoodTags({ h: 300, s: 45, l: 50 })[0]).toBe('Warm')
   })
 })
 
@@ -727,25 +727,25 @@ describe('matchAesthetic', () => {
   })
 
   it('returns the exact archetype name when the input HSL equals that archetype center (distance 0, well within threshold)', () => {
-    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === '트로피컬')!
-    expect(matchAesthetic(tropical.hsl)).toBe('트로피컬')
+    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === 'Tropical')!
+    expect(matchAesthetic(tropical.hsl)).toBe('Tropical')
   })
 
   it('returns the closest archetype name for an HSL near - but not exactly at - a center', () => {
-    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === '트로피컬')!
+    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === 'Tropical')!
     const nearby: HSL = { h: tropical.hsl.h + 3, s: tropical.hsl.s - 2, l: tropical.hsl.l + 2 }
-    expect(matchAesthetic(nearby)).toBe('트로피컬')
+    expect(matchAesthetic(nearby)).toBe('Tropical')
   })
 
   it('returns only a single name (never an array/multiple candidates) on match', () => {
-    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === '트로피컬')!
+    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === 'Tropical')!
     const result = matchAesthetic(tropical.hsl)
     expect(typeof result).toBe('string')
   })
 
-  it('returns null when every archetype is farther than the threshold (M-5: 임계값 밖이면 미표시)', () => {
+  it('returns null when every archetype is farther than the threshold (M-5: no match displayed when outside threshold)', () => {
     // Averaged HSL of a very dark, fully-saturated yellow-green brand color -
-    // this lands ~79 distance from its nearest archetype (어스톤), far above
+    // this lands ~79 distance from its nearest archetype (Earth Tone), far above
     // the threshold; verified via the calibration used to derive this fixture.
     const farFromEverything: HSL = { h: 89.41, s: 100, l: 12 }
     expect(matchAesthetic(farFromEverything)).toBeNull()

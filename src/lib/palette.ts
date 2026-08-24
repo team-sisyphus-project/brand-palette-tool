@@ -4,7 +4,7 @@
  * No UI, no state, no side effects. Every function here is deterministic:
  * the same input always produces the same output. This module is the
  * "brand main color in -> 5 color palette out" engine described in
- * spec A (컬러 제너레이터).
+ * spec A (Color Generator).
  */
 
 export interface RGB {
@@ -33,20 +33,20 @@ export const PALETTE_SIZE = 5
 
 /**
  * The 5 palette generation modes from spec A, each a standard color-wheel
- * harmony theory (표준 색상환 조화 이론) rather than an arbitrary axis. Every
+ * harmony theory rather than an arbitrary axis. Every
  * mode is a fixed set of HSL arithmetic rules (no AI, no randomness at the
  * base level) that maps the same brand HSL to a different set of 4 derived
  * colors:
  *
- * - `complementary` (보색): brand hue and its opposite (hue + 180) each get a
+ * - `complementary`: brand hue and its opposite (hue + 180) each get a
  *   lighter/darker pair.
- * - `analogous` (유사색): the two neighboring hues (hue ± 30) each get a
+ * - `analogous`: the two neighboring hues (hue ± 30) each get a
  *   lighter/darker pair.
- * - `triadic` (트라이애딕): the two hues 120° apart on the wheel (hue + 120,
+ * - `triadic`: the two hues 120° apart on the wheel (hue + 120,
  *   hue + 240) each get a lighter/darker pair.
- * - `splitComplementary` (스플릿보색): the two hues flanking the complement
+ * - `splitComplementary`: the two hues flanking the complement
  *   (hue + 150, hue + 210) each get a lighter/darker pair.
- * - `monochromatic` (모노크로매틱): hue and saturation held fixed at the
+ * - `monochromatic`: hue and saturation held fixed at the
  *   brand's own values; only lightness varies, across 4 steps around the
  *   brand's own lightness.
  */
@@ -244,13 +244,13 @@ function tintShadePair(h: number, s: number, l: number): [HSL, HSL] {
  * generation modes produce different palettes for the same brand color.
  *
  * Each mode implements one standard color-wheel harmony theory: the fixed
- * hue offset(s) below are the theory itself (보색/유사색/트라이애딕/
- * 스플릿보색/모노크로매틱), not an arbitrary choice.
+ * hue offset(s) below are the theory itself (complementary/analogous/triadic/
+ * split-complementary/monochromatic), not an arbitrary choice.
  */
 function deriveHslByMode(base: HSL, mode: GenerationMode): HSL[] {
   switch (mode) {
     case 'complementary': {
-      // 보색: brand hue + its direct opposite (+180°).
+      // Complementary: brand hue + its direct opposite (+180°).
       const complementHue = normalizeHue(base.h + 180)
       return [
         ...tintShadePair(base.h, base.s, base.l),
@@ -258,28 +258,28 @@ function deriveHslByMode(base: HSL, mode: GenerationMode): HSL[] {
       ]
     }
     case 'analogous': {
-      // 유사색: the two hues adjacent to the brand hue (±30°).
+      // Analogous: the two hues adjacent to the brand hue (±30°).
       return [
         ...tintShadePair(normalizeHue(base.h + 30), base.s, base.l),
         ...tintShadePair(normalizeHue(base.h - 30), base.s, base.l),
       ]
     }
     case 'triadic': {
-      // 트라이애딕: the two hues evenly spaced 120° apart (+120°/+240°).
+      // Triadic: the two hues evenly spaced 120° apart (+120°/+240°).
       return [
         ...tintShadePair(normalizeHue(base.h + 120), base.s, base.l),
         ...tintShadePair(normalizeHue(base.h + 240), base.s, base.l),
       ]
     }
     case 'splitComplementary': {
-      // 스플릿보색: the two hues flanking the direct complement (+150°/+210°).
+      // Split complementary: the two hues flanking the direct complement (+150°/+210°).
       return [
         ...tintShadePair(normalizeHue(base.h + 150), base.s, base.l),
         ...tintShadePair(normalizeHue(base.h + 210), base.s, base.l),
       ]
     }
     case 'monochromatic': {
-      // 모노크로매틱: hue and saturation held fixed, only lightness varies.
+      // Monochromatic: hue and saturation held fixed, only lightness varies.
       const { h, s } = base
       return [30, 15, -15, -30].map((delta) => ({ h, s, l: clamp(base.l + delta, 5, 95) }))
     }
@@ -484,7 +484,7 @@ function circularMeanHue(hues: number[]): number {
 
 /**
  * Averages every color in a generated palette (brand slot included - spec A
- * "평균 H·S·L") into a single HSL summary used by `getMoodTags` (M-4). Hue is
+ * "average H/S/L") into a single HSL summary used by `getMoodTags` (M-4). Hue is
  * averaged circularly via `circularMeanHue` since it is a wraparound angle;
  * saturation and lightness are plain arithmetic means.
  */
@@ -496,36 +496,38 @@ export function averageHsl(palette: PaletteColor[]): HSL {
 }
 
 /**
- * Deterministic, non-AI adjective mood-tag lookup for spec A's "감정/무드
- * 태그" (M-4). Every boundary below is a fixed threshold chosen to divide
+ * Deterministic, non-AI adjective mood-tag lookup for spec A's "emotion/mood
+ * tags" (M-4). Every boundary below is a fixed threshold chosen to divide
  * the H/S/L ranges into named bands - it is not derived from a cited study,
- * so each is marked "(가정 — 확인 필요)" per spec A's instruction to flag
- * assumed thresholds for confirmation.
+ * so each is marked "(assumption — needs confirmation)" per spec A's
+ * instruction to flag assumed thresholds for confirmation.
  *
- * - H (색온도, hue): warm/cool/neutral bands.
- * - S (채도) x L (명도): a 3x3 lookup table, chosen per spec A's cited
- *   rationale that saturation correlates with arousal and lightness
+ * - H (hue temperature): warm/cool/neutral bands.
+ * - S (saturation) x L (lightness): a 3x3 lookup table, chosen per spec A's
+ *   cited rationale that saturation correlates with arousal and lightness
  *   correlates with valence in color-psychology research.
  */
 
-// H 색온도 구간 경계. 0-60°/300-360°(빨강~주황~자주)는 난색, 180-300°(청록~
-// 파랑~보라)는 한색, 그 사이(60-180°, 노랑~초록~청록)는 중성으로 분류한다.
-const WARM_HUE_MAX = 60 // (가정 — 확인 필요)
-const COOL_HUE_MIN = 180 // (가정 — 확인 필요)
-const COOL_HUE_MAX = 300 // (가정 — 확인 필요)
+// H hue-temperature band boundaries. 0-60°/300-360° (red-orange-magenta) is
+// classified warm, 180-300° (cyan-blue-purple) is classified cool, and the
+// range between (60-180°, yellow-green-cyan) is classified neutral.
+const WARM_HUE_MAX = 60 // (assumption — needs confirmation)
+const COOL_HUE_MIN = 180 // (assumption — needs confirmation)
+const COOL_HUE_MAX = 300 // (assumption — needs confirmation)
 
 function hueMoodWord(h: number): string {
   const hue = normalizeHue(h)
-  if (hue >= COOL_HUE_MIN && hue < COOL_HUE_MAX) return '차가운'
-  if (hue >= WARM_HUE_MAX && hue < COOL_HUE_MIN) return '자연스러운'
-  return '따뜻한'
+  if (hue >= COOL_HUE_MIN && hue < COOL_HUE_MAX) return 'Cold'
+  if (hue >= WARM_HUE_MAX && hue < COOL_HUE_MIN) return 'Natural'
+  return 'Warm'
 }
 
 type Band = 'low' | 'mid' | 'high'
 
-// S 채도 구간 경계 (채도-각성 상관: 고채도 = 높은 각성, 저채도 = 낮은 각성).
-const LOW_SATURATION_MAX = 30 // (가정 — 확인 필요)
-const HIGH_SATURATION_MIN = 60 // (가정 — 확인 필요)
+// S saturation band boundaries (saturation-arousal correlation: high
+// saturation = high arousal, low saturation = low arousal).
+const LOW_SATURATION_MAX = 30 // (assumption — needs confirmation)
+const HIGH_SATURATION_MIN = 60 // (assumption — needs confirmation)
 
 function saturationBand(s: number): Band {
   if (s < LOW_SATURATION_MAX) return 'low'
@@ -533,9 +535,10 @@ function saturationBand(s: number): Band {
   return 'mid'
 }
 
-// L 명도 구간 경계 (명도-정서 상관: 고명도 = 밝은/긍정적 정서, 저명도 = 무거운 정서).
-const LOW_LIGHTNESS_MAX = 35 // (가정 — 확인 필요)
-const HIGH_LIGHTNESS_MIN = 65 // (가정 — 확인 필요)
+// L lightness band boundaries (lightness-valence correlation: high
+// lightness = bright/positive valence, low lightness = heavy valence).
+const LOW_LIGHTNESS_MAX = 35 // (assumption — needs confirmation)
+const HIGH_LIGHTNESS_MIN = 65 // (assumption — needs confirmation)
 
 function lightnessBand(l: number): Band {
   if (l < LOW_LIGHTNESS_MAX) return 'low'
@@ -544,14 +547,15 @@ function lightnessBand(l: number): Band {
 }
 
 /**
- * S(각성) x L(정서) 조합 룩업 테이블 (가정 — 확인 필요). 각 셀은 채도-각성,
- * 명도-정서 상관에 근거한 형용사 하나로 고정 매핑되며 값 변경 시 룩업표만
- * 갱신하면 된다 (AI 판단 없음).
+ * S (arousal) x L (valence) combination lookup table (assumption — needs
+ * confirmation). Each cell is a fixed mapping to one adjective, based on the
+ * saturation-arousal, lightness-valence correlation; changing a value only
+ * requires updating this lookup table (no AI judgment involved).
  */
 const SATURATION_LIGHTNESS_MOOD: Record<Band, Record<Band, string>> = {
-  high: { high: '발랄한', mid: '역동적인', low: '강렬한' },
-  mid: { high: '산뜻한', mid: '균형 잡힌', low: '묵직한' },
-  low: { high: '은은한', mid: '차분한', low: '고요한' },
+  high: { high: 'Vibrant', mid: 'Dynamic', low: 'Intense' },
+  mid: { high: 'Fresh', mid: 'Balanced', low: 'Heavy' },
+  low: { high: 'Subtle', mid: 'Calm', low: 'Serene' },
 }
 
 function saturationLightnessMoodWord(s: number, l: number): string {
@@ -574,7 +578,7 @@ export function getMoodTags(hsl: HSL): string[] {
 
 /**
  * One aesthetic archetype's display name and center HSL for `matchAesthetic`
- * (spec A "Aesthetic 이름 매칭", M-5).
+ * (spec A "Aesthetic name matching", M-5).
  */
 export interface AestheticArchetype {
   name: string
@@ -582,35 +586,37 @@ export interface AestheticArchetype {
 }
 
 /**
- * 10 fixed aesthetic archetypes (사전 정의된 아키타입 10종) with a representative
- * center HSL each. Every name and center value here is "(가정 — 확인 필요)" -
- * spec A explicitly calls out that the archetype list, center values, and
- * match threshold are all unconfirmed assumptions to be validated later, not
- * a cited/researched list. The 10 were picked to spread across common
- * "aesthetic" vocabulary (mood-board style categories) and across the hue
- * wheel / saturation / lightness space so a typical brand color has a
- * meaningfully closest one rather than all 10 being equidistant.
+ * 10 fixed aesthetic archetypes (10 predefined archetypes) with a
+ * representative center HSL each. Every name and center value here is
+ * "(assumption — needs confirmation)" - spec A explicitly calls out that the
+ * archetype list, center values, and match threshold are all unconfirmed
+ * assumptions to be validated later, not a cited/researched list. The 10
+ * were picked to spread across common "aesthetic" vocabulary (mood-board
+ * style categories) and across the hue wheel / saturation / lightness space
+ * so a typical brand color has a meaningfully closest one rather than all 10
+ * being equidistant.
  */
 export const AESTHETIC_ARCHETYPES: AestheticArchetype[] = [
-  { name: '파스텔', hsl: { h: 330, s: 45, l: 88 } }, // (가정 — 확인 필요)
-  { name: '미니멀', hsl: { h: 210, s: 8, l: 95 } }, // (가정 — 확인 필요)
-  { name: '빈티지', hsl: { h: 35, s: 30, l: 58 } }, // (가정 — 확인 필요)
-  { name: '네온', hsl: { h: 300, s: 95, l: 55 } }, // (가정 — 확인 필요)
-  { name: '어스톤', hsl: { h: 40, s: 45, l: 40 } }, // (가정 — 확인 필요)
-  { name: '모노크롬', hsl: { h: 0, s: 0, l: 50 } }, // (가정 — 확인 필요)
-  { name: '다크 아카데미아', hsl: { h: 25, s: 35, l: 22 } }, // (가정 — 확인 필요)
-  { name: '트로피컬', hsl: { h: 165, s: 70, l: 50 } }, // (가정 — 확인 필요)
-  { name: '럭셔리', hsl: { h: 270, s: 45, l: 30 } }, // (가정 — 확인 필요)
-  { name: '코스탈', hsl: { h: 200, s: 50, l: 65 } }, // (가정 — 확인 필요)
+  { name: 'Pastel', hsl: { h: 330, s: 45, l: 88 } }, // (assumption — needs confirmation)
+  { name: 'Minimal', hsl: { h: 210, s: 8, l: 95 } }, // (assumption — needs confirmation)
+  { name: 'Vintage', hsl: { h: 35, s: 30, l: 58 } }, // (assumption — needs confirmation)
+  { name: 'Neon', hsl: { h: 300, s: 95, l: 55 } }, // (assumption — needs confirmation)
+  { name: 'Earth Tone', hsl: { h: 40, s: 45, l: 40 } }, // (assumption — needs confirmation)
+  { name: 'Monochrome', hsl: { h: 0, s: 0, l: 50 } }, // (assumption — needs confirmation)
+  { name: 'Dark Academia', hsl: { h: 25, s: 35, l: 22 } }, // (assumption — needs confirmation)
+  { name: 'Tropical', hsl: { h: 165, s: 70, l: 50 } }, // (assumption — needs confirmation)
+  { name: 'Luxury', hsl: { h: 270, s: 45, l: 30 } }, // (assumption — needs confirmation)
+  { name: 'Coastal', hsl: { h: 200, s: 50, l: 65 } }, // (assumption — needs confirmation)
 ]
 
 /**
  * Maximum HSL distance (see `hslDistance`) for `matchAesthetic` to still
  * report a match. Distances at or above this are treated as "no aesthetic is
- * actually close" per spec A's "근거 없는 매칭을 강제로 보여주지 않는다"
- * principle. Unconfirmed assumption - "(가정 — 확인 필요)".
+ * actually close" per spec A's "never force an unsupported match to be
+ * shown" principle. Unconfirmed assumption - "(assumption — needs
+ * confirmation)".
  */
-const AESTHETIC_MATCH_THRESHOLD = 45 // (가정 — 확인 필요)
+const AESTHETIC_MATCH_THRESHOLD = 45 // (assumption — needs confirmation)
 
 /** Shortest angular distance between two hues (0-180), wraparound-aware. */
 function hueDistance(a: number, b: number): number {
@@ -626,7 +632,7 @@ function hueDistance(a: number, b: number): number {
  * since e.g. hue 350 and hue 10 are only 20deg apart, not 340. Saturation and
  * lightness use plain linear distance. The three are combined via Euclidean
  * distance; there is no cited perceptual color-distance formula backing this
- * combination - it is a reasonable "(가정 — 확인 필요)" choice, same as the
+ * combination - it is a reasonable "(assumption — needs confirmation)" choice, same as the
  * archetype centers and threshold above.
  */
 function hslDistance(a: HSL, b: HSL): number {
@@ -639,11 +645,12 @@ function hslDistance(a: HSL, b: HSL): number {
 /**
  * Pure function: compares `hsl` (typically `averageHsl(palette)`) against
  * every `AESTHETIC_ARCHETYPES` center by `hslDistance` and returns only the
- * single closest archetype's name (spec A's "매칭되면 1개 이름만 표시(복수
- * 후보 동시 노출 안 함)", M-5). When even the closest archetype's distance is
- * at or above `AESTHETIC_MATCH_THRESHOLD`, returns `null` instead - spec A's
- * "거리가 임계값 이상이면 아무 것도 표시하지 않는다": an aesthetic match is
- * only ever asserted when something is actually close, never forced.
+ * single closest archetype's name (spec A's "show only 1 name on a match (no
+ * multiple simultaneous candidates)", M-5). When even the closest
+ * archetype's distance is at or above `AESTHETIC_MATCH_THRESHOLD`, returns
+ * `null` instead - spec A's "display nothing when the distance is at or
+ * above the threshold": an aesthetic match is only ever asserted when
+ * something is actually close, never forced.
  */
 export function matchAesthetic(hsl: HSL): string | null {
   let closest: { name: string; distance: number } | null = null
