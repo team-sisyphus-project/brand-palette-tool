@@ -492,13 +492,13 @@ describe('grain-2: 컬러 피커로 팔레트 색상 직접 수정', () => {
 })
 
 describe('grain-2: 생성 모드 선택 (M-3)', () => {
-  const MODE_LABELS = ['보색', '유사색', '트라이애딕', '스플릿보색', '모노크로매틱']
+  const MODE_LABELS = ['Complementary', 'Analogous', 'Triadic', 'Split Complementary', 'Monochromatic']
 
   it('팔레트가 있을 때 5개 생성 모드 버튼이 모두 노출된다', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    const group = screen.getByRole('group', { name: '생성 모드 선택' })
+    const group = screen.getByRole('group', { name: 'Select generation mode' })
     MODE_LABELS.forEach((label) => {
       expect(within(group).getByRole('button', { name: label })).toBeInTheDocument()
     })
@@ -506,14 +506,14 @@ describe('grain-2: 생성 모드 선택 (M-3)', () => {
 
   it('생성 모드 버튼은 팔레트가 없을 때는 렌더링되지 않는다', () => {
     render(<ColorGenerator />)
-    expect(screen.queryByRole('group', { name: '생성 모드 선택' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
   })
 
-  it('기본 생성 모드(보색)가 처음부터 선택 표시된다', () => {
+  it('기본 생성 모드(Complementary)가 처음부터 선택 표시된다', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    expect(screen.getByRole('button', { name: '보색' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Complementary' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('동일 브랜드 입력에서 5개 모드를 각각 선택하면 서로 다른 팔레트가 즉시 렌더링된다', () => {
@@ -536,7 +536,7 @@ describe('grain-2: 생성 모드 선택 (M-3)', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    for (const label of ['유사색', '트라이애딕', '스플릿보색', '모노크로매틱', '보색']) {
+    for (const label of ['Analogous', 'Triadic', 'Split Complementary', 'Monochromatic', 'Complementary']) {
       fireEvent.click(screen.getByRole('button', { name: label }))
       expect(screen.getByText('#3366ff')).toBeInTheDocument()
     }
@@ -550,10 +550,10 @@ describe('grain-2: 생성 모드 선택 (M-3)', () => {
     const derivedLock = findLockButtonHex(list, false)
     fireEvent.click(screen.getByRole('button', { name: `${derivedLock} 색상 잠금 토글` }))
 
-    fireEvent.click(screen.getByRole('button', { name: '유사색' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
     expect(screen.getByText(derivedLock)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '트라이애딕' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Triadic' }))
     expect(screen.getByText(derivedLock)).toBeInTheDocument()
   })
 })
@@ -606,7 +606,7 @@ describe('grain-1: 감정/무드 태그 (M-4)', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    for (const label of ['유사색', '트라이애딕', '스플릿보색', '모노크로매틱', '보색']) {
+    for (const label of ['Analogous', 'Triadic', 'Split Complementary', 'Monochromatic', 'Complementary']) {
       fireEvent.click(screen.getByRole('button', { name: label }))
       const tags = within(getMoodTagList()).getAllByRole('listitem')
       expect(tags.length).toBeGreaterThanOrEqual(1)
