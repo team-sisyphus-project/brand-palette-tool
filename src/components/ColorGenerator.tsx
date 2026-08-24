@@ -14,6 +14,7 @@ import {
 } from '../lib/palette'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
+import { ColorWheel } from './ColorWheel'
 import { ModeSelector } from './ModeSelector'
 import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
@@ -63,6 +64,11 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * too far (M-5). AestheticMatch itself renders nothing when the match is
  * null, so no aesthetic name is ever forced onto the screen without a close
  * enough candidate.
+ *
+ * Below AestheticMatch, a ColorWheel renders whenever `palette` exists: a
+ * read-only SVG dial mapping each of the 5 palette colors' hue onto a 360°
+ * circle (M-6), so the geometric harmony the current GenerationMode encodes
+ * (complementary/triadic/etc.) is visible at a glance.
  */
 export function ColorGenerator() {
   const [inputValue, setInputValue] = useState('#E84C40')
@@ -133,6 +139,7 @@ export function ColorGenerator() {
           />
           <MoodTag tags={moodTags} />
           <AestheticMatch match={aestheticMatch} />
+          <ColorWheel colors={palette} />
           <button
             type="button"
             className="color-generator__regenerate"

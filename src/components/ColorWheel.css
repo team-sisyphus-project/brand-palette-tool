@@ -1,0 +1,46 @@
+.color-wheel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--element-gap-md);
+  width: 100%;
+}
+
+.color-wheel__frame {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 1;
+  border-radius: var(--radius-full);
+}
+
+.color-wheel__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.color-wheel__ring {
+  fill: none;
+  stroke: var(--color-border-default);
+  stroke-width: var(--border-width-default);
+}
+
+.color-wheel__marker {
+  stroke: var(--color-bg-surface);
+  stroke-width: var(--border-width-focus);
+}
+
+.color-wheel__marker-ring {
+  fill: none;
+  stroke: var(--color-action-bg);
+  stroke-width: var(--border-width-focus);
+}
+
+.color-wheel__caption {
+  margin: 0;
+  font-size: var(--text-size-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
