@@ -59,6 +59,11 @@
 }
 
 .palette-swatch__lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
   padding: var(--content-padding-sm);
   border: var(--border-width-default) solid var(--color-border-default);
   border-radius: var(--radius-control);

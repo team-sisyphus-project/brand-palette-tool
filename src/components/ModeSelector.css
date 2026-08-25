@@ -5,6 +5,11 @@
 }
 
 .mode-selector__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
   padding: var(--content-padding-sm) var(--content-padding-md);
   font-family: var(--font-text);
   font-size: var(--text-body-sm);
