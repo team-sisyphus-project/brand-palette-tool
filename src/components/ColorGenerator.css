@@ -7,6 +7,20 @@
   width: 100%;
 }
 
+/* grain-1: the 4 optional additional Hex fields stack the same as the other
+   color-input fields (design-spec components/text-input) - no new spacing
+   token needed beyond the existing element-gap-md the controls column
+   already uses. */
+.color-generator__extra-colors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap-md);
+  width: 100%;
+}
+
+/* design-spec components/action-button: shared by Generate (grain-1) and
+   Regenerate. */
+.color-generator__generate,
 .color-generator__regenerate {
   align-self: flex-start;
   display: inline-flex;

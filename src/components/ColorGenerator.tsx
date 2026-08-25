@@ -6,6 +6,7 @@ import {
   generatePalette,
   getMoodTags,
   matchAesthetic,
+  parseColorInput,
   regeneratePalette,
   updateSlotColor,
   type GenerationMode,
@@ -26,15 +27,39 @@ const INVALID_COLOR_MESSAGE =
 /** Default generation mode selected before the user picks one explicitly. */
 const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
 
+/** Number of optional additional brand-color Hex fields the intake form offers (grain-1). */
+const ADDITIONAL_COLOR_COUNT = 4
+
+/** Placeholder shared by the optional additional Hex fields (grain-1). */
+const ADDITIONAL_COLOR_PLACEHOLDER = '#3366ff or 51, 102, 255 (optional)'
+
 /**
- * Feature-level container for spec A's color generator: a single HEX/RGB
- * input feeds src/lib/palette.ts's generatePalette() and the 5-color
- * palette re-renders immediately on every keystroke (M-1). Invalid input
- * shows a validation message instead of a stale/partial palette.
+ * Feature-level container for spec A's color generator.
  *
- * The input defaults to the brand red `#E84C40` (see context/decisions/) so
- * a 5-color palette is already on screen at first mount, with zero user
- * interaction required.
+ * grain-1 (intake form + generate gate): alongside the brand main color
+ * field, the intake form also offers up to 4 optional additional Hex color
+ * fields and 1 mood-keyword field (see `ADDITIONAL_COLOR_COUNT`). Each
+ * additional Hex field is independently validated via `parseColorInput`
+ * (reused from src/lib/palette.ts) when non-empty; an empty field is valid
+ * (all 4 are optional). The mood-keyword field takes free text with no
+ * format validation.
+ *
+ * The 4 extra colors and the keyword are captured in local state only -
+ * they are not read by `generatePalette` (out of scope for this grain; see
+ * design-spec/spec/grain-1-intake-form-generate-gate.md).
+ *
+ * grain-1 also supersedes the previous "auto-render on mount / on every
+ * keystroke" behavior (flagged as an assumption - see the design spec
+ * draft): the palette/result section now only renders after the user clicks
+ * "Generate" while the brand main color is valid (`hasGenerated`). Editing
+ * any field before that first successful Generate click never reveals the
+ * result section. The brand input still defaults to `#E84C40` for
+ * convenience, but nothing is generated from it until Generate is clicked.
+ *
+ * A single HEX/RGB brand input feeds src/lib/palette.ts's generatePalette()
+ * and the 5-color palette re-renders on every keystroke *after* Generate has
+ * been clicked once (M-1). Invalid input shows a validation message instead
+ * of a stale/partial palette.
  *
  * Each palette slot can be locked/unlocked (brand slot starts locked via
  * createInitialLocks()). Regenerate re-derives only the unlocked slots via
@@ -72,9 +97,16 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  */
 export function ColorGenerator() {
   const [inputValue, setInputValue] = useState('#E84C40')
+  const [extraColors, setExtraColors] = useState<string[]>(() =>
+    Array.from({ length: ADDITIONAL_COLOR_COUNT }, () => ''),
+  )
+  const [moodKeyword, setMoodKeyword] = useState('')
   const [locks, setLocks] = useState<Locks>(() => createInitialLocks())
   const [mode, setMode] = useState<GenerationMode>(DEFAULT_MODE)
   const [regenerated, setRegenerated] = useState<PaletteColor[] | null>(null)
+  // grain-1: the palette/result section only renders once Generate has been
+  // clicked with a valid brand color - see the class doc comment above.
+  const [hasGenerated, setHasGenerated] = useState(false)
 
   const trimmed = inputValue.trim()
   const basePalette = useMemo(
@@ -83,15 +115,32 @@ export function ColorGenerator() {
   )
   const isInvalid = trimmed !== '' && basePalette === null
   const palette = regenerated ?? basePalette
+  const showResult = hasGenerated && palette !== null
   const moodTags = useMemo(() => (palette ? getMoodTags(averageHsl(palette)) : []), [palette])
   const aestheticMatch = useMemo(
     () => (palette ? matchAesthetic(averageHsl(palette)) : null),
     [palette],
   )
+  const extraColorErrors = useMemo(
+    () =>
+      extraColors.map((value) =>
+        value.trim() !== '' && parseColorInput(value) === null ? INVALID_COLOR_MESSAGE : null,
+      ),
+    [extraColors],
+  )
 
   const handleInputChange = (value: string) => {
     setInputValue(value)
     setRegenerated(null)
+  }
+
+  const handleExtraColorChange = (index: number, value: string) => {
+    setExtraColors((prev) => prev.map((current, slot) => (slot === index ? value : current)))
+  }
+
+  const handleGenerate = () => {
+    if (!basePalette) return // invalid/empty brand color: keep the result section hidden (M-4)
+    setHasGenerated(true)
   }
 
   const handleToggleLock = (index: number) => {
@@ -125,11 +174,37 @@ export function ColorGenerator() {
     <>
       <section className="panel-generator color-generator__controls">
         <ColorInput
+          id="brand-color-input"
+          label="Brand main color"
+          placeholder="#3366ff or 51, 102, 255"
           value={inputValue}
           onChange={handleInputChange}
           error={isInvalid ? INVALID_COLOR_MESSAGE : null}
         />
-        {palette && (
+        <div className="color-generator__extra-colors">
+          {extraColors.map((value, index) => (
+            <ColorInput
+              key={index}
+              id={`additional-color-input-${index + 1}`}
+              label={`Additional color ${index + 1}`}
+              placeholder={ADDITIONAL_COLOR_PLACEHOLDER}
+              value={value}
+              onChange={(next) => handleExtraColorChange(index, next)}
+              error={extraColorErrors[index]}
+            />
+          ))}
+        </div>
+        <ColorInput
+          id="mood-keyword-input"
+          label="Mood keyword"
+          placeholder="e.g. calm, bold, playful"
+          value={moodKeyword}
+          onChange={setMoodKeyword}
+        />
+        <button type="button" className="color-generator__generate" onClick={handleGenerate}>
+          Generate
+        </button>
+        {showResult && (
           <>
             <ModeSelector mode={mode} onChange={handleModeChange} />
             <button
@@ -143,7 +218,7 @@ export function ColorGenerator() {
         )}
       </section>
       <section className="panel-preview color-generator__preview">
-        {palette && (
+        {showResult && palette && (
           <>
             <Palette
               colors={palette}
