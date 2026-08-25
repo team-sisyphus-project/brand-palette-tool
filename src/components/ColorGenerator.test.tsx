@@ -234,29 +234,18 @@ describe('ColorGenerator', () => {
     expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
   })
 
-  it('clears the palette and error once the field is emptied again', () => {
-    render(<ColorGenerator />)
-    const input = getInput()
-
-    generate('#3366ff')
-    expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
-
-    fireEvent.change(input, { target: { value: '' } })
-    expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  })
-
-  it('after Generate, the palette keeps updating live as the brand input changes to a new valid color', () => {
-    render(<ColorGenerator />)
-    const input = getInput()
-
-    generate('#3366ff')
-    expect(screen.getByText('#3366ff')).toBeInTheDocument()
-
-    fireEvent.change(input, { target: { value: '#ff0000' } })
-    expect(screen.getByText('#ff0000')).toBeInTheDocument()
-    expect(screen.queryByText('#3366ff')).not.toBeInTheDocument()
-  })
+  // grain-2 note: two pre-existing tests previously lived here -
+  // "clears the palette and error once the field is emptied again" and
+  // "after Generate, the palette keeps updating live as the brand input
+  // changes to a new valid color" - both drove the scenario by editing the
+  // brand field *after* clicking Generate. grain-2 unmounts the brand field
+  // (along with the rest of the intake form) once a palette exists, so that
+  // scenario is no longer reachable through the UI; removed rather than kept
+  // red, per context/decisions/. The still-valid half of each test's intent
+  // survives elsewhere: "renders no palette and no error once the input is
+  // cleared (M-1 baseline)" above covers pre-generate clearing, and the
+  // "grain-2: generated result view" describe block below covers the new
+  // hidden-intake-form behavior.
 
   it('renders the brand main color slot locked by default (aria-pressed)', () => {
     render(<ColorGenerator />)
@@ -350,24 +339,13 @@ describe('ColorGenerator', () => {
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
   })
 
-  // Grain-1 DoneWhen: "same result on re-entering the same input" must hold through the real
-  // ColorInput -> useMemo(generatePalette) -> Palette wiring, not just at the
-  // pure-function level (already covered in palette.test.ts).
-  it('re-entering the exact same brand input (after typing something else) renders the identical 5-color palette', () => {
-    render(<ColorGenerator />)
-    const input = getInput()
-
-    generate('#3366ff')
-    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
-    const firstPass = getHexes(list)
-
-    fireEvent.change(input, { target: { value: '#ff0000' } })
-    expect(getHexes(list)).not.toEqual(firstPass)
-
-    fireEvent.change(input, { target: { value: '#3366ff' } })
-    expect(getHexes(list)).toEqual(firstPass)
-  })
-
+  // grain-2 note: "re-entering the exact same brand input (after typing
+  // something else) renders the identical 5-color palette" previously lived
+  // here, re-editing the brand field after Generate to prove determinism.
+  // That field is unmounted post-Generate under grain-2 (see the class doc
+  // comment and context/decisions/), so the same determinism guarantee (M-1)
+  // is now verified the only way still reachable through the UI - a fresh
+  // mount with the same input, below.
   it('renders the same 5-color palette for a fresh mount given the same brand input (no hidden randomness in the base path)', () => {
     const { unmount } = render(<ColorGenerator />)
     generate('#3366ff')
@@ -756,17 +734,23 @@ describe('grain-1: emotion/mood tags (M-4)', () => {
     tags.forEach((tag) => expect(tag.textContent).not.toBe(''))
   })
 
-  it('re-entering the same brand input shows the same mood tags (determinism)', () => {
-    render(<ColorGenerator />)
-    const input = getInput()
-
+  // grain-2 note: previously re-typed the brand field after Generate to
+  // prove determinism (re-entering the same value -> same tags). That field
+  // is unmounted post-Generate now (see context/decisions/), so - like the
+  // palette's own determinism test below it - this now proves the same
+  // guarantee via two independent fresh mounts instead of a post-Generate
+  // re-edit. Editing the (now-unmounted) field silently no-ops rather than
+  // failing, which would have made the old version a test that can't fail.
+  it('shows the same mood tags for a fresh mount given the same brand input (determinism)', () => {
+    const { unmount } = render(<ColorGenerator />)
     generate('#3366ff')
     const firstTags = within(getMoodTagList())
       .getAllByRole('listitem')
       .map((tag) => tag.textContent)
+    unmount()
 
-    fireEvent.change(input, { target: { value: '#ff0000' } })
-    fireEvent.change(input, { target: { value: '#3366ff' } })
+    render(<ColorGenerator />)
+    generate('#3366ff')
     const secondTags = within(getMoodTagList())
       .getAllByRole('listitem')
       .map((tag) => tag.textContent)
@@ -834,15 +818,116 @@ describe('grain-1: aesthetic name matching (M-5)', () => {
     expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
   })
 
+  // grain-2 note: this test's title always said "switching generation
+  // modes", but its body actually drove the change by re-editing the brand
+  // field after Generate (a pre-existing title/body mismatch). That field is
+  // unmounted post-Generate now (see context/decisions/), so the body is
+  // fixed here to match what the title always claimed - GENERATION_MODES
+  // 'triadic' pushes #26d9ac's average hue (~165 -> ~345) out of every
+  // archetype's threshold while 'complementary' (default) matches Tropical,
+  // pre-verified via src/lib/palette.ts's own averageHsl/matchAesthetic
+  // (node scratch script), same approach as the file-level comment above.
   it('recomputes the match every time the palette is recalculated by switching generation modes', () => {
     render(<ColorGenerator />)
     generate('#26d9ac')
     expect(screen.getByRole('status', { name: 'Palette aesthetic match' })).toHaveTextContent('Tropical')
 
-    fireEvent.change(getInput(), { target: { value: '#1a3300' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Triadic' }))
     expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
 
-    fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Complementary' }))
     expect(screen.getByRole('status', { name: 'Palette aesthetic match' })).toHaveTextContent('Tropical')
+  })
+})
+
+// grain-2: once a palette exists, the whole intake form (brand field, 4
+// additional Hex fields, mood-keyword field, Generate button) is unmounted
+// from the DOM, the preview panel gains a center-aligned modifier class, and
+// Regenerate is rendered inside that preview panel directly above the color
+// chips (previously it lived in the controls panel next to ModeSelector).
+describe('grain-2: generated result view (center + hide form + Regenerate above chips)', () => {
+  function getPreviewPanel(): HTMLElement {
+    return screen.getByRole('list', { name: 'Generated 5-color palette' }).closest('section')!
+  }
+
+  it('before Generate, the intake form is visible and the preview panel has no center-aligned modifier', () => {
+    render(<ColorGenerator />)
+
+    expect(getInput()).toBeInTheDocument()
+    ;([1, 2, 3, 4] as const).forEach((n) => expect(getAdditionalColorInput(n)).toBeInTheDocument())
+    expect(getMoodKeywordInput()).toBeInTheDocument()
+    expect(getGenerateButton()).toBeInTheDocument()
+  })
+
+  it('after Generate, the brand field, all 4 additional Hex fields, the mood-keyword field, and the Generate button are entirely unmounted', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    expect(screen.queryByLabelText('Brand main color')).not.toBeInTheDocument()
+    ;([1, 2, 3, 4] as const).forEach((n) =>
+      expect(screen.queryByLabelText(`Additional color ${n}`)).not.toBeInTheDocument(),
+    )
+    expect(screen.queryByLabelText('Mood keyword')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Generate' })).not.toBeInTheDocument()
+  })
+
+  it('after Generate, the mode selector is still shown (its placement is unchanged, out of scope)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    expect(screen.getByRole('group', { name: 'Select generation mode' })).toBeInTheDocument()
+  })
+
+  it('after Generate, the preview panel carries the center-aligned result modifier class', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    expect(getPreviewPanel()).toHaveClass('color-generator__preview--result')
+  })
+
+  it('before Generate, the (empty) preview panel does not carry the center-aligned result modifier class', () => {
+    const { container } = render(<ColorGenerator />)
+
+    const preview = container.querySelector('.color-generator__preview')!
+    expect(preview).not.toHaveClass('color-generator__preview--result')
+  })
+
+  it('Regenerate renders inside the preview panel, immediately before the color chips', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const preview = getPreviewPanel()
+    const children = Array.from(preview.children)
+    const regenerateIndex = children.findIndex(
+      (child) => child.tagName === 'BUTTON' && child.textContent === 'Regenerate',
+    )
+    const paletteIndex = children.findIndex((child) =>
+      child.matches('[role="list"][aria-label="Generated 5-color palette"]'),
+    )
+
+    expect(regenerateIndex).toBeGreaterThanOrEqual(0)
+    expect(paletteIndex).toBeGreaterThan(regenerateIndex)
+  })
+
+  it('Regenerate no longer renders in the controls panel', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const controlsPanel = screen.getByRole('group', { name: 'Select generation mode' }).closest('section')!
+    expect(within(controlsPanel).queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument()
+  })
+
+  it('Regenerate still works after moving above the color chips (locked slot survives)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    expect(within(list).getAllByRole('listitem')).toHaveLength(5)
   })
 })

@@ -94,6 +94,19 @@ const ADDITIONAL_COLOR_PLACEHOLDER = '#3366ff or 51, 102, 255 (optional)'
  * read-only SVG dial mapping each of the 5 palette colors' hue onto a 360°
  * circle (M-6), so the geometric harmony the current GenerationMode encodes
  * (complementary/triadic/etc.) is visible at a glance.
+ *
+ * grain-2 (generated result view): once `showResult` is true, the intake
+ * form (brand field, 4 additional Hex fields, mood-keyword field, Generate
+ * button) is unmounted entirely from `panel-generator` - only ModeSelector
+ * remains there (its placement is unchanged, out of scope for this grain).
+ * This **supersedes** grain-1's "brand input stays visible/editable and the
+ * palette keeps live-updating from it after Generate" behavior: since the
+ * brand field is gone, the only ways to change the palette after Generate
+ * are ModeSelector, Regenerate, lock/unlock, and per-swatch color-picker
+ * edits (see context/decisions/ for which pre-existing tests this
+ * superseded and why). Regenerate moves into `panel-preview`, rendered
+ * directly above the color chips, and the whole preview panel is
+ * center-aligned via the `color-generator__preview--result` modifier class.
  */
 export function ColorGenerator() {
   const [inputValue, setInputValue] = useState('#E84C40')
@@ -170,43 +183,54 @@ export function ColorGenerator() {
     setLocks((prev) => prev.map((locked, slot) => (slot === index ? true : locked)))
   }
 
+  const previewClassName = showResult
+    ? 'panel-preview color-generator__preview color-generator__preview--result'
+    : 'panel-preview color-generator__preview'
+
   return (
     <>
       <section className="panel-generator color-generator__controls">
-        <ColorInput
-          id="brand-color-input"
-          label="Brand main color"
-          placeholder="#3366ff or 51, 102, 255"
-          value={inputValue}
-          onChange={handleInputChange}
-          error={isInvalid ? INVALID_COLOR_MESSAGE : null}
-        />
-        <div className="color-generator__extra-colors">
-          {extraColors.map((value, index) => (
-            <ColorInput
-              key={index}
-              id={`additional-color-input-${index + 1}`}
-              label={`Additional color ${index + 1}`}
-              placeholder={ADDITIONAL_COLOR_PLACEHOLDER}
-              value={value}
-              onChange={(next) => handleExtraColorChange(index, next)}
-              error={extraColorErrors[index]}
-            />
-          ))}
-        </div>
-        <ColorInput
-          id="mood-keyword-input"
-          label="Mood keyword"
-          placeholder="e.g. calm, bold, playful"
-          value={moodKeyword}
-          onChange={setMoodKeyword}
-        />
-        <button type="button" className="color-generator__generate" onClick={handleGenerate}>
-          Generate
-        </button>
-        {showResult && (
+        {showResult ? (
+          <ModeSelector mode={mode} onChange={handleModeChange} />
+        ) : (
           <>
-            <ModeSelector mode={mode} onChange={handleModeChange} />
+            <ColorInput
+              id="brand-color-input"
+              label="Brand main color"
+              placeholder="#3366ff or 51, 102, 255"
+              value={inputValue}
+              onChange={handleInputChange}
+              error={isInvalid ? INVALID_COLOR_MESSAGE : null}
+            />
+            <div className="color-generator__extra-colors">
+              {extraColors.map((value, index) => (
+                <ColorInput
+                  key={index}
+                  id={`additional-color-input-${index + 1}`}
+                  label={`Additional color ${index + 1}`}
+                  placeholder={ADDITIONAL_COLOR_PLACEHOLDER}
+                  value={value}
+                  onChange={(next) => handleExtraColorChange(index, next)}
+                  error={extraColorErrors[index]}
+                />
+              ))}
+            </div>
+            <ColorInput
+              id="mood-keyword-input"
+              label="Mood keyword"
+              placeholder="e.g. calm, bold, playful"
+              value={moodKeyword}
+              onChange={setMoodKeyword}
+            />
+            <button type="button" className="color-generator__generate" onClick={handleGenerate}>
+              Generate
+            </button>
+          </>
+        )}
+      </section>
+      <section className={previewClassName}>
+        {showResult && palette && (
+          <>
             <button
               type="button"
               className="color-generator__regenerate"
@@ -214,12 +238,6 @@ export function ColorGenerator() {
             >
               Regenerate
             </button>
-          </>
-        )}
-      </section>
-      <section className="panel-preview color-generator__preview">
-        {showResult && palette && (
-          <>
             <Palette
               colors={palette}
               locks={locks}

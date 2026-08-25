@@ -40,3 +40,22 @@
   letter-spacing: var(--tracking-text);
   cursor: pointer;
 }
+
+/*
+ * grain-2: once a palette has been generated, the preview panel
+ * (color-generator__preview--result) centers its contents - the Regenerate
+ * button now rendered directly above the color chips, the chips themselves,
+ * mood tags, aesthetic match, and color wheel. Reuses the existing
+ * align-items/text-align layout primitives (no new spacing/color token
+ * needed - see context/decisions/). `.color-generator__regenerate` keeps the
+ * shared action-button align-self: flex-start above for its (now unused)
+ * generator-panel context, so it is re-centered here for its new home.
+ */
+.color-generator__preview--result {
+  align-items: center;
+  text-align: center;
+}
+
+.color-generator__preview--result .color-generator__regenerate {
+  align-self: center;
+}
