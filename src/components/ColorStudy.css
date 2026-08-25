@@ -1,0 +1,26 @@
+/*
+ * grain-1: independent "Color Study" section shell. The top border + padding
+ * are the visual separator from the Palette/MoodTag/AestheticMatch group
+ * that renders above it in the same preview panel (design-spec
+ * components/color-study/base.md) - reuses existing spacing/border/color
+ * tokens, no new token values introduced.
+ */
+.color-study {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: var(--border-width-default) solid var(--color-border-default);
+}
+
+.color-study__heading {
+  margin: 0 0 var(--element-gap-md);
+  font-family: var(--font-display);
+  font-size: var(--text-display-xs);
+  font-weight: var(--weight-display-semibold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-text-primary);
+}

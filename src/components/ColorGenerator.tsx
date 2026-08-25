@@ -15,7 +15,7 @@ import {
 } from '../lib/palette'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
-import { ColorWheel } from './ColorWheel'
+import { ColorStudy } from './ColorStudy'
 import { ModeSelector } from './ModeSelector'
 import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
@@ -90,10 +90,16 @@ const ADDITIONAL_COLOR_PLACEHOLDER = '#3366ff or 51, 102, 255 (optional)'
  * null, so no aesthetic name is ever forced onto the screen without a close
  * enough candidate.
  *
- * Below AestheticMatch, a ColorWheel renders whenever `palette` exists: a
- * read-only SVG dial mapping each of the 5 palette colors' hue onto a 360°
- * circle (M-6), so the geometric harmony the current GenerationMode encodes
- * (complementary/triadic/etc.) is visible at a glance.
+ * Below AestheticMatch, a ColorStudy section renders whenever `palette`
+ * exists: a read-only SVG dial (ColorWheel) mapping each of the 5 palette
+ * colors' hue onto a 360° circle (M-6), so the geometric harmony the current
+ * GenerationMode encodes (complementary/triadic/etc.) is visible at a glance.
+ *
+ * grain-1 (Color Study section shell): ColorWheel itself no longer renders
+ * inline with Palette/MoodTag/AestheticMatch - it is wrapped by ColorStudy,
+ * an independent section with its own "Color Study" heading, visually
+ * separated (top divider) from the group above it. Composition-only change;
+ * ColorWheel's own rendering/geometry is untouched (see ColorStudy.tsx).
  *
  * grain-2 (generated result view): once `showResult` is true, the intake
  * form (brand field, 4 additional Hex fields, mood-keyword field, Generate
@@ -246,7 +252,7 @@ export function ColorGenerator() {
             />
             <MoodTag tags={moodTags} />
             <AestheticMatch match={aestheticMatch} />
-            <ColorWheel colors={palette} />
+            <ColorStudy colors={palette} />
           </>
         )}
       </section>
