@@ -1,10 +1,4 @@
-.mode-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--element-gap-xs);
-}
-
-.mode-selector__button {
+.theme-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -23,20 +17,13 @@
   cursor: pointer;
 }
 
-.mode-selector__button:hover {
+.theme-toggle:hover {
   background-color: var(--color-bg-hover);
   border-color: var(--color-border-hover);
 }
 
-.mode-selector__button:focus-visible {
+.theme-toggle:focus-visible {
   outline: none;
   border-width: var(--border-width-focus);
   border-color: var(--color-border-focus);
-}
-
-.mode-selector__button[aria-pressed='true'] {
-  color: var(--color-text-on-action);
-  background-color: var(--color-action-bg-strong);
-  border-color: var(--color-action-bg-strong);
-  font-weight: var(--weight-text-semibold);
 }

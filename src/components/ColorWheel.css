@@ -11,7 +11,7 @@
   width: 100%;
   max-width: 220px;
   aspect-ratio: 1;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
 }
 
 .color-wheel__svg {
@@ -40,7 +40,10 @@
 
 .color-wheel__caption {
   margin: 0;
-  font-size: var(--text-size-sm);
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
   color: var(--color-text-secondary);
   text-align: center;
 }

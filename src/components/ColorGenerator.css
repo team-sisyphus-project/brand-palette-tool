@@ -1,4 +1,5 @@
-.color-generator {
+.color-generator__controls,
+.color-generator__preview {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -8,12 +9,20 @@
 
 .color-generator__regenerate {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
   padding: var(--content-padding-sm) var(--content-padding-md);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--color-action-bg);
   color: var(--color-text-on-action);
-  font-size: var(--text-size-md);
-  font-weight: var(--text-weight-medium);
+  font-family: var(--font-text);
+  font-size: var(--text-body-md);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
   cursor: pointer;
 }

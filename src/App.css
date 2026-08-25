@@ -1,6 +1,88 @@
 .app {
+  min-height: 100vh;
+}
+
+.app__intro {
   max-width: 720px;
   margin: 0 auto;
   padding: var(--content-padding-lg);
   text-align: center;
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--element-gap-md);
+}
+
+.app__intro h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-display-lg);
+  font-weight: var(--weight-display-bold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-text-primary);
+}
+
+.app__intro p {
+  font-family: var(--font-text);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-text-regular);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-secondary);
+}
+
+/*
+ * app-shell: left control panel (flex 4) + right preview panel (flex 6),
+ * per the 8px-multiple --space-* scale (spacing/base Token Group, grain-1).
+ * Panels stack vertically at 1024px and below; padding/gap tighten further
+ * at 768px and below. Breakpoint numbers are implementation config values
+ * (policy/coding.md: 값을 바꿔도 사용자가 "간격의 크기"만 다르게 인지할 뿐 새로운
+ * 디자인 축이 아니므로 breakpoint 자체는 토큰화하지 않는다), not design tokens.
+ */
+.app-shell {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-5);
+  padding: var(--space-6);
+}
+
+.panel-generator {
+  flex: 4;
+  min-width: 360px;
+  padding: var(--space-5);
+}
+
+.panel-preview {
+  flex: 6;
+  min-width: 480px;
+  padding: var(--space-5);
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .panel-generator,
+  .panel-preview {
+    flex: none;
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+
+  .panel-generator,
+  .panel-preview {
+    padding: var(--space-4);
+  }
 }

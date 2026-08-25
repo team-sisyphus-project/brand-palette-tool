@@ -9,11 +9,13 @@
 
 .mood-tag__item {
   padding: var(--content-padding-sm) var(--content-padding-md);
-  font-size: var(--text-size-sm);
-  font-weight: var(--text-weight-medium);
-  line-height: var(--line-height-normal);
+  font-family: var(--font-rounded);
+  font-size: var(--text-rounded-md);
+  font-weight: var(--weight-rounded-medium);
+  line-height: var(--leading-rounded);
+  letter-spacing: var(--tracking-rounded);
   color: var(--color-text-secondary);
   background-color: var(--color-bg-muted);
   border: none;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
 }

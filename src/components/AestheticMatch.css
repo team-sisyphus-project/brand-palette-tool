@@ -3,11 +3,13 @@
   padding: var(--content-padding-sm) var(--content-padding-md);
   display: inline-block;
   width: fit-content;
-  font-size: var(--text-size-sm);
-  font-weight: var(--text-weight-medium);
-  line-height: var(--line-height-normal);
+  font-family: var(--font-rounded);
+  font-size: var(--text-rounded-md);
+  font-weight: var(--weight-rounded-medium);
+  line-height: var(--leading-rounded);
+  letter-spacing: var(--tracking-rounded);
   color: var(--color-text-secondary);
   background-color: var(--color-bg-surface);
   border: var(--border-width-default) solid var(--color-border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
 }
