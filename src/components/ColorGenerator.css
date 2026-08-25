@@ -1,4 +1,5 @@
-.color-generator {
+.color-generator__controls,
+.color-generator__preview {
   display: flex;
   flex-direction: column;
   align-items: stretch;

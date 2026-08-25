@@ -122,33 +122,41 @@ export function ColorGenerator() {
   }
 
   return (
-    <section className="color-generator">
-      <ColorInput
-        value={inputValue}
-        onChange={handleInputChange}
-        error={isInvalid ? INVALID_COLOR_MESSAGE : null}
-      />
-      {palette && (
-        <>
-          <ModeSelector mode={mode} onChange={handleModeChange} />
-          <Palette
-            colors={palette}
-            locks={locks}
-            onToggleLock={handleToggleLock}
-            onColorChange={handleSlotColorChange}
-          />
-          <MoodTag tags={moodTags} />
-          <AestheticMatch match={aestheticMatch} />
-          <ColorWheel colors={palette} />
-          <button
-            type="button"
-            className="color-generator__regenerate"
-            onClick={handleRegenerate}
-          >
-            Regenerate
-          </button>
-        </>
-      )}
-    </section>
+    <>
+      <section className="panel-generator color-generator__controls">
+        <ColorInput
+          value={inputValue}
+          onChange={handleInputChange}
+          error={isInvalid ? INVALID_COLOR_MESSAGE : null}
+        />
+        {palette && (
+          <>
+            <ModeSelector mode={mode} onChange={handleModeChange} />
+            <button
+              type="button"
+              className="color-generator__regenerate"
+              onClick={handleRegenerate}
+            >
+              Regenerate
+            </button>
+          </>
+        )}
+      </section>
+      <section className="panel-preview color-generator__preview">
+        {palette && (
+          <>
+            <Palette
+              colors={palette}
+              locks={locks}
+              onToggleLock={handleToggleLock}
+              onColorChange={handleSlotColorChange}
+            />
+            <MoodTag tags={moodTags} />
+            <AestheticMatch match={aestheticMatch} />
+            <ColorWheel colors={palette} />
+          </>
+        )}
+      </section>
+    </>
   )
 }

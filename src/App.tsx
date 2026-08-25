@@ -8,12 +8,16 @@ function App() {
 
   return (
     <div className="app">
-      <div className="app__header">
-        <h1>Color Palette Generator</h1>
-        <ThemeToggle theme={theme} onToggle={toggleTheme} />
+      <div className="app__intro">
+        <div className="app__header">
+          <h1>Color Palette Generator</h1>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
+        <p>Enter a brand main color to instantly generate a 5-color palette.</p>
       </div>
-      <p>Enter a brand main color to instantly generate a 5-color palette.</p>
-      <ColorGenerator />
+      <div className="app-shell">
+        <ColorGenerator />
+      </div>
     </div>
   )
 }
