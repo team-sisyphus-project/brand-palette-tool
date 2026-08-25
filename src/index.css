@@ -1,48 +1,182 @@
 :root {
   color-scheme: light dark;
 
-  /* Design tokens — color */
-  --color-bg-surface: #ffffff;
-  --color-text-primary: #1a1a1a;
-  --color-text-secondary: #6b7280;
-  --color-border-default: #d1d5db;
-  --color-border-focus: #2563eb;
-  --color-border-hover: #9ca3af;
-  --color-state-error: #dc2626;
-  --color-state-error-bg: #fef2f2;
-  --color-action-bg: #2563eb;
-  --color-action-bg-strong: #1d4ed8;
-  --color-text-on-action: #ffffff;
-  --color-bg-muted: #f3f4f6;
-  --color-bg-hover: #eff6ff;
+  /* Design tokens — typography: Display (headers, >= 20px) */
+  --font-display: -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  --text-display-lg: 34px;
+  --text-display-md: 28px;
+  --text-display-sm: 22px;
+  --text-display-xs: 20px;
+  --tracking-display: -0.02em;
+  --leading-display: 1.2;
+  --weight-display-regular: 400;
+  --weight-display-semibold: 600;
+  --weight-display-bold: 700;
 
-  /* Design tokens — typography */
-  --text-size-sm: 0.75rem;
-  --text-size-md: 0.875rem;
-  --text-weight-regular: 400;
-  --text-weight-medium: 600;
-  --text-weight-bold: 700;
-  --line-height-normal: 1.5;
+  /* Design tokens — typography: Text (body/label, < 20px) */
+  --font-text: -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --text-body-lg: 17px;
+  --text-body-md: 15px;
+  --text-body-sm: 13px;
+  --tracking-text: -0.01em;
+  --leading-text: 1.5;
+  --weight-text-regular: 400;
+  --weight-text-medium: 500;
+  --weight-text-semibold: 600;
 
-  /* Design tokens — spacing */
+  /* Design tokens — typography: Rounded (badges/tags) */
+  --font-rounded: ui-rounded, "SF Pro Rounded", var(--font-text);
+  --text-rounded-md: 13px;
+  --text-rounded-sm: 11px;
+  --tracking-rounded: 0em;
+  --leading-rounded: 1.2;
+  --weight-rounded-medium: 500;
+
+  /* Design tokens — typography: Mono (hex values, code, contrast numbers) */
+  --font-mono: ui-monospace, "SF Mono", "Menlo", monospace;
+  --text-mono-md: 13px;
+  --text-mono-sm: 12px;
+  --tracking-mono: 0em;
+  --leading-mono: 1.4;
+  --weight-mono-regular: 400;
+  --weight-mono-medium: 500;
+
+  /* Design tokens — radius (continuous-corner approximation via standard border-radius) */
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-container: 20px;
+  --radius-pill: 999px;
+
+  /* Design tokens — material (Liquid Glass blur amount; theme-independent) */
+  --material-thick: saturate(180%) blur(20px);
+  --material-thin: saturate(150%) blur(10px);
+
+  /* Design tokens — border (structural widths; theme-independent) */
+  --border-width-default: 1px;
+  --border-width-focus: 2px;
+
+  /* Design tokens — spacing (pre-existing, unchanged by this grain) */
   --element-gap-xs: 4px;
   --element-gap-md: 16px;
   --content-padding-sm: 8px;
   --content-padding-md: 12px;
   --content-padding-lg: 2rem;
 
-  /* Design tokens — radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-full: 9999px;
+  /* Design tokens — color: adaptive semantic tokens (light values are the default/fallback) */
+  --color-system-bg-primary: #ffffff;
+  --color-system-bg-secondary: #f2f2f7;
+  --color-system-bg-tertiary: #ffffff;
+  --color-text-primary: rgba(0, 0, 0, 0.85);
+  --color-text-secondary: rgba(60, 60, 67, 0.6);
+  --color-text-tertiary: rgba(60, 60, 67, 0.3);
+  --border-subtle: rgba(60, 60, 67, 0.29);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --color-accent: #007aff;
+  --color-status-success: #34c759;
+  --color-status-warning: #ff9f0a;
+  --color-status-error: #ff3b30;
+  --material-thick-bg: rgba(255, 255, 255, 0.72);
+  --material-thin-bg: rgba(255, 255, 255, 0.55);
 
-  /* Design tokens — border */
-  --border-width-default: 1px;
-  --border-width-focus: 2px;
+  /* Design tokens — color: derived from the adaptive tokens above so components
+     that need a background/border/action color stay in sync with the active theme. */
+  --color-bg-surface: var(--color-system-bg-tertiary);
+  --color-bg-muted: var(--color-system-bg-secondary);
+  --color-bg-hover: color-mix(in srgb, var(--color-system-bg-tertiary) 92%, var(--color-text-primary) 8%);
+  --color-border-default: var(--border-subtle);
+  --color-border-hover: color-mix(in srgb, var(--border-subtle) 100%, var(--color-text-primary) 20%);
+  --color-border-focus: var(--color-accent);
+  --color-action-bg: var(--color-accent);
+  --color-action-bg-strong: color-mix(in srgb, var(--color-accent) 82%, black);
+  --color-text-on-action: #ffffff;
+  --color-state-error: var(--color-status-error);
+  --color-state-error-bg: color-mix(in srgb, var(--color-status-error) 12%, transparent);
+}
+
+/* Manual theme toggle: explicit opt-in to light, always wins over OS preference. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-system-bg-primary: #ffffff;
+  --color-system-bg-secondary: #f2f2f7;
+  --color-system-bg-tertiary: #ffffff;
+  --color-text-primary: rgba(0, 0, 0, 0.85);
+  --color-text-secondary: rgba(60, 60, 67, 0.6);
+  --color-text-tertiary: rgba(60, 60, 67, 0.3);
+  --border-subtle: rgba(60, 60, 67, 0.29);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --color-accent: #007aff;
+  --color-status-success: #34c759;
+  --color-status-warning: #ff9f0a;
+  --color-status-error: #ff3b30;
+  --material-thick-bg: rgba(255, 255, 255, 0.72);
+  --material-thin-bg: rgba(255, 255, 255, 0.55);
+}
+
+/* Manual theme toggle: explicit opt-in to dark, always wins over OS preference. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-system-bg-primary: #000000;
+  --color-system-bg-secondary: #1c1c1e;
+  --color-system-bg-tertiary: #2c2c2e;
+  --color-text-primary: rgba(255, 255, 255, 0.85);
+  --color-text-secondary: rgba(235, 235, 245, 0.6);
+  --color-text-tertiary: rgba(235, 235, 245, 0.3);
+  --border-subtle: rgba(84, 84, 88, 0.6);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --color-accent: #0a84ff;
+  --color-status-success: #30d158;
+  --color-status-warning: #ff9f0a;
+  --color-status-error: #ff453a;
+  --material-thick-bg: rgba(28, 28, 30, 0.72);
+  --material-thin-bg: rgba(28, 28, 30, 0.55);
+}
+
+/* No manual override present: follow the OS preference automatically. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='dark']) {
+    color-scheme: dark;
+    --color-system-bg-primary: #000000;
+    --color-system-bg-secondary: #1c1c1e;
+    --color-system-bg-tertiary: #2c2c2e;
+    --color-text-primary: rgba(255, 255, 255, 0.85);
+    --color-text-secondary: rgba(235, 235, 245, 0.6);
+    --color-text-tertiary: rgba(235, 235, 245, 0.3);
+    --border-subtle: rgba(84, 84, 88, 0.6);
+    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --color-accent: #0a84ff;
+    --color-status-success: #30d158;
+    --color-status-warning: #ff9f0a;
+    --color-status-error: #ff453a;
+    --material-thick-bg: rgba(28, 28, 30, 0.72);
+    --material-thin-bg: rgba(28, 28, 30, 0.55);
+  }
+}
+
+/* backdrop-filter fallback: raise the glass background to a near-opaque value
+   so `.panel--glass`/`.chip--glass` consumers stay legible without blur support. */
+@supports not (backdrop-filter: blur(1px)) {
+  :root {
+    --material-thick-bg: rgba(255, 255, 255, 0.97);
+    --material-thin-bg: rgba(255, 255, 255, 0.97);
+  }
+
+  :root[data-theme='dark'] {
+    --material-thick-bg: rgba(28, 28, 30, 0.97);
+    --material-thin-bg: rgba(28, 28, 30, 0.97);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']):not([data-theme='dark']) {
+      --material-thick-bg: rgba(28, 28, 30, 0.97);
+      --material-thin-bg: rgba(28, 28, 30, 0.97);
+    }
+  }
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--color-system-bg-secondary);
+  color: var(--color-text-primary);
+  font-family: var(--font-text);
 }

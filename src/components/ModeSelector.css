@@ -6,13 +6,15 @@
 
 .mode-selector__button {
   padding: var(--content-padding-sm) var(--content-padding-md);
-  font-size: var(--text-size-sm);
-  font-weight: var(--text-weight-regular);
-  line-height: var(--line-height-normal);
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
   color: var(--color-text-secondary);
   background-color: var(--color-bg-surface);
   border: var(--border-width-default) solid var(--color-border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
@@ -31,5 +33,5 @@
   color: var(--color-text-on-action);
   background-color: var(--color-action-bg-strong);
   border-color: var(--color-action-bg-strong);
-  font-weight: var(--text-weight-bold);
+  font-weight: var(--weight-text-semibold);
 }
