@@ -100,8 +100,13 @@
   --color-bg-hover: color-mix(in srgb, var(--color-system-bg-tertiary) 92%, var(--color-text-primary) 8%);
   --color-border-default: var(--border-subtle);
   --color-border-hover: color-mix(in srgb, var(--border-subtle) 100%, var(--color-text-primary) 20%);
-  --color-border-focus: var(--color-accent);
-  --color-action-bg: var(--color-accent);
+  /* Opaque neutral gray, not --color-accent: UI chrome (focus rings, action
+     buttons/strokes) stays monochrome per the deference principle. The only
+     remaining accent usage is the selected ModeSelector chip, via
+     --color-action-bg-strong below. Verified >=4.5:1 against
+     --color-text-on-action in contrast.test.ts. */
+  --color-border-focus: #6e6e73;
+  --color-action-bg: #6e6e73;
   --color-action-bg-strong: color-mix(in srgb, var(--color-accent) 82%, black);
   --color-text-on-action: #ffffff;
   --color-state-error: var(--color-status-error);
@@ -126,6 +131,8 @@
   --color-status-success: #34c759;
   --color-status-warning: #ff9f0a;
   --color-status-error: #ff3b30;
+  --color-border-focus: #6e6e73;
+  --color-action-bg: #6e6e73;
   --material-thick-bg: rgba(255, 255, 255, 0.72);
   --material-thin-bg: rgba(255, 255, 255, 0.55);
 }
@@ -145,6 +152,8 @@
   --color-status-success: #30d158;
   --color-status-warning: #ff9f0a;
   --color-status-error: #ff453a;
+  --color-border-focus: #5c5c61;
+  --color-action-bg: #5c5c61;
   --material-thick-bg: rgba(28, 28, 30, 0.72);
   --material-thin-bg: rgba(28, 28, 30, 0.55);
 }
@@ -165,6 +174,8 @@
     --color-status-success: #30d158;
     --color-status-warning: #ff9f0a;
     --color-status-error: #ff453a;
+    --color-border-focus: #5c5c61;
+    --color-action-bg: #5c5c61;
     --material-thick-bg: rgba(28, 28, 30, 0.72);
     --material-thin-bg: rgba(28, 28, 30, 0.55);
   }

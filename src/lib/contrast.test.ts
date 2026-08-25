@@ -70,6 +70,16 @@ function readThemeTokens(theme: 'light' | 'dark'): ThemeTokens {
   }
 }
 
+/**
+ * `--color-text-on-action` is declared once, at `:root`, and is not
+ * re-declared per theme (it stays `#ffffff` regardless of theme) — so it is
+ * read from the base `:root` rule rather than from a themed rule body.
+ */
+function readBaseRootToken(tokenName: string): string {
+  const body = extractRuleBody(css, ':root {')
+  return extractToken(body, tokenName)
+}
+
 describe('WCAG AA contrast — body text vs background (design spec §3 / M-2)', () => {
   const themes: Array<'light' | 'dark'> = ['light', 'dark']
 
@@ -95,5 +105,35 @@ describe('WCAG AA contrast — body text vs background (design spec §3 / M-2)',
         WCAG_AA_NORMAL_TEXT,
       )
     })
+  })
+})
+
+describe('WCAG AA contrast — neutral gray action/focus tokens vs --color-text-on-action', () => {
+  // --color-border-focus / --color-action-bg were narrowed from --color-accent
+  // (blue) to opaque neutral grays so the only remaining accent usage is the
+  // selected ModeSelector chip (via --color-action-bg-strong). Any element
+  // painted with --color-action-bg (e.g. the "재생성"/Regenerate button)
+  // renders --color-text-on-action text/icon on top of it, so that pairing
+  // must still clear WCAG AA.
+  const textOnAction = readBaseRootToken('--color-text-on-action')
+
+  const themes: Array<'light' | 'dark'> = ['light', 'dark']
+
+  it.each(themes)('%s theme: --color-action-bg vs --color-text-on-action meets 4.5:1', (theme) => {
+    const body = extractRuleBody(css, `:root[data-theme='${theme}']`)
+    const actionBg = extractToken(body, '--color-action-bg')
+    const ratio = contrastOfTextOnBackground(textOnAction, actionBg)
+    expect(ratio, `${theme} --color-action-bg (${actionBg}) vs --color-text-on-action (${textOnAction}) = ${ratio.toFixed(3)}`).toBeGreaterThanOrEqual(
+      WCAG_AA_NORMAL_TEXT,
+    )
+  })
+
+  it.each(themes)('%s theme: --color-border-focus vs --color-text-on-action meets 4.5:1', (theme) => {
+    const body = extractRuleBody(css, `:root[data-theme='${theme}']`)
+    const borderFocus = extractToken(body, '--color-border-focus')
+    const ratio = contrastOfTextOnBackground(textOnAction, borderFocus)
+    expect(ratio, `${theme} --color-border-focus (${borderFocus}) vs --color-text-on-action (${textOnAction}) = ${ratio.toFixed(3)}`).toBeGreaterThanOrEqual(
+      WCAG_AA_NORMAL_TEXT,
+    )
   })
 })
