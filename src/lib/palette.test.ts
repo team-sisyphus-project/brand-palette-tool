@@ -3,10 +3,12 @@ import {
   AESTHETIC_ARCHETYPES,
   BRAND_SLOT_INDEX,
   GENERATION_MODES,
+  HARMONY_TYPES,
   PALETTE_SIZE,
   averageHsl,
   createInitialLocks,
   generatePalette,
+  getHarmonyColors,
   getMoodTags,
   hexToRgb,
   hslToRgb,
@@ -851,5 +853,54 @@ describe('matchAesthetic', () => {
     const palette = generatePalette('#3366ff')!
     const avg = averageHsl(palette)
     expect(matchAesthetic(avg)).toBe(matchAesthetic(avg))
+  })
+})
+
+describe('getHarmonyColors', () => {
+  const base: HSL = { h: 40, s: 60, l: 50 }
+
+  it('exposes exactly the 3 harmony types, in a stable order', () => {
+    expect(HARMONY_TYPES).toEqual(['complementary', 'analogous', 'triadic'])
+  })
+
+  it('complementary returns exactly 1 accent, at the opposite hue (+180deg)', () => {
+    const accents = getHarmonyColors(base, 'complementary')
+    expect(accents).toHaveLength(1)
+    expect(accents[0].hsl.h).toBeCloseTo(220)
+    expect(accents[0].hsl.s).toBeCloseTo(base.s)
+    expect(accents[0].hsl.l).toBeCloseTo(base.l)
+  })
+
+  it('analogous returns exactly 2 accents, at +/-30deg from the base hue', () => {
+    const accents = getHarmonyColors(base, 'analogous')
+    expect(accents).toHaveLength(2)
+    expect(accents[0].hsl.h).toBeCloseTo(70)
+    expect(accents[1].hsl.h).toBeCloseTo(10)
+  })
+
+  it('triadic returns exactly 2 accents, evenly spaced 120deg from the base hue', () => {
+    const accents = getHarmonyColors(base, 'triadic')
+    expect(accents).toHaveLength(2)
+    expect(accents[0].hsl.h).toBeCloseTo(160)
+    expect(accents[1].hsl.h).toBeCloseTo(280)
+  })
+
+  it('wraps hues into [0, 360) rather than returning negative or >=360 values', () => {
+    const nearZero: HSL = { h: 10, s: 50, l: 50 }
+    const accents = getHarmonyColors(nearZero, 'analogous')
+    // 10 - 30 = -20, must normalize to 340
+    expect(accents[1].hsl.h).toBeCloseTo(340)
+  })
+
+  it('is deterministic: the same base/harmony pair always returns the same colors', () => {
+    expect(getHarmonyColors(base, 'triadic')).toEqual(getHarmonyColors({ ...base }, 'triadic'))
+  })
+
+  it('every harmony type returns colors matching valid hex output', () => {
+    for (const harmony of HARMONY_TYPES) {
+      for (const color of getHarmonyColors(base, harmony)) {
+        expect(color.hex).toMatch(/^#[0-9a-f]{6}$/)
+      }
+    }
   })
 })

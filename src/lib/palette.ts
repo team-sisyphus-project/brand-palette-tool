@@ -503,6 +503,54 @@ export function regeneratePalette(
 }
 
 /**
+ * The 3 color-wheel harmony types the Color Study section's harmony
+ * explorer lets a user step through (grain-2). Deliberately a distinct,
+ * smaller type from `GenerationMode` above: this is the "explore accent
+ * hues around one base color" tool (no tint/shade split, no jitter, no
+ * palette-slot mutation), not the 5-color palette generator.
+ */
+export type HarmonyType = 'complementary' | 'analogous' | 'triadic'
+
+/** All harmony types, in a stable display order. */
+export const HARMONY_TYPES: HarmonyType[] = ['complementary', 'analogous', 'triadic']
+
+/**
+ * Pure HSL arithmetic for the harmony explorer (grain-2): given a base HSL
+ * and one of the 3 `HarmonyType`s, returns the accent color(s) that harmony
+ * theory places around the base hue, at the base's own saturation/lightness
+ * (no tint/shade pairing - that's `deriveHslByMode`'s job for the 5-color
+ * palette generator, and shade variation is a later grain's "Shades"
+ * visualization, out of scope here).
+ *
+ * - `complementary`: 1 accent, the hue directly opposite the base (+180deg).
+ * - `analogous`: 2 accents, the hues neighboring the base (+/-30deg).
+ * - `triadic`: 2 accents, the hues evenly spaced 120deg from the base
+ *   (+120deg/+240deg).
+ *
+ * Deterministic: the same `base`/`harmony` pair always returns the same
+ * colors, so toggling harmony types is a pure recomputation, not a
+ * randomized regenerate.
+ */
+export function getHarmonyColors(base: HSL, harmony: HarmonyType): PaletteColor[] {
+  const accentHues: number[] = (() => {
+    switch (harmony) {
+      case 'complementary':
+        return [base.h + 180]
+      case 'analogous':
+        return [base.h + 30, base.h - 30]
+      case 'triadic':
+        return [base.h + 120, base.h + 240]
+      default: {
+        const exhaustive: never = harmony
+        throw new Error(`Unknown harmony type: ${String(exhaustive)}`)
+      }
+    }
+  })()
+
+  return accentHues.map((h) => hslToPaletteColor({ h: normalizeHue(h), s: base.s, l: base.l }))
+}
+
+/**
  * Circular (vector) mean of a set of hue angles (degrees). A plain
  * arithmetic mean is wrong for hue because it wraps at 360 - e.g. averaging
  * 350 and 10 arithmetically gives 180 (the opposite side of the wheel) when

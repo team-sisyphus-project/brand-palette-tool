@@ -1,0 +1,100 @@
+/*
+ * grain-2: harmony explorer button group + accent swatch row under the
+ * Color Study color wheel. `.harmony-explorer__button` intentionally
+ * duplicates `.mode-selector__button`'s token set 1:1 (design-spec
+ * components/color-study/harmony-explorer.md records this as the
+ * "chip-button" pattern reuse) rather than introducing any new spacing/
+ * color/border/typography token - both are the same chip-shaped toggle
+ * button role, just scoped to a different button group.
+ */
+.harmony-explorer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--element-gap-md);
+  margin-top: var(--element-gap-md);
+  width: 100%;
+}
+
+.harmony-explorer__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--element-gap-xs);
+}
+
+.harmony-explorer__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: var(--content-padding-sm) var(--content-padding-md);
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-surface);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.harmony-explorer__button:hover {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-border-hover);
+}
+
+.harmony-explorer__button:focus-visible {
+  outline: none;
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+}
+
+/*
+ * Pressed state deliberately uses the grayscale `--color-action-bg` (not
+ * `--color-action-bg-strong`, the system accent) - accentBoundary.test.ts
+ * enforces that the accent color's one sanctioned chrome usage is the
+ * selected ModeSelector chip, so this button group's own "selected" look
+ * stays on the neutral scale (same token PaletteSwatch's lock toggle uses
+ * for its own pressed state).
+ */
+.harmony-explorer__button[aria-pressed='true'] {
+  color: var(--color-text-on-action);
+  background-color: var(--color-action-bg);
+  border-color: var(--color-action-bg);
+  font-weight: var(--weight-text-semibold);
+}
+
+.harmony-explorer__accents {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--element-gap-md);
+}
+
+.harmony-explorer__accent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--element-gap-xs);
+}
+
+.harmony-explorer__swatch {
+  width: var(--space-8);
+  height: var(--space-8);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-card);
+}
+
+.harmony-explorer__hex {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-md);
+  font-weight: var(--weight-mono-regular);
+  line-height: var(--leading-mono);
+  letter-spacing: var(--tracking-mono);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+}
