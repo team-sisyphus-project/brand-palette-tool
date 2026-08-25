@@ -47,12 +47,15 @@
 }
 
 .palette-swatch__badge {
+  padding: var(--content-padding-sm) var(--content-padding-md);
   font-family: var(--font-rounded);
   font-size: var(--text-rounded-sm);
   font-weight: var(--weight-rounded-medium);
   line-height: var(--leading-rounded);
   letter-spacing: var(--tracking-rounded);
   color: var(--color-text-primary);
+  background-color: var(--color-bg-muted);
+  border-radius: var(--radius-pill);
 }
 
 .palette-swatch__lock {
