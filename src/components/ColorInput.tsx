@@ -24,7 +24,7 @@ export function ColorInput({ value, onChange, error }: ColorInputProps) {
   return (
     <div className="color-input">
       <label className="color-input__label" htmlFor="brand-color-input">
-        브랜드 메인 컬러
+        Brand main color
       </label>
       <input
         id="brand-color-input"
@@ -33,7 +33,7 @@ export function ColorInput({ value, onChange, error }: ColorInputProps) {
         type="text"
         autoComplete="off"
         spellCheck={false}
-        placeholder="#3366ff 또는 51, 102, 255"
+        placeholder="#3366ff or 51, 102, 255"
         value={value}
         onChange={handleChange}
         aria-invalid={Boolean(error)}

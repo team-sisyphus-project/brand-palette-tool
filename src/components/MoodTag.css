@@ -13,7 +13,7 @@
   font-weight: var(--text-weight-medium);
   line-height: var(--line-height-normal);
   color: var(--color-text-secondary);
-  background-color: var(--color-bg-surface);
-  border: var(--border-width-default) solid var(--color-border-default);
-  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-muted);
+  border: none;
+  border-radius: var(--radius-full);
 }

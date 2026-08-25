@@ -7,16 +7,21 @@
   --color-text-secondary: #6b7280;
   --color-border-default: #d1d5db;
   --color-border-focus: #2563eb;
+  --color-border-hover: #9ca3af;
   --color-state-error: #dc2626;
   --color-state-error-bg: #fef2f2;
   --color-action-bg: #2563eb;
+  --color-action-bg-strong: #1d4ed8;
   --color-text-on-action: #ffffff;
+  --color-bg-muted: #f3f4f6;
+  --color-bg-hover: #eff6ff;
 
   /* Design tokens — typography */
   --text-size-sm: 0.75rem;
   --text-size-md: 0.875rem;
   --text-weight-regular: 400;
   --text-weight-medium: 600;
+  --text-weight-bold: 700;
   --line-height-normal: 1.5;
 
   /* Design tokens — spacing */
@@ -29,6 +34,7 @@
   /* Design tokens — radius */
   --radius-sm: 6px;
   --radius-md: 10px;
+  --radius-full: 9999px;
 
   /* Design tokens — border */
   --border-width-default: 1px;

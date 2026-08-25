@@ -1,13 +1,13 @@
 import { GENERATION_MODES, type GenerationMode } from '../lib/palette'
 import './ModeSelector.css'
 
-/** Korean display label for each `GenerationMode`, per spec A. */
+/** English display label for each `GenerationMode`, per spec A. */
 const MODE_LABELS: Record<GenerationMode, string> = {
-  complementary: '보색',
-  analogous: '유사색',
-  triadic: '트라이애딕',
-  splitComplementary: '스플릿보색',
-  monochromatic: '모노크로매틱',
+  complementary: 'Complementary',
+  analogous: 'Analogous',
+  triadic: 'Triadic',
+  splitComplementary: 'Split Complementary',
+  monochromatic: 'Monochromatic',
 }
 
 export interface ModeSelectorProps {
@@ -19,14 +19,15 @@ export interface ModeSelectorProps {
 
 /**
  * Button group for spec A's 5 palette generation modes - the standard
- * color-wheel harmony theories 보색/유사색/트라이애딕/스플릿보색/모노크로매틱.
+ * color-wheel harmony theories Complementary/Analogous/Triadic/Split
+ * Complementary/Monochromatic.
  * Purely presentational selection state - the caller (ColorGenerator) owns
  * `mode` and reacts to `onChange` by recomputing the palette via
  * src/lib/palette.ts's mode-aware HSL rules (M-3).
  */
 export function ModeSelector({ mode, onChange }: ModeSelectorProps) {
   return (
-    <div className="mode-selector" role="group" aria-label="생성 모드 선택">
+    <div className="mode-selector" role="group" aria-label="Select generation mode">
       {GENERATION_MODES.map((candidate) => (
         <button
           key={candidate}

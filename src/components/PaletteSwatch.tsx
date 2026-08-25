@@ -50,20 +50,20 @@ export function PaletteSwatch({
           className="palette-swatch__color-picker"
           value={color.hex}
           onChange={handleColorPickerChange}
-          aria-label={`${color.hex} 색상 직접 수정`}
+          aria-label={`Edit ${color.hex} color directly`}
         />
       </div>
       <button
         type="button"
         className="palette-swatch__lock"
         aria-pressed={isLocked}
-        aria-label={`${color.hex} 색상 잠금 토글`}
+        aria-label={`Toggle lock for ${color.hex} color`}
         onClick={onToggleLock}
       >
-        {isLocked ? '🔒 잠김' : '🔓 잠금'}
+        {isLocked ? '🔒 Locked' : '🔓 Lock'}
       </button>
       <span className="palette-swatch__hex">{color.hex}</span>
-      {isBrand && <span className="palette-swatch__badge">브랜드</span>}
+      {isBrand && <span className="palette-swatch__badge">Brand</span>}
     </div>
   )
 }

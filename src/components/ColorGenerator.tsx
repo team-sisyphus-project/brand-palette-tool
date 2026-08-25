@@ -14,13 +14,14 @@ import {
 } from '../lib/palette'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
+import { ColorWheel } from './ColorWheel'
 import { ModeSelector } from './ModeSelector'
 import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
 import './ColorGenerator.css'
 
 const INVALID_COLOR_MESSAGE =
-  '유효한 HEX(#3366ff) 또는 RGB(51, 102, 255) 값을 입력하세요.'
+  'Enter a valid HEX (#3366ff) or RGB (51, 102, 255) value.'
 
 /** Default generation mode selected before the user picks one explicitly. */
 const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
@@ -30,6 +31,10 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * input feeds src/lib/palette.ts's generatePalette() and the 5-color
  * palette re-renders immediately on every keystroke (M-1). Invalid input
  * shows a validation message instead of a stale/partial palette.
+ *
+ * The input defaults to the brand red `#E84C40` (see context/decisions/) so
+ * a 5-color palette is already on screen at first mount, with zero user
+ * interaction required.
  *
  * Each palette slot can be locked/unlocked (brand slot starts locked via
  * createInitialLocks()). Regenerate re-derives only the unlocked slots via
@@ -41,7 +46,8 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * overwritten by the next Regenerate click.
  *
  * A ModeSelector lets the user pick one of 5 standard color-wheel harmony
- * modes (보색/유사색/트라이애딕/스플릿보색/모노크로매틱, see GenerationMode).
+ * modes (Complementary/Analogous/Triadic/Split Complementary/Monochromatic,
+ * see GenerationMode).
  * Selecting a mode immediately recomputes the palette for that mode while
  * keeping locked slots unchanged (M-3; see context/decisions/ for why this
  * reuses generatePalette() instead of the jittered regenerate path).
@@ -58,9 +64,14 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * too far (M-5). AestheticMatch itself renders nothing when the match is
  * null, so no aesthetic name is ever forced onto the screen without a close
  * enough candidate.
+ *
+ * Below AestheticMatch, a ColorWheel renders whenever `palette` exists: a
+ * read-only SVG dial mapping each of the 5 palette colors' hue onto a 360°
+ * circle (M-6), so the geometric harmony the current GenerationMode encodes
+ * (complementary/triadic/etc.) is visible at a glance.
  */
 export function ColorGenerator() {
-  const [inputValue, setInputValue] = useState('')
+  const [inputValue, setInputValue] = useState('#E84C40')
   const [locks, setLocks] = useState<Locks>(() => createInitialLocks())
   const [mode, setMode] = useState<GenerationMode>(DEFAULT_MODE)
   const [regenerated, setRegenerated] = useState<PaletteColor[] | null>(null)
@@ -128,12 +139,13 @@ export function ColorGenerator() {
           />
           <MoodTag tags={moodTags} />
           <AestheticMatch match={aestheticMatch} />
+          <ColorWheel colors={palette} />
           <button
             type="button"
             className="color-generator__regenerate"
             onClick={handleRegenerate}
           >
-            재생성
+            Regenerate
           </button>
         </>
       )}

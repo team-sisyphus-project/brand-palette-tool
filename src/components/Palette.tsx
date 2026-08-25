@@ -15,7 +15,7 @@ export interface PaletteProps {
 /** Renders the generated 5-color palette, brand main color first. */
 export function Palette({ colors, locks, onToggleLock, onColorChange }: PaletteProps) {
   return (
-    <div className="palette" role="list" aria-label="생성된 5색 팔레트">
+    <div className="palette" role="list" aria-label="Generated 5-color palette">
       {colors.map((color, index) => (
         <div className="palette__item" role="listitem" key={`${index}-${color.hex}`}>
           <PaletteSwatch
