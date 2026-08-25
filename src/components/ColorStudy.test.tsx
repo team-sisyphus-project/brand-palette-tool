@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { getHarmonyColors, type PaletteColor } from '../lib/palette'
+import { generateShades, getHarmonyColors, type PaletteColor } from '../lib/palette'
 import { ColorStudy } from './ColorStudy'
 
 function makeColor(hex: string, h: number): PaletteColor {
@@ -94,5 +94,71 @@ describe('ColorStudy', () => {
     for (const color of complementaryAccents) {
       expect(screen.getByText(color.hex)).toBeInTheDocument()
     }
+  })
+
+  // grain-3: custom base color selection + Shades ramp
+  it('defaults the base color to the brand main color (first slot) when baseColorIndex is omitted', () => {
+    render(<ColorStudy colors={colors} />)
+
+    const expected = getHarmonyColors(colors[0].hsl, 'complementary')
+    for (const color of expected) {
+      expect(screen.getByText(color.hex)).toBeInTheDocument()
+    }
+  })
+
+  it('uses colors[baseColorIndex] as the base color when provided', () => {
+    render(<ColorStudy colors={colors} baseColorIndex={2} />)
+
+    const expected = getHarmonyColors(colors[2].hsl, 'complementary')
+    for (const color of expected) {
+      expect(screen.getByText(color.hex)).toBeInTheDocument()
+    }
+    // slot 0 (brand) is no longer the base - its complementary accent isn't shown.
+    const brandExpected = getHarmonyColors(colors[0].hsl, 'complementary')
+    expect(screen.queryByText(brandExpected[0].hex)).not.toBeInTheDocument()
+  })
+
+  it('falls back to the brand slot when baseColorIndex is out of range', () => {
+    render(<ColorStudy colors={colors} baseColorIndex={99} />)
+
+    const expected = getHarmonyColors(colors[0].hsl, 'complementary')
+    for (const color of expected) {
+      expect(screen.getByText(color.hex)).toBeInTheDocument()
+    }
+  })
+
+  it('renders a Shades ramp for the base color and every current harmony accent', () => {
+    render(<ColorStudy colors={colors} baseColorIndex={0} />)
+
+    const shades = screen.getByRole('group', { name: 'Shades' })
+    // Complementary (default harmony): 1 accent -> "Base" + "Accent 1" groups.
+    const baseRamp = within(shades).getByRole('list', { name: 'Base shades' })
+    const accentRamp = within(shades).getByRole('list', { name: 'Accent 1 shades' })
+
+    const expectedBaseShades = generateShades(colors[0].hsl)
+    for (const shade of expectedBaseShades) {
+      expect(
+        within(baseRamp).getByText(`${Math.round(shade.hsl.l)}% ${shade.hex}`),
+      ).toBeInTheDocument()
+    }
+
+    const accent = getHarmonyColors(colors[0].hsl, 'complementary')[0]
+    const expectedAccentShades = generateShades(accent.hsl)
+    for (const shade of expectedAccentShades) {
+      expect(
+        within(accentRamp).getByText(`${Math.round(shade.hsl.l)}% ${shade.hex}`),
+      ).toBeInTheDocument()
+    }
+  })
+
+  it('Shades ramp gains a 2nd accent group when switching to Analogous/Triadic', () => {
+    render(<ColorStudy colors={colors} baseColorIndex={0} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Triadic harmony' }))
+
+    const shades = screen.getByRole('group', { name: 'Shades' })
+    expect(within(shades).getByRole('list', { name: 'Base shades' })).toBeInTheDocument()
+    expect(within(shades).getByRole('list', { name: 'Accent 1 shades' })).toBeInTheDocument()
+    expect(within(shades).getByRole('list', { name: 'Accent 2 shades' })).toBeInTheDocument()
   })
 })

@@ -1,0 +1,67 @@
+/*
+ * grain-3: Shades ramp panel under the Color Study harmony explorer. Every
+ * token here reuses an already-established role/value from PaletteSwatch.css
+ * (`.palette-swatch__lock` for the text-role token set, `.palette-swatch__hex`
+ * for the mono hex-label token set, `--space-5`/`--border-width-default`/
+ * `--color-border-default` from the existing spacing/border Token Groups) -
+ * no new Token values are introduced (see
+ * design-spec/components/color-study/shades.md).
+ *
+ * Deliberately no `border-radius` on `.shades__swatch`: this grain's
+ * Boundary explicitly excludes border-radius changes, so the swatch stays
+ * square rather than reaching for `--radius-card` (used elsewhere but not
+ * yet declared in any Design Spec Token Group - out of scope to introduce
+ * here).
+ */
+.shades {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--element-gap-md);
+  margin-top: var(--element-gap-md);
+  width: 100%;
+}
+
+.shades__group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--element-gap-xs);
+}
+
+.shades__label {
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-secondary);
+}
+
+.shades__ramp {
+  display: flex;
+  gap: var(--element-gap-xs);
+}
+
+.shades__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--element-gap-xs);
+}
+
+.shades__swatch {
+  width: var(--space-5);
+  height: var(--space-5);
+  border: var(--border-width-default) solid var(--color-border-default);
+}
+
+.shades__hex {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-md);
+  font-weight: var(--weight-mono-regular);
+  line-height: var(--leading-mono);
+  letter-spacing: var(--tracking-mono);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+}

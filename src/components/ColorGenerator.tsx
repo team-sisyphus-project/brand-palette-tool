@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
+  BRAND_SLOT_INDEX,
   GENERATION_MODES,
   averageHsl,
   createInitialLocks,
@@ -113,6 +114,12 @@ const ADDITIONAL_COLOR_PLACEHOLDER = '#3366ff or 51, 102, 255 (optional)'
  * superseded and why). Regenerate moves into `panel-preview`, rendered
  * directly above the color chips, and the whole preview panel is
  * center-aligned via the `color-generator__preview--result` modifier class.
+ *
+ * grain-3 (custom Color Study base color): clicking a Palette chip (see
+ * PaletteSwatch's `onSelectBase`) sets `baseColorIndex` to that slot. It is
+ * passed down to `ColorStudy`, which uses `palette[baseColorIndex]` (falling
+ * back to the brand slot) as the base color for both the harmony explorer
+ * and the new Shades ramp - see ColorStudy.tsx.
  */
 export function ColorGenerator() {
   const [inputValue, setInputValue] = useState('#E84C40')
@@ -126,6 +133,8 @@ export function ColorGenerator() {
   // grain-1: the palette/result section only renders once Generate has been
   // clicked with a valid brand color - see the class doc comment above.
   const [hasGenerated, setHasGenerated] = useState(false)
+  // grain-3: which palette slot Color Study currently uses as its base color.
+  const [baseColorIndex, setBaseColorIndex] = useState(BRAND_SLOT_INDEX)
 
   const trimmed = inputValue.trim()
   const basePalette = useMemo(
@@ -249,10 +258,11 @@ export function ColorGenerator() {
               locks={locks}
               onToggleLock={handleToggleLock}
               onColorChange={handleSlotColorChange}
+              onSelectBase={setBaseColorIndex}
             />
             <MoodTag tags={moodTags} />
             <AestheticMatch match={aestheticMatch} />
-            <ColorStudy colors={palette} />
+            <ColorStudy colors={palette} baseColorIndex={baseColorIndex} />
           </>
         )}
       </section>

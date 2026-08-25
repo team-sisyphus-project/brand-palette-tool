@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { generatePalette, generateShades, getHarmonyColors, hexToRgb, rgbToHsl } from '../lib/palette'
 import { ColorGenerator } from './ColorGenerator'
 
 /** Pulls the `#rrggbb` hex code out of an aria-label like "Toggle lock for #3366ff color". */
@@ -929,5 +930,84 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
 
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
     expect(within(list).getAllByRole('listitem')).toHaveLength(5)
+  })
+})
+
+// grain-3 (custom Color Study base color + Shades): clicking a Palette chip
+// (PaletteSwatch's onSelectBase) sets Color Study's base color, which drives
+// both the HarmonyExplorer accent(s) and the new Shades ramp.
+describe('grain-3: custom Color Study base color via Palette chip click', () => {
+  function hslOfHex(hex: string) {
+    return rgbToHsl(hexToRgb(hex)!)
+  }
+
+  function getColorStudySection(): HTMLElement {
+    return screen.getByRole('region', { name: 'Color Study' })
+  }
+
+  it('defaults Color Study base color to the brand main color', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const expectedAccent = getHarmonyColors(hslOfHex('#3366ff'), 'complementary')[0]
+    expect(within(getColorStudySection()).getByText(expectedAccent.hex)).toBeInTheDocument()
+  })
+
+  it('clicking a non-brand Palette chip switches Color Study base color and recomputes the harmony accent', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    // Read the derived slot's exact (unrounded) HSL straight from generatePalette
+    // rather than round-tripping through its rendered HEX text - HEX rounding
+    // would otherwise make the "expected" H/S drift slightly from what the
+    // component actually holds in state for a derived slot.
+    const derived = generatePalette('#3366ff', 'complementary')![1]
+
+    fireEvent.click(screen.getByRole('button', { name: `Set ${derived.hex} as Color Study base color` }))
+
+    const expectedAccent = getHarmonyColors(derived.hsl, 'complementary')[0]
+    expect(within(getColorStudySection()).getByText(expectedAccent.hex)).toBeInTheDocument()
+  })
+
+  it('clicking a Palette chip also updates the Shades "Base" ramp', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const derived = generatePalette('#3366ff', 'complementary')![1]
+
+    fireEvent.click(screen.getByRole('button', { name: `Set ${derived.hex} as Color Study base color` }))
+
+    const expectedShade = generateShades(derived.hsl)[2] // middle (50%) step
+    const shadesGroup = within(getColorStudySection()).getByRole('list', { name: 'Base shades' })
+    expect(
+      within(shadesGroup).getByText(`${Math.round(expectedShade.hsl.l)}% ${expectedShade.hex}`),
+    ).toBeInTheDocument()
+  })
+
+  it('clicking a chip to select it as the base does not also toggle its lock state', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const derivedHex = getHexes(list).find((hex) => hex !== '#3366ff')!
+    const lockButton = screen.getByRole('button', { name: `Toggle lock for ${derivedHex} color` })
+    expect(lockButton).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: `Set ${derivedHex} as Color Study base color` }))
+
+    expect(lockButton).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('clicking a chip lock toggle does not also change the Color Study base color', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const derivedHex = getHexes(list).find((hex) => hex !== '#3366ff')!
+
+    fireEvent.click(screen.getByRole('button', { name: `Toggle lock for ${derivedHex} color` }))
+
+    const expectedAccent = getHarmonyColors(hslOfHex('#3366ff'), 'complementary')[0]
+    expect(within(getColorStudySection()).getByText(expectedAccent.hex)).toBeInTheDocument()
   })
 })

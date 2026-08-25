@@ -10,10 +10,12 @@ export interface PaletteProps {
   onToggleLock: (index: number) => void
   /** Called with the slot index and new HEX value when a swatch's color picker changes. */
   onColorChange: (index: number, hex: string) => void
+  /** Called with the slot index whose chip was clicked to become Color Study's base color (grain-3). */
+  onSelectBase: (index: number) => void
 }
 
 /** Renders the generated 5-color palette, brand main color first. */
-export function Palette({ colors, locks, onToggleLock, onColorChange }: PaletteProps) {
+export function Palette({ colors, locks, onToggleLock, onColorChange, onSelectBase }: PaletteProps) {
   return (
     <div className="palette" role="list" aria-label="Generated 5-color palette">
       {colors.map((color, index) => (
@@ -24,6 +26,7 @@ export function Palette({ colors, locks, onToggleLock, onColorChange }: PaletteP
             isLocked={locks[index] ?? false}
             onToggleLock={() => onToggleLock(index)}
             onColorChange={(hex) => onColorChange(index, hex)}
+            onSelectBase={() => onSelectBase(index)}
           />
         </div>
       ))}

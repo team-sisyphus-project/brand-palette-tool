@@ -1,9 +1,17 @@
+/*
+ * grain-3: the whole chip is now also a click target for setting Color
+ * Study's custom base color (see PaletteSwatch.tsx's `onSelectBase`).
+ * `cursor: pointer` is an implementation setting, not a design token (per
+ * policy/coding.md) - it introduces no new visual value, just an affordance
+ * hint.
+ */
 .palette-swatch {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--element-gap-xs);
   width: 100%;
+  cursor: pointer;
 }
 
 .palette-swatch__preview {

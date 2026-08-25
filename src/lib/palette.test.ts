@@ -5,9 +5,11 @@ import {
   GENERATION_MODES,
   HARMONY_TYPES,
   PALETTE_SIZE,
+  SHADE_STEPS,
   averageHsl,
   createInitialLocks,
   generatePalette,
+  generateShades,
   getHarmonyColors,
   getMoodTags,
   hexToRgb,
@@ -853,6 +855,53 @@ describe('matchAesthetic', () => {
     const palette = generatePalette('#3366ff')!
     const avg = averageHsl(palette)
     expect(matchAesthetic(avg)).toBe(matchAesthetic(avg))
+  })
+})
+
+describe('generateShades', () => {
+  const base: HSL = { h: 210, s: 60, l: 45 }
+
+  it('returns SHADE_STEPS colors', () => {
+    expect(generateShades(base)).toHaveLength(SHADE_STEPS)
+    expect(SHADE_STEPS).toBe(5)
+  })
+
+  it('holds hue and saturation fixed, stepping only lightness, lightest first', () => {
+    const shades = generateShades(base)
+    for (const shade of shades) {
+      expect(shade.hsl.h).toBeCloseTo(base.h)
+      expect(shade.hsl.s).toBeCloseTo(base.s)
+    }
+    for (let i = 1; i < shades.length; i += 1) {
+      expect(shades[i].hsl.l).toBeLessThan(shades[i - 1].hsl.l)
+    }
+  })
+
+  it('spans a fixed lightness range regardless of the base color own lightness', () => {
+    const light = generateShades({ h: 0, s: 50, l: 95 })
+    const dark = generateShades({ h: 0, s: 50, l: 5 })
+    expect(light.map((c) => c.hsl.l)).toEqual(dark.map((c) => c.hsl.l))
+  })
+
+  it('is deterministic: the same base always returns the same ramp', () => {
+    expect(generateShades(base)).toEqual(generateShades({ ...base }))
+  })
+
+  it('returns valid, in-range hex/rgb/hsl for every step', () => {
+    for (const shade of generateShades(base)) {
+      expect(shade.hex).toMatch(/^#[0-9a-f]{6}$/)
+      expect(Number.isNaN(shade.hsl.h)).toBe(false)
+      expect(shade.hsl.s).toBeGreaterThanOrEqual(0)
+      expect(shade.hsl.s).toBeLessThanOrEqual(100)
+      expect(shade.hsl.l).toBeGreaterThanOrEqual(0)
+      expect(shade.hsl.l).toBeLessThanOrEqual(100)
+    }
+  })
+
+  it('produces different ramps for different base hues', () => {
+    const blue = generateShades({ h: 210, s: 60, l: 50 })
+    const red = generateShades({ h: 0, s: 60, l: 50 })
+    expect(blue.map((c) => c.hex)).not.toEqual(red.map((c) => c.hex))
   })
 })
 

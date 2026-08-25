@@ -551,6 +551,34 @@ export function getHarmonyColors(base: HSL, harmony: HarmonyType): PaletteColor[
 }
 
 /**
+ * Fixed lightness levels (0-100, lightest first) `generateShades` samples to
+ * build one color's shade ramp (grain-3: Color Study "Shades" visualization).
+ * Deliberately absolute (not relative to the input color's own lightness) so
+ * every ramp - for the base color or for any harmony accent - spans the same
+ * visible lightness range and reads as one consistent ladder, the way a
+ * conventional 50/100/.../900 design-token shade scale does.
+ */
+const SHADE_LIGHTNESS_LEVELS = [90, 70, 50, 30, 10]
+
+/** Number of steps `generateShades` always returns. */
+export const SHADE_STEPS = SHADE_LIGHTNESS_LEVELS.length
+
+/**
+ * Generates a fixed-size lightness-step ramp ("Shades") for one HSL color:
+ * hue and saturation held fixed at `base`'s own values, lightness stepped
+ * across `SHADE_LIGHTNESS_LEVELS`. Pure and deterministic - the same `base`
+ * always returns the same `SHADE_STEPS`-length array, lightest first.
+ *
+ * Distinct from `deriveHslByMode`'s tint/shade *pair* (2 fixed offsets around
+ * one lightness) and from `getHarmonyColors` (accent hues at the base's own
+ * lightness) - this is the dedicated "vary lightness only, show the whole
+ * ladder" tool for Color Study's Shades panel.
+ */
+export function generateShades(base: HSL): PaletteColor[] {
+  return SHADE_LIGHTNESS_LEVELS.map((l) => hslToPaletteColor({ h: base.h, s: base.s, l }))
+}
+
+/**
  * Circular (vector) mean of a set of hue angles (degrees). A plain
  * arithmetic mean is wrong for hue because it wraps at 360 - e.g. averaging
  * 350 and 10 arithmetically gives 180 (the opposite side of the wheel) when
