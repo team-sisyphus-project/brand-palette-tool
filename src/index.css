@@ -67,7 +67,10 @@
   --color-system-bg-secondary: #f2f2f7;
   --color-system-bg-tertiary: #ffffff;
   --color-text-primary: rgba(0, 0, 0, 0.85);
-  --color-text-secondary: rgba(60, 60, 67, 0.6);
+  /* alpha 0.75 (not the historical 0.6): verified via contrast.test.ts to hold
+     >=4.5:1 against both --color-system-bg-primary (#fff, ~5.16:1) and
+     --color-system-bg-secondary (#f2f2f7, ~4.85:1) for WCAG AA. */
+  --color-text-secondary: rgba(60, 60, 67, 0.75);
   --color-text-tertiary: rgba(60, 60, 67, 0.3);
   --border-subtle: rgba(60, 60, 67, 0.29);
   --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -100,7 +103,10 @@
   --color-system-bg-secondary: #f2f2f7;
   --color-system-bg-tertiary: #ffffff;
   --color-text-primary: rgba(0, 0, 0, 0.85);
-  --color-text-secondary: rgba(60, 60, 67, 0.6);
+  /* alpha 0.75 (not the historical 0.6): verified via contrast.test.ts to hold
+     >=4.5:1 against both --color-system-bg-primary (#fff, ~5.16:1) and
+     --color-system-bg-secondary (#f2f2f7, ~4.85:1) for WCAG AA. */
+  --color-text-secondary: rgba(60, 60, 67, 0.75);
   --color-text-tertiary: rgba(60, 60, 67, 0.3);
   --border-subtle: rgba(60, 60, 67, 0.29);
   --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
