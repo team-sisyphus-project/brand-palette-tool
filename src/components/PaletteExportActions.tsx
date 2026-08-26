@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { PaletteColor } from '../lib/palette'
+import type { GenerationMode, PaletteColor } from '../lib/palette'
 import {
   paletteJsonFilename,
   paletteToCssVariablesText,
@@ -8,11 +8,18 @@ import {
   validateCssVariablesText,
 } from '../lib/paletteExport'
 import { paletteToPngBlob, palettePngFilename } from '../lib/paletteImage'
+import { buildMarkdownExportText, paletteMarkdownFilename } from '../lib/paletteMarkdownExport'
 import './PaletteExportActions.css'
 
 export interface PaletteExportActionsProps {
   /** The currently generated/edited palette to copy from. */
   palette: PaletteColor[]
+  /** The generation mode the palette was built with (spec C .md export item 3). */
+  mode: GenerationMode
+  /** The palette's current mood tags, from `getMoodTags` (spec C .md export item 4). */
+  moodTags: string[]
+  /** The palette's current aesthetic archetype match, or `null` when out of threshold (spec C .md export item 4). */
+  aestheticMatch: string | null
 }
 
 /** How long a copy result stays on screen before clearing itself. */
@@ -78,8 +85,23 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
  * than introducing a new button style, since these are the same class of
  * secondary palette action as the copy buttons - no new design decision
  * needed here.
+ *
+ * Spec C "LLM 입력용 Markdown(.md) 내보내기" (M-4): a "Download MD" button
+ * that builds a `Blob` via grain-1's `buildMarkdownExportText` (fed with
+ * `mode`/`moodTags`/`aestheticMatch` sourced one level up from
+ * `ColorGenerator`'s own state/memo values, since this component computes
+ * none of that itself) and downloads it via the same `triggerBlobDownload`
+ * path as PNG/JSON. The "Download MD" label and "MD downloaded!" feedback
+ * follow the exact same `Download {FORMAT}` / `{FORMAT} downloaded!` copy
+ * pattern already used for PNG/JSON (which was not itself recorded as a
+ * content-copy token) - not a new copy decision, so nothing new to record.
  */
-export function PaletteExportActions({ palette }: PaletteExportActionsProps) {
+export function PaletteExportActions({
+  palette,
+  mode,
+  moodTags,
+  aestheticMatch,
+}: PaletteExportActionsProps) {
   const [feedback, setFeedback] = useState<CopyFeedback | null>(null)
   const clearTimeoutRef = useRef<number | null>(null)
 
@@ -140,6 +162,17 @@ export function PaletteExportActions({ palette }: PaletteExportActionsProps) {
     }
   }
 
+  const handleDownloadMd = () => {
+    try {
+      const text = buildMarkdownExportText(palette, mode, moodTags, aestheticMatch)
+      const blob = new Blob([text], { type: 'text/markdown' })
+      triggerBlobDownload(blob, paletteMarkdownFilename(palette))
+      showFeedback({ kind: 'success', message: 'MD downloaded!' })
+    } catch {
+      showFeedback({ kind: 'error', message: 'Download failed. Please try again.' })
+    }
+  }
+
   return (
     <div className="palette-export">
       <div className="palette-export__actions">
@@ -154,6 +187,9 @@ export function PaletteExportActions({ palette }: PaletteExportActionsProps) {
         </button>
         <button type="button" className="palette-export__button" onClick={handleDownloadJson}>
           Download JSON
+        </button>
+        <button type="button" className="palette-export__button" onClick={handleDownloadMd}>
+          Download MD
         </button>
       </div>
       {feedback && (

@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { generatePalette } from '../lib/palette'
+import { averageHsl, generatePalette, getMoodTags, matchAesthetic } from '../lib/palette'
 import {
   paletteJsonFilename,
   paletteToCssVariablesText,
@@ -10,9 +10,21 @@ import {
   validatePaletteJson,
 } from '../lib/paletteExport'
 import { palettePngFilename } from '../lib/paletteImage'
-import { PaletteExportActions } from './PaletteExportActions'
+import { paletteMarkdownFilename, validateMarkdownExportText } from '../lib/paletteMarkdownExport'
+import { PaletteExportActions, type PaletteExportActionsProps } from './PaletteExportActions'
 
 const samplePalette = generatePalette('#3366ff')!
+const sampleMode = 'complementary' as const
+const sampleMoodTags = getMoodTags(averageHsl(samplePalette))
+const sampleAestheticMatch = matchAesthetic(averageHsl(samplePalette))
+
+/** Default props shared by every render in this suite - only overridden where a test cares. */
+const defaultProps: PaletteExportActionsProps = {
+  palette: samplePalette,
+  mode: sampleMode,
+  moodTags: sampleMoodTags,
+  aestheticMatch: sampleAestheticMatch,
+}
 
 /** Installs a mock `navigator.clipboard.writeText` and returns the spy. */
 function mockClipboard(writeText: (text: string) => Promise<void>) {
@@ -84,19 +96,20 @@ describe('PaletteExportActions', () => {
     delete navigator.clipboard
   })
 
-  it('renders "Copy HEX", "Copy CSS Variables", "Download PNG", and "Download JSON" buttons', () => {
+  it('renders "Copy HEX", "Copy CSS Variables", "Download PNG", "Download JSON", and "Download MD" buttons', () => {
     mockClipboard(() => Promise.resolve())
-    render(<PaletteExportActions palette={samplePalette} />)
+    render(<PaletteExportActions {...defaultProps} />)
 
     expect(screen.getByRole('button', { name: 'Copy HEX' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy CSS Variables' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Download PNG' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Download JSON' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Download MD' })).toBeInTheDocument()
   })
 
   it('copies the exact HEX list text and shows success feedback on "Copy HEX" click', async () => {
     const writeText = mockClipboard(() => Promise.resolve())
-    render(<PaletteExportActions palette={samplePalette} />)
+    render(<PaletteExportActions {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy HEX' }))
 
@@ -109,7 +122,7 @@ describe('PaletteExportActions', () => {
 
   it('copies the exact CSS variables block text and shows success feedback on "Copy CSS Variables" click', async () => {
     const writeText = mockClipboard(() => Promise.resolve())
-    render(<PaletteExportActions palette={samplePalette} />)
+    render(<PaletteExportActions {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy CSS Variables' }))
 
@@ -124,7 +137,7 @@ describe('PaletteExportActions', () => {
   // itself be valid, paste-ready CSS - not just "some string was copied".
   it('the CSS variables text copied to the clipboard always passes validateCssVariablesText (M-1)', async () => {
     const writeText = mockClipboard(() => Promise.resolve())
-    render(<PaletteExportActions palette={samplePalette} />)
+    render(<PaletteExportActions {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy CSS Variables' }))
     await screen.findByRole('status')
@@ -135,7 +148,7 @@ describe('PaletteExportActions', () => {
 
   it('shows a failure message and does not throw when the clipboard write rejects', async () => {
     mockClipboard(() => Promise.reject(new Error('denied')))
-    render(<PaletteExportActions palette={samplePalette} />)
+    render(<PaletteExportActions {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy HEX' }))
 
@@ -146,7 +159,7 @@ describe('PaletteExportActions', () => {
   it('shows a failure message when the Clipboard API itself is unavailable', async () => {
     // @ts-expect-error - simulate an environment with no Clipboard API at all
     delete navigator.clipboard
-    render(<PaletteExportActions palette={samplePalette} />)
+    render(<PaletteExportActions {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy CSS Variables' }))
 
@@ -156,7 +169,7 @@ describe('PaletteExportActions', () => {
 
   it('replaces a prior "Copy HEX" success message when "Copy CSS Variables" is clicked next', async () => {
     mockClipboard(() => Promise.resolve())
-    render(<PaletteExportActions palette={samplePalette} />)
+    render(<PaletteExportActions {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy HEX' }))
     expect(await screen.findByRole('status')).toHaveTextContent('HEX codes copied!')
@@ -170,7 +183,7 @@ describe('PaletteExportActions', () => {
   // nothing-missing palette export - not just "some JSON was downloaded".
   it('downloads a JSON Blob whose content passes validatePaletteJson with zero missing colors/roles (M-2)', async () => {
     const { blobs } = mockObjectUrl()
-    render(<PaletteExportActions palette={samplePalette} />)
+    render(<PaletteExportActions {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
     await screen.findByRole('status')
@@ -189,7 +202,7 @@ describe('PaletteExportActions', () => {
   it('names the downloaded JSON file via paletteJsonFilename and shows success feedback', async () => {
     mockObjectUrl()
     const createElementSpy = vi.spyOn(document, 'createElement')
-    render(<PaletteExportActions palette={samplePalette} />)
+    render(<PaletteExportActions {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
 
@@ -206,7 +219,7 @@ describe('PaletteExportActions', () => {
     const fakePngBlob = mockCanvasPngEncoding()
     const { blobs } = mockObjectUrl()
     const createElementSpy = vi.spyOn(document, 'createElement')
-    render(<PaletteExportActions palette={samplePalette} />)
+    render(<PaletteExportActions {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Download PNG' }))
 
@@ -244,9 +257,79 @@ describe('PaletteExportActions', () => {
       callback(null)
     })
     mockObjectUrl()
-    render(<PaletteExportActions palette={samplePalette} />)
+    render(<PaletteExportActions {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Download PNG' }))
+
+    const status = await screen.findByRole('status')
+    expect(status).toHaveTextContent('Download failed. Please try again.')
+  })
+
+  // M-4: the .md handed to the download must itself completely and
+  // correctly represent all 5 required items for the exact
+  // palette/mode/moodTags/aestheticMatch this render was given - not just
+  // "some Markdown was downloaded".
+  it('downloads a text/markdown Blob whose content passes validateMarkdownExportText with zero missing items (M-4)', async () => {
+    const { blobs } = mockObjectUrl()
+    render(<PaletteExportActions {...defaultProps} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download MD' }))
+    await screen.findByRole('status')
+
+    expect(blobs).toHaveLength(1)
+    expect(blobs[0].type).toBe('text/markdown')
+
+    const text = await readBlobText(blobs[0])
+    const result = validateMarkdownExportText(
+      text,
+      samplePalette,
+      sampleMode,
+      sampleMoodTags,
+      sampleAestheticMatch,
+    )
+    expect(result).toEqual({ valid: true, errors: [] })
+  })
+
+  it('omits the aesthetic match line from the downloaded .md when aestheticMatch is null', async () => {
+    const { blobs } = mockObjectUrl()
+    render(<PaletteExportActions {...defaultProps} aestheticMatch={null} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download MD' }))
+    await screen.findByRole('status')
+
+    const text = await readBlobText(blobs[0])
+    expect(text).not.toContain('Aesthetic match')
+    const result = validateMarkdownExportText(text, samplePalette, sampleMode, sampleMoodTags, null)
+    expect(result).toEqual({ valid: true, errors: [] })
+  })
+
+  it('names the downloaded MD file via paletteMarkdownFilename and shows "MD downloaded!" success feedback', async () => {
+    mockObjectUrl()
+    const createElementSpy = vi.spyOn(document, 'createElement')
+    render(<PaletteExportActions {...defaultProps} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download MD' }))
+
+    const status = await screen.findByRole('status')
+    expect(status).toHaveTextContent('MD downloaded!')
+
+    const anchor = createElementSpy.mock.results.find(
+      (result) => result.value instanceof HTMLAnchorElement,
+    )?.value as HTMLAnchorElement
+    expect(anchor.download).toBe(paletteMarkdownFilename(samplePalette))
+  })
+
+  it('shows a failure message and does not throw when the MD download fails', async () => {
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: vi.fn(() => {
+        throw new Error('object URL creation failed')
+      }),
+      revokeObjectURL: vi.fn(),
+    })
+    render(<PaletteExportActions {...defaultProps} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download MD' }))
 
     const status = await screen.findByRole('status')
     expect(status).toHaveTextContent('Download failed. Please try again.')

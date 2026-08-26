@@ -157,7 +157,12 @@ export function ColorGenerator() {
               onToggleLock={handleToggleLock}
               onColorChange={handleSlotColorChange}
             />
-            <PaletteExportActions palette={palette} />
+            <PaletteExportActions
+              palette={palette}
+              mode={mode}
+              moodTags={moodTags}
+              aestheticMatch={aestheticMatch}
+            />
             <MoodTag tags={moodTags} />
             <AestheticMatch match={aestheticMatch} />
             <ColorWheel colors={palette} />
