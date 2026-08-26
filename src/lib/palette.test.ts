@@ -841,37 +841,70 @@ describe('getVibeKeywords', () => {
     }
   })
 
-  it('maps a warm, vivid, bright HSL to warm + high-saturation + high-lightness vocabulary', () => {
+  it('maps a warm, vivid, bright HSL to its 6-bin hue x 5-bin saturation x 5-bin lightness vocabulary', () => {
     expect(getVibeKeywords({ h: 30, s: 70, l: 80 })).toEqual([
-      'warm',
-      'cozy',
-      'vibrant',
-      'bold',
-      'bright',
-      'cheerful',
+      'fiery',
+      'sunny',
+      'vivid',
+      'lush',
+      'radiant',
+      'luminous',
     ])
   })
 
-  it('maps a cool, muted, dark HSL to cool + low-saturation + low-lightness vocabulary', () => {
+  it('maps a cool, muted, dark HSL to its 6-bin hue x 5-bin saturation x 5-bin lightness vocabulary', () => {
     expect(getVibeKeywords({ h: 240, s: 10, l: 20 })).toEqual([
-      'cool',
-      'calm',
-      'soft',
-      'subtle',
+      'dreamy',
+      'mystic',
+      'muted',
+      'faded',
       'deep',
-      'sophisticated',
+      'moody',
     ])
   })
 
-  it('maps a neutral-hue, mid-saturation, mid-lightness HSL to balanced + mid vocabulary', () => {
+  it('maps a mid-hue, mid-saturation, mid-lightness HSL to its 6-bin hue x 5-bin saturation x 5-bin lightness vocabulary', () => {
     expect(getVibeKeywords({ h: 120, s: 45, l: 50 })).toEqual([
+      'verdant',
+      'minty',
       'balanced',
-      'natural',
-      'fresh',
-      'friendly',
-      'comfortable',
+      'even',
+      'grounded',
       'steady',
     ])
+  })
+
+  // grain-2 decision record: sat/lightness split into 5 bins (20 points each)
+  // and hue into 6 bins (60deg each) so the keyword-*set* itself has 150
+  // possible combinations, comfortably clearing the 100+ unique keyword-set
+  // requirement (M3) across a representative HSL sample.
+  it('produces at least 100 unique keyword sets across a 900-sample HSL grid (grain-2 M3)', () => {
+    const samples: HSL[] = []
+    for (let h = 0; h < 360; h += 10) {
+      for (const s of [10, 30, 50, 70, 90]) {
+        for (const l of [10, 30, 50, 70, 90]) {
+          samples.push({ h, s, l })
+        }
+      }
+    }
+    expect(samples.length).toBe(900)
+
+    const keywordSets = new Set(
+      samples.map((hsl) => getVibeKeywords(hsl).slice().sort().join(',')),
+    )
+    expect(keywordSets.size).toBeGreaterThanOrEqual(100)
+
+    // M5: keyword-count contract (>=5) holds for every sample, not just the
+    // handful covered by the band-grid test above.
+    for (const hsl of samples) {
+      expect(getVibeKeywords(hsl).length).toBeGreaterThanOrEqual(5)
+    }
+  })
+
+  it('is deterministic across repeated calls for the same HSL input (grain-2 M4)', () => {
+    const hsl: HSL = { h: 217, s: 63, l: 52 }
+    const results = Array.from({ length: 10 }, () => getVibeKeywords(hsl).join(','))
+    expect(new Set(results).size).toBe(1)
   })
 })
 
@@ -1024,17 +1057,21 @@ describe('getPaletteName', () => {
     expect(getPaletteName(hsl)).toBe(getPaletteName({ ...hsl }))
   })
 
-  it('returns the matched archetype name when matchAesthetic finds one', () => {
+  // grain-2: the name is now "{modifier} {archetype}" (a modifier prefix
+  // combined with the archetype matchAesthetic resolves), not the bare
+  // archetype name - so this checks the name still ends with/contains the
+  // matched archetype rather than being an exact match to it.
+  it('ends with the matched archetype name when matchAesthetic finds one', () => {
     const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === 'Tropical')!
-    expect(getPaletteName(tropical.hsl)).toBe('Tropical')
-    expect(getPaletteName(tropical.hsl)).toBe(matchAesthetic(tropical.hsl))
+    expect(matchAesthetic(tropical.hsl)).toBe('Tropical')
+    expect(getPaletteName(tropical.hsl).endsWith(matchAesthetic(tropical.hsl)!)).toBe(true)
   })
 
-  it('falls back to DEFAULT_PALETTE_NAME when matchAesthetic returns null (no archetype within threshold)', () => {
+  it('includes DEFAULT_PALETTE_NAME when matchAesthetic returns null (no archetype within threshold)', () => {
     // Same "far from every archetype" fixture matchAesthetic's own test suite uses.
     const farFromEverything: HSL = { h: 89.41, s: 100, l: 12 }
     expect(matchAesthetic(farFromEverything)).toBeNull()
-    expect(getPaletteName(farFromEverything)).toBe(DEFAULT_PALETTE_NAME)
+    expect(getPaletteName(farFromEverything).endsWith(DEFAULT_PALETTE_NAME)).toBe(true)
   })
 
   it('always returns a non-empty string, matched or fallback', () => {
@@ -1042,6 +1079,32 @@ describe('getPaletteName', () => {
     const fallback = getPaletteName({ h: 89.41, s: 100, l: 12 })
     expect(matched.length).toBeGreaterThan(0)
     expect(fallback.length).toBeGreaterThan(0)
+  })
+
+  // grain-2 decision record: modifier is deliberately independent of
+  // archetype-match variety (12 hue bins x 16 saturation/lightness bins =
+  // 192 unique modifier phrases alone) precisely so the 100+ unique name
+  // requirement (M1) holds even when most sampled colors fall back to
+  // DEFAULT_PALETTE_NAME rather than matching one of the 10 archetypes.
+  it('produces at least 100 unique names across a 900-sample HSL grid (grain-2 M1)', () => {
+    const samples: HSL[] = []
+    for (let h = 0; h < 360; h += 10) {
+      for (const s of [10, 30, 50, 70, 90]) {
+        for (const l of [10, 30, 50, 70, 90]) {
+          samples.push({ h, s, l })
+        }
+      }
+    }
+    expect(samples.length).toBe(900)
+
+    const names = new Set(samples.map((hsl) => getPaletteName(hsl)))
+    expect(names.size).toBeGreaterThanOrEqual(100)
+  })
+
+  it('is deterministic across repeated calls for the same HSL input (grain-2 M4)', () => {
+    const hsl: HSL = { h: 217, s: 63, l: 52 }
+    const results = Array.from({ length: 10 }, () => getPaletteName(hsl))
+    expect(new Set(results).size).toBe(1)
   })
 })
 
@@ -1076,12 +1139,37 @@ describe('getPaletteDescription', () => {
     const farFromEverything: HSL = { h: 89.41, s: 100, l: 12 }
     const sentences = getPaletteDescription(farFromEverything)
     expect(sentences.length).toBeGreaterThanOrEqual(1)
-    expect(sentences[0].startsWith(DEFAULT_PALETTE_NAME)).toBe(true)
+    expect(sentences[0].includes(DEFAULT_PALETTE_NAME)).toBe(true)
   })
 
   it('is deterministic for a palette-derived average HSL', () => {
     const palette = generatePalette('#3366ff')!
     const avg = averageHsl(palette)
     expect(getPaletteDescription(avg)).toEqual(getPaletteDescription({ ...avg }))
+  })
+
+  // grain-2 decision record: sentence 1 embeds getPaletteName's output
+  // verbatim, and that name alone spans 192 unique modifier phrases, so the
+  // description inherits 100+ unique combinations across a representative
+  // HSL sample without needing its own independent vocabulary expansion.
+  it('produces at least 100 unique descriptions across a 900-sample HSL grid (grain-2 M2)', () => {
+    const samples: HSL[] = []
+    for (let h = 0; h < 360; h += 10) {
+      for (const s of [10, 30, 50, 70, 90]) {
+        for (const l of [10, 30, 50, 70, 90]) {
+          samples.push({ h, s, l })
+        }
+      }
+    }
+    expect(samples.length).toBe(900)
+
+    const descriptions = new Set(samples.map((hsl) => getPaletteDescription(hsl).join('\n')))
+    expect(descriptions.size).toBeGreaterThanOrEqual(100)
+  })
+
+  it('is deterministic across repeated calls for the same HSL input (grain-2 M4)', () => {
+    const hsl: HSL = { h: 217, s: 63, l: 52 }
+    const results = Array.from({ length: 10 }, () => getPaletteDescription(hsl).join('\n'))
+    expect(new Set(results).size).toBe(1)
   })
 })

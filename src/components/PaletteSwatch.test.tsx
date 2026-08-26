@@ -245,3 +245,113 @@ describe('PaletteSwatch.css: rounder squares + hover/focus-only lock reveal (sou
     expect(css).toMatch(/\.palette-swatch__hex:hover[^{]*\{[^}]*text-decoration:\s*underline/)
   })
 })
+
+/**
+ * grain-1: `code-analysis/risks.md` flagged two unverified points left over
+ * from grain-3/grain-4 - (1) nothing confirmed the lock icons actually
+ * render as `lucide-react` icons rather than the old emoji glyphs, and (2)
+ * nothing confirmed the `[aria-pressed='true']` opacity-1 rule actually
+ * targets the class+attribute combination the locked button renders with
+ * (only the rule's *existence* was regex-checked, not that its selector
+ * matches the real DOM node). These tests close both gaps without adding a
+ * CSS engine to jsdom: the icon test asserts against the rendered SVG's
+ * lucide class names (`lucide-lock`/`lucide-unlock`, per
+ * lucide-react's `createLucideIcon`), and the opacity test pairs a render
+ * assertion (the locked button really does carry both
+ * `.palette-swatch__lock` and `aria-pressed="true"`) with a source-level
+ * extraction of that exact selector's rule body.
+ */
+describe('PaletteSwatch: lucide icon + locked-opacity requirements (grain-1)', () => {
+  const tsxPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'PaletteSwatch.tsx')
+  const tsx = readFileSync(tsxPath, 'utf-8')
+  const cssPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'PaletteSwatch.css')
+  const css = readFileSync(cssPath, 'utf-8')
+
+  // Matches the old lock/unlock emoji glyphs plus the broader emoji ranges,
+  // so a future reintroduction of *any* emoji (not just these two) fails
+  // this test rather than slipping back in unnoticed.
+  const EMOJI_PATTERN = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u
+  // The JSDoc comment above intentionally *mentions* the old 🔒/🔓 glyphs as
+  // history ("the emoji glyphs (🔒/🔓) are replaced with..."), so this check
+  // strips comments first - it is scoped to code (JSX/strings), not to
+  // prose that documents the migration away from emoji.
+  const tsxWithoutComments = tsx.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+
+  it('contains no emoji literals in the component code (🔒/🔓 fully removed from rendering)', () => {
+    expect(tsxWithoutComments).not.toMatch(EMOJI_PATTERN)
+  })
+
+  it('imports Lock and Unlock from lucide-react', () => {
+    expect(tsx).toMatch(/from ['"]lucide-react['"]/)
+    expect(tsx).toMatch(/\bLock\b/)
+    expect(tsx).toMatch(/\bUnlock\b/)
+  })
+
+  it('renders the lucide Lock icon (not emoji) when the slot is locked', () => {
+    renderSwatch({ isLocked: true })
+
+    const lockButton = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
+    const icon = lockButton.querySelector('svg')
+    expect(icon).not.toBeNull()
+    expect(icon).toHaveClass('lucide-lock')
+    expect(lockButton).not.toHaveTextContent(/[\u{1F300}-\u{1FAFF}]/u)
+  })
+
+  it('renders the lucide Unlock icon (not emoji) when the slot is unlocked', () => {
+    renderSwatch({ isLocked: false })
+
+    const lockButton = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
+    const icon = lockButton.querySelector('svg')
+    expect(icon).not.toBeNull()
+    // lucide-react's `Unlock` export is an alias for its `lock-open` icon
+    // (see createLucideIcon - the class name follows the icon's canonical
+    // name, not the export name), so the rendered class is
+    // `lucide-lock-open` rather than `lucide-unlock`.
+    expect(icon).toHaveClass('lucide-lock-open')
+  })
+
+  it("the locked button's real class+attribute combination is exactly what [aria-pressed='true'] targets, and that rule sets opacity: 1", () => {
+    renderSwatch({ isLocked: true })
+
+    const lockButton = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
+    // Confirms the selector `.palette-swatch__lock[aria-pressed='true']`
+    // actually matches this rendered node - not just that the class/attr
+    // exist independently, but that both hold on the same element.
+    expect(lockButton).toHaveClass('palette-swatch__lock')
+    expect(lockButton).toHaveAttribute('aria-pressed', 'true')
+
+    const selector = ".palette-swatch__lock[aria-pressed='true']"
+    const index = css.indexOf(selector)
+    expect(index).toBeGreaterThan(-1)
+    const braceStart = css.indexOf('{', index)
+    const braceEnd = css.indexOf('}', braceStart)
+    const ruleBody = css.slice(braceStart + 1, braceEnd)
+    expect(ruleBody).toMatch(/opacity:\s*1\s*;/)
+  })
+
+  it('the lock overlay sits at the bottom-center of the preview (position: absolute, bottom + translateX(-50%))', () => {
+    const index = css.indexOf('.palette-swatch__lock {')
+    const braceStart = css.indexOf('{', index)
+    const braceEnd = css.indexOf('}', braceStart)
+    const ruleBody = css.slice(braceStart + 1, braceEnd)
+
+    expect(ruleBody).toMatch(/position:\s*absolute\s*;/)
+    expect(ruleBody).toMatch(/bottom:\s*var\(--content-padding-sm\)\s*;/)
+    expect(ruleBody).toMatch(/left:\s*50%\s*;/)
+    expect(ruleBody).toMatch(/transform:\s*translateX\(-50%\)\s*;/)
+  })
+
+  it("the HEX label's font-family and font-weight match the app title's tokens (--font-display / --weight-display-bold)", () => {
+    const index = css.indexOf('.palette-swatch__hex {')
+    const braceStart = css.indexOf('{', index)
+    const braceEnd = css.indexOf('}', braceStart)
+    const ruleBody = css.slice(braceStart + 1, braceEnd)
+
+    expect(ruleBody).toMatch(/font-family:\s*var\(--font-display\)\s*;/)
+    expect(ruleBody).toMatch(/font-weight:\s*var\(--weight-display-bold\)\s*;/)
+    // Bigger than the pre-grain-4 mono size (13px / --text-mono-md) - still
+    // its own step on the display scale, not literally the title's size.
+    expect(ruleBody).not.toMatch(/var\(--text-mono-md\)/)
+    expect(ruleBody).toMatch(/font-size:\s*var\(--text-display-xs\)\s*;/)
+  })
+})

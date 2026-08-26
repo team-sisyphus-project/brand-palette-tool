@@ -184,3 +184,25 @@
 .color-generator__preview--result .color-generator__regenerate {
   align-self: center;
 }
+
+/*
+ * grain-1 (2026-08-26): PaletteExportActions renders directly below
+ * PaletteDescription inside panel-generator (`.color-generator__controls`).
+ * The controls panel's shared `gap: var(--element-gap-md)` (16px - used
+ * between the pre-generate form's stacked fields) is a generic form-field
+ * gap, not the "Apple landing page" macro-rhythm PaletteDescription.css
+ * establishes internally (--space-6 / 32px between its name/description/
+ * keywords). Topping it up to that same 32px total here - via an extra
+ * --space-4 (16px) margin-top on top of the parent's 16px gap - makes the
+ * export toolbar read as one continuous whitespace rhythm with the
+ * description block above it, rather than a differently-spaced element
+ * bolted on below. Deliberately no divider/border here (unlike ColorStudy's
+ * `border-top` section break in ColorStudy.css): a rule line would visually
+ * separate the toolbar from the description it belongs to, when the goal is
+ * the opposite - reading as one integrated block. Reuses existing --space-4
+ * scale step, no new spacing token. Scoped to this parent/child pair only,
+ * so it does not affect the pre-generate form's field spacing.
+ */
+.color-generator__controls .palette-export {
+  margin-top: var(--space-4);
+}

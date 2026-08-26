@@ -25,7 +25,6 @@ import { Palette } from './Palette'
 import { PaletteDescription } from './PaletteDescription'
 import { PaletteExportActions } from './PaletteExportActions'
 import { ThemeToggle } from './ThemeToggle'
-import { VibeKeywords } from './VibeKeywords'
 import './ColorGenerator.css'
 
 const INVALID_COLOR_MESSAGE =
@@ -175,6 +174,18 @@ export interface ColorGeneratorProps {
  * AestheticMatch/VibeKeywords, this recomputes on every palette change since
  * `paletteName`/`paletteDescriptionLines` are memoized off the same
  * `palette` dependency.
+ *
+ * grain-4 (2026-08-26, export actions relocation + duplicate keyword line
+ * removal): `PaletteExportActions` (the CSS Variables/PNG/JSON/MD export
+ * toolbar) now renders directly below `PaletteDescription` inside
+ * `panel-generator`, instead of below the palette chips inside
+ * `panel-preview`. Same props, same `palette`/`mode`/`moodTags`/
+ * `aestheticMatch` values - composition-only move, no change to what the
+ * toolbar itself does (see PaletteExportActions.tsx). The right panel's
+ * standalone `VibeKeywords` "keyword: a, b, c" line - which duplicated the
+ * same words `PaletteDescription`'s keyword list already renders on the left
+ * - is removed entirely; `vibeKeywords` is still computed and still feeds
+ * `paletteKeywords` below, it just no longer has a second, separate renderer.
  *
  * grain-1 (2026-08-26, keyword relocation): PaletteDescription's `keywords`
  * prop is now `paletteKeywords` rather than `vibeKeywords` reused as-is -
@@ -362,11 +373,19 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
     <>
       <section className="panel-generator color-generator__controls">
         {showResult && palette && paletteName ? (
-          <PaletteDescription
-            name={paletteName}
-            description={paletteDescriptionLines}
-            keywords={paletteKeywords}
-          />
+          <>
+            <PaletteDescription
+              name={paletteName}
+              description={paletteDescriptionLines}
+              keywords={paletteKeywords}
+            />
+            <PaletteExportActions
+              palette={palette}
+              mode={mode}
+              moodTags={moodTags}
+              aestheticMatch={aestheticMatch}
+            />
+          </>
         ) : (
           <div className="color-generator__intake">
             <div className="color-generator__intro">
@@ -453,14 +472,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
               onColorChange={handleSlotColorChange}
               onSelectBase={setBaseColorIndex}
             />
-            <PaletteExportActions
-              palette={palette}
-              mode={mode}
-              moodTags={moodTags}
-              aestheticMatch={aestheticMatch}
-            />
             <AestheticMatch match={aestheticMatch} />
-            <VibeKeywords keywords={vibeKeywords} />
             <ColorStudy colors={palette} baseColorIndex={baseColorIndex} />
           </>
         )}
