@@ -12,7 +12,7 @@ import {
   type Locks,
   type PaletteColor,
 } from '../lib/palette'
-import { saveRecentPalette } from '../lib/recentPalettes'
+import { loadRecentPalettes, saveRecentPalette, type RecentPaletteEntry } from '../lib/recentPalettes'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
 import { ColorWheel } from './ColorWheel'
@@ -20,6 +20,7 @@ import { ModeSelector } from './ModeSelector'
 import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
 import { PaletteExportActions } from './PaletteExportActions'
+import { RecentPalettes } from './RecentPalettes'
 import './ColorGenerator.css'
 
 const INVALID_COLOR_MESSAGE =
@@ -83,12 +84,23 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * (assumption — needs confirmation) on *those* actions specifically, not on
  * every input keystroke, since an in-progress edit that hasn't been acted on
  * yet isn't a "saved" palette worth keeping in the recent list.
+ *
+ * A RecentPalettes list (grain-2) renders alongside the controls, sourced
+ * from loadRecentPalettes() on mount and refreshed from every
+ * saveRecentPalette() call's return value thereafter, so it always reflects
+ * what is actually persisted. Selecting an entry (handleSelectRecent) writes
+ * that entry's inputValue/mode/locks verbatim into state and its saved
+ * `colors` straight into `regenerated` - the same short-circuit Regenerate/
+ * mode-change/manual-edit use to bypass `basePalette` - so the exact
+ * original palette reappears on screen instead of being recomputed from the
+ * restored brand input (spec C M-3's "다시 불러올 수 있음").
  */
 export function ColorGenerator() {
   const [inputValue, setInputValue] = useState('#E84C40')
   const [locks, setLocks] = useState<Locks>(() => createInitialLocks())
   const [mode, setMode] = useState<GenerationMode>(DEFAULT_MODE)
   const [regenerated, setRegenerated] = useState<PaletteColor[] | null>(null)
+  const [recentPalettes, setRecentPalettes] = useState<RecentPaletteEntry[]>(() => loadRecentPalettes())
 
   const trimmed = inputValue.trim()
   const basePalette = useMemo(
@@ -120,7 +132,7 @@ export function ColorGenerator() {
     // Keep locked slots as-is; only unlocked slots adopt the new mode's colors.
     const merged = fresh.map((color, index) => (locks[index] && palette[index] ? palette[index] : color))
     setRegenerated(merged)
-    saveRecentPalette({ brandInput: trimmed, mode: nextMode, colors: merged, locks })
+    setRecentPalettes(saveRecentPalette({ brandInput: trimmed, mode: nextMode, colors: merged, locks }))
   }
 
   const handleRegenerate = () => {
@@ -128,7 +140,7 @@ export function ColorGenerator() {
     const next = regeneratePalette(palette, trimmed, locks, undefined, mode)
     if (!next) return
     setRegenerated(next)
-    saveRecentPalette({ brandInput: trimmed, mode, colors: next, locks })
+    setRecentPalettes(saveRecentPalette({ brandInput: trimmed, mode, colors: next, locks }))
   }
 
   const handleSlotColorChange = (index: number, hex: string) => {
@@ -138,7 +150,20 @@ export function ColorGenerator() {
     const nextLocks = locks.map((locked, slot) => (slot === index ? true : locked))
     setRegenerated(next)
     setLocks(nextLocks)
-    saveRecentPalette({ brandInput: trimmed, mode, colors: next, locks: nextLocks })
+    setRecentPalettes(saveRecentPalette({ brandInput: trimmed, mode, colors: next, locks: nextLocks }))
+  }
+
+  /**
+   * Restores a saved recent-palette entry exactly as it was captured:
+   * brand input text, generation mode, per-slot locks, and the saved colors
+   * themselves - written into `regenerated` so it bypasses `basePalette`'s
+   * regeneration entirely rather than re-deriving from the restored input.
+   */
+  const handleSelectRecent = (entry: RecentPaletteEntry) => {
+    setInputValue(entry.brandInput)
+    setMode(entry.mode)
+    setLocks(entry.locks)
+    setRegenerated(entry.colors)
   }
 
   return (
@@ -161,6 +186,7 @@ export function ColorGenerator() {
             </button>
           </>
         )}
+        <RecentPalettes entries={recentPalettes} onSelect={handleSelectRecent} />
       </section>
       <section className="panel-preview color-generator__preview">
         {palette && (
