@@ -51,6 +51,16 @@
   cursor: pointer;
 }
 
+/*
+ * grain-3: was a plain `<span>`; now a `<button>` so the hex code is a real
+ * click/keyboard target for inline editing (PaletteSwatch.tsx's
+ * `startEditingHex`). `background`/`border`/`padding`/`margin` reset the
+ * native button chrome to zero (implementation settings, per
+ * policy/coding.md - same treatment as `.palette-swatch__color-picker`
+ * above); `cursor: text` and the hover/focus-visible rules below are the
+ * "this is editable" affordance the assignment asks for, without changing
+ * the token values already carrying this text's color/typography.
+ */
 .palette-swatch__hex {
   font-family: var(--font-mono);
   font-size: var(--text-mono-md);
@@ -59,6 +69,62 @@
   letter-spacing: var(--tracking-mono);
   color: var(--color-text-secondary);
   text-transform: uppercase;
+  background: none;
+  border: var(--border-width-default) solid transparent;
+  border-radius: var(--radius-control);
+  padding: 0;
+  margin: 0;
+  cursor: text;
+}
+
+.palette-swatch__hex:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+.palette-swatch__hex:focus-visible {
+  outline: none;
+  color: var(--color-text-primary);
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+}
+
+/*
+ * grain-3: the input that replaces `.palette-swatch__hex` while editing.
+ * Sized/typeset to match the button it replaces (same font tokens, no layout
+ * jump) rather than looking like a generic form field.
+ */
+.palette-swatch__hex-input {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-md);
+  font-weight: var(--weight-mono-regular);
+  line-height: var(--leading-mono);
+  letter-spacing: var(--tracking-mono);
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  background: var(--color-bg-surface);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.palette-swatch__hex-input:focus-visible {
+  outline: none;
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+}
+
+/* grain-3: shown when a committed edit fails hexToRgb validation. */
+.palette-swatch__hex-error {
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-state-error);
 }
 
 .palette-swatch__badge {

@@ -104,6 +104,102 @@ describe('PaletteSwatch: lock overlay markup (contract unchanged)', () => {
   })
 })
 
+describe('PaletteSwatch: inline hex code click-to-edit (grain-3)', () => {
+  it('renders the hex as a clickable trigger, not a plain span', () => {
+    renderSwatch()
+
+    expect(screen.getByRole('button', { name: 'Edit #3366ff hex code' })).toHaveTextContent(
+      '#3366ff',
+    )
+  })
+
+  it('clicking the hex trigger swaps it for a text input pre-filled with the current hex, without firing onSelectBase', () => {
+    const { onSelectBase } = renderSwatch()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit #3366ff hex code' }))
+
+    const input = screen.getByRole('textbox', { name: 'Edit #3366ff hex code' })
+    expect(input).toHaveValue('#3366ff')
+    expect(onSelectBase).not.toHaveBeenCalled()
+  })
+
+  it('pressing Enter/Space on the hex trigger does not also fire onSelectBase', () => {
+    const { onSelectBase } = renderSwatch()
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Edit #3366ff hex code' }), {
+      key: 'Enter',
+    })
+
+    expect(onSelectBase).not.toHaveBeenCalled()
+  })
+
+  it('committing a valid hex via Enter calls onColorChange and closes the input', () => {
+    const { onColorChange, onSelectBase } = renderSwatch()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit #3366ff hex code' }))
+    const input = screen.getByRole('textbox', { name: 'Edit #3366ff hex code' })
+    fireEvent.change(input, { target: { value: '#00ff00' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(onColorChange).toHaveBeenCalledWith('#00ff00')
+    expect(onSelectBase).not.toHaveBeenCalled()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('committing a valid hex via blur calls onColorChange', () => {
+    const { onColorChange } = renderSwatch()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit #3366ff hex code' }))
+    const input = screen.getByRole('textbox', { name: 'Edit #3366ff hex code' })
+    fireEvent.change(input, { target: { value: '#abc123' } })
+    fireEvent.blur(input)
+
+    expect(onColorChange).toHaveBeenCalledWith('#abc123')
+  })
+
+  it('committing an invalid hex does not call onColorChange, reverts to the original hex, and shows an error', () => {
+    const { onColorChange } = renderSwatch()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit #3366ff hex code' }))
+    const input = screen.getByRole('textbox', { name: 'Edit #3366ff hex code' })
+    fireEvent.change(input, { target: { value: 'not-a-color' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(onColorChange).not.toHaveBeenCalled()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/valid hex/i)
+    expect(screen.getByRole('button', { name: 'Edit #3366ff hex code' })).toHaveTextContent(
+      '#3366ff',
+    )
+  })
+
+  it('pressing Escape cancels the edit without calling onColorChange and without showing an error', () => {
+    const { onColorChange } = renderSwatch()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit #3366ff hex code' }))
+    const input = screen.getByRole('textbox', { name: 'Edit #3366ff hex code' })
+    fireEvent.change(input, { target: { value: 'garbage' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    expect(onColorChange).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit #3366ff hex code' })).toHaveTextContent(
+      '#3366ff',
+    )
+  })
+
+  it('clicking or typing inside the input never bubbles to fire onSelectBase', () => {
+    const { onSelectBase } = renderSwatch()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit #3366ff hex code' }))
+    const input = screen.getByRole('textbox', { name: 'Edit #3366ff hex code' })
+    fireEvent.click(input)
+    fireEvent.keyDown(input, { key: 'a' })
+
+    expect(onSelectBase).not.toHaveBeenCalled()
+  })
+})
+
 describe('PaletteSwatch.css: rounder squares + hover/focus-only lock reveal (source-level)', () => {
   const cssPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'PaletteSwatch.css')
   const css = readFileSync(cssPath, 'utf-8')
@@ -143,5 +239,9 @@ describe('PaletteSwatch.css: rounder squares + hover/focus-only lock reveal (sou
 
   it('the lock overlay is revealed on keyboard focus (:focus-visible)', () => {
     expect(css).toMatch(/\.palette-swatch__lock:focus-visible[^{]*\{[^}]*opacity:\s*1/)
+  })
+
+  it('the hex trigger signals editability on hover/focus (grain-3)', () => {
+    expect(css).toMatch(/\.palette-swatch__hex:hover[^{]*\{[^}]*text-decoration:\s*underline/)
   })
 })

@@ -1,6 +1,9 @@
-import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react'
-import type { PaletteColor } from '../lib/palette'
+import { useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent } from 'react'
+import { hexToRgb, type PaletteColor } from '../lib/palette'
 import './PaletteSwatch.css'
+
+/** Shown under the hex trigger when a committed edit fails `hexToRgb` validation (grain-3). */
+const INVALID_HEX_MESSAGE = 'Enter a valid hex color, e.g. #3366ff.'
 
 export interface PaletteSwatchProps {
   color: PaletteColor
@@ -52,6 +55,24 @@ export interface PaletteSwatchProps {
  * per design-spec/token-groups/radius/base.md. `onToggleLock`'s contract
  * (and its own `stopPropagation` so it never also fires `onSelectBase`) is
  * unchanged - only where the button sits in the markup moved.
+ *
+ * grain-3 (inline hex click-to-edit): the HEX label below the swatch is now a
+ * button (`isEditingHex === false`) that swaps to a text input on click. The
+ * button and the input both `stopPropagation` on click/keydown so neither
+ * starting nor performing the edit ever also fires `onSelectBase` - the same
+ * "more specific interaction wins" rule the lock toggle and color-picker
+ * already follow (see the class doc comment above). Committing (Enter or
+ * blur) reuses `hexToRgb` from src/lib/palette.ts - the same module
+ * `ColorGenerator.handleSlotColorChange`/`updateSlotColor` validate with -
+ * so "is this a valid hex" is judged identically here and there. A valid
+ * commit calls `onColorChange` (the existing color-picker path) and closes
+ * the input; an invalid commit never calls `onColorChange`, reverts the
+ * displayed value to `color.hex`, and shows an inline error. Escape cancels
+ * without calling `onColorChange` and without an error. `skipNextBlurRef`
+ * exists because committing/cancelling via keyboard swaps the input back out
+ * for the button in the same tick - if the input was focused, the DOM
+ * removal fires a native blur, which would otherwise re-run
+ * `commitHexEdit` a second time with a stale draft.
  */
 export function PaletteSwatch({
   color,
@@ -61,6 +82,11 @@ export function PaletteSwatch({
   onColorChange,
   onSelectBase,
 }: PaletteSwatchProps) {
+  const [isEditingHex, setIsEditingHex] = useState(false)
+  const [hexDraft, setHexDraft] = useState(color.hex)
+  const [hexError, setHexError] = useState<string | null>(null)
+  const skipNextBlurRef = useRef(false)
+
   const handleColorPickerChange = (event: ChangeEvent<HTMLInputElement>) => {
     onColorChange(event.target.value)
   }
@@ -78,6 +104,66 @@ export function PaletteSwatch({
     if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
     onSelectBase()
+  }
+
+  const startEditingHex = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    setHexDraft(color.hex)
+    setHexError(null)
+    setIsEditingHex(true)
+  }
+
+  const handleHexTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    // Enter/Space on this button also bubbles as a keydown (separately from
+    // the click it synthesizes) - stop it here so the card's own
+    // Enter/Space handler above never also fires onSelectBase.
+    event.stopPropagation()
+  }
+
+  const commitHexEdit = () => {
+    if (hexToRgb(hexDraft)) {
+      onColorChange(hexDraft)
+      setHexError(null)
+    } else {
+      setHexError(INVALID_HEX_MESSAGE)
+      setHexDraft(color.hex)
+    }
+    setIsEditingHex(false)
+  }
+
+  const cancelHexEdit = () => {
+    setHexDraft(color.hex)
+    setHexError(null)
+    setIsEditingHex(false)
+  }
+
+  const handleHexInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setHexDraft(event.target.value)
+  }
+
+  const handleHexInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    event.stopPropagation()
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      skipNextBlurRef.current = true
+      commitHexEdit()
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      skipNextBlurRef.current = true
+      cancelHexEdit()
+    }
+  }
+
+  const handleHexInputBlur = () => {
+    if (skipNextBlurRef.current) {
+      skipNextBlurRef.current = false
+      return
+    }
+    commitHexEdit()
+  }
+
+  const handleHexInputClick = (event: MouseEvent<HTMLInputElement>) => {
+    event.stopPropagation()
   }
 
   return (
@@ -112,7 +198,37 @@ export function PaletteSwatch({
           {isLocked ? '🔒' : '🔓'}
         </button>
       </div>
-      <span className="palette-swatch__hex">{color.hex}</span>
+      {isEditingHex ? (
+        <input
+          type="text"
+          className="palette-swatch__hex-input"
+          value={hexDraft}
+          aria-label={`Edit ${color.hex} hex code`}
+          aria-invalid={Boolean(hexError)}
+          autoFocus
+          autoComplete="off"
+          spellCheck={false}
+          onChange={handleHexInputChange}
+          onKeyDown={handleHexInputKeyDown}
+          onBlur={handleHexInputBlur}
+          onClick={handleHexInputClick}
+        />
+      ) : (
+        <button
+          type="button"
+          className="palette-swatch__hex"
+          aria-label={`Edit ${color.hex} hex code`}
+          onClick={startEditingHex}
+          onKeyDown={handleHexTriggerKeyDown}
+        >
+          {color.hex}
+        </button>
+      )}
+      {hexError && (
+        <span className="palette-swatch__hex-error" role="alert">
+          {hexError}
+        </span>
+      )}
       {isBrand && <span className="palette-swatch__badge">Brand</span>}
     </div>
   )
