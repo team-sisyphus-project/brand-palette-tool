@@ -14,14 +14,28 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: var(--space-5);
+  /*
+   * grain-1 (2026-08-26): --space-6 (32px), one step up from the prior
+   * --space-5 (24px), for a roomier "Apple landing page" macro-rhythm
+   * between name/description/keywords. Tapered back down at the 1024px/
+   * 768px breakpoints in App.css so the panel still reads comfortably once
+   * it stacks on smaller viewports.
+   */
+  gap: var(--space-6);
   width: 100%;
 }
 
 .palette-description__name {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--text-display-lg);
+  /*
+   * grain-1 (2026-08-26): --text-display-xl (48px, see index.css) - one
+   * step above the app's own --text-display-lg title, giving the palette
+   * name the large, confident hero treatment the card's visual brief asks
+   * for. Scaled back down to --text-display-lg/-md at the 1024px/768px
+   * breakpoints in App.css.
+   */
+  font-size: var(--text-display-xl);
   font-weight: var(--weight-display-bold);
   line-height: var(--leading-display);
   letter-spacing: var(--tracking-display);
@@ -34,7 +48,7 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--element-gap-md);
+  gap: var(--space-3);
 }
 
 .palette-description__line {
@@ -58,6 +72,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  /* Vertical breathing room when the dot-separated list wraps to more than
+     1 line on narrower panels (grain-1, 2026-08-26). */
+  row-gap: var(--space-2);
 }
 
 .palette-description__keyword {
