@@ -1,7 +1,15 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { generatePalette, generateShades, getHarmonyColors, hexToRgb, rgbToHsl } from '../lib/palette'
+import {
+  averageHsl,
+  generatePalette,
+  generateShades,
+  getHarmonyColors,
+  getMoodTags,
+  hexToRgb,
+  rgbToHsl,
+} from '../lib/palette'
 import { ColorGenerator } from './ColorGenerator'
 
 // grain-3: RecentPalettes (grain-2) and its localStorage persistence were
@@ -792,20 +800,31 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
 // (no buttons without a palette; buttons appear once one exists) through the
 // reachable flow.
 describe('grain-2: palette export actions wiring', () => {
-  it('does not show Copy HEX / Copy CSS Variables buttons before Generate is clicked', () => {
+  it('does not show the Copy CSS Variables button before Generate is clicked', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    expect(screen.queryByRole('button', { name: 'Copy HEX' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Copy CSS Variables' })).not.toBeInTheDocument()
   })
 
-  it('shows Copy HEX / Copy CSS Variables buttons once Generate reveals a palette', () => {
+  it('shows the Copy CSS Variables button once Generate reveals a palette', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
-    expect(screen.getByRole('button', { name: 'Copy HEX' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy CSS Variables' })).toBeInTheDocument()
+  })
+
+  // grain-1 (2026-08-26): "Copy HEX" was removed from PaletteExportActions'
+  // toolbar per the card's "우측 결과 영역 정리" instruction - see
+  // PaletteExportActions.test.tsx for the button-level coverage of the
+  // remaining toolbar buttons.
+  it('never shows a Copy HEX button, before or after Generate', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    expect(screen.queryByRole('button', { name: 'Copy HEX' })).not.toBeInTheDocument()
+
+    fireEvent.click(getGenerateButton())
+    expect(screen.queryByRole('button', { name: 'Copy HEX' })).not.toBeInTheDocument()
   })
 })
 
@@ -820,91 +839,70 @@ describe('grain-2: palette export actions wiring', () => {
 // still lives in palette.test.ts's own generatePalette/deriveHslByMode unit
 // tests; this file only ever exercised that logic through UI wiring.
 
-// grain-1: deterministic emotion/mood tags based on average H/S/L (M-4).
-// MoodTag only renders whatever getMoodTags(averageHsl(palette)) returns, so
-// here we verify at the ColorGenerator wiring level whether "1-2 tags are
-// always shown whenever a palette exists" and "the same input yields the
-// same tags (determinism)". The detailed rules for individual H/S/L
-// band -> word mapping are covered by palette.test.ts's getMoodTags unit
-// tests.
-describe('grain-1: emotion/mood tags (M-4)', () => {
-  function getMoodTagList(): HTMLElement {
-    return screen.getByRole('list', { name: 'Palette mood tags' })
-  }
-
-  it('mood tags are not rendered when there is no palette', () => {
+// grain-1 (2026-08-26): the right-panel MoodTag chip list is removed
+// entirely (see ColorGenerator.tsx's class doc comment, "MoodTag chip
+// removal"). getMoodTags(averageHsl(palette)) itself is untouched and still
+// feeds PaletteExportActions' MD export - only its rendering as standalone
+// pill chips is gone. The words themselves now surface as plain text inside
+// the left PaletteDescription panel's keyword list instead (covered by
+// "grain-1: mood tag words relocated into the left keyword list" below), so
+// this block only proves the chip list itself is never rendered again.
+describe('grain-1: emotion/mood tag chips are removed (M-4 superseded)', () => {
+  it('never renders a "Palette mood tags" chip list, with or without a palette', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '' } })
     expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
-  })
 
-  it('mood tags are not rendered before Generate is clicked, even with a valid brand color', () => {
-    render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
     expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
-  })
 
-  it('clicking Generate with a valid color immediately shows 1-2 mood tags along with the palette', () => {
+    fireEvent.click(getGenerateButton())
+    expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
+  })
+})
+
+// grain-1 (2026-08-26): mood tag words fold into the left panel's keyword
+// list (dedupe-with-vibeKeywords decision - see ColorGenerator.tsx's class
+// doc comment and context/decisions/). getMoodTags's H/S/L band -> word
+// mapping itself is covered by palette.test.ts's own unit tests; this block
+// only verifies the wiring-level "the words end up in the left panel" and
+// "same input -> same merged list (determinism)" guarantees.
+describe('grain-1: mood tag words relocated into the left keyword list', () => {
+  function getLeftKeywords(): (string | null)[] {
+    const panel = screen.getByRole('region', { name: 'Palette description' })
+    return within(within(panel).getByRole('list', { name: 'Palette keywords' }))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent)
+  }
+
+  it('includes every getMoodTags() word (lowercased) not already present in the vibe keywords', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
-    const tags = within(getMoodTagList()).getAllByRole('listitem')
-    expect(tags.length).toBeGreaterThanOrEqual(1)
-    expect(tags.length).toBeLessThanOrEqual(2)
-    tags.forEach((tag) => expect(tag.textContent).not.toBe(''))
+    const hsl = averageHsl(generatePalette('#3366ff', 'complementary')!)
+    const moodWords = getMoodTags(hsl).map((word) => word.toLowerCase())
+
+    const leftKeywords = getLeftKeywords()
+    moodWords.forEach((word) => expect(leftKeywords).toContain(word))
+    // No duplicate entries even when a mood word already appears among the
+    // vibe keywords (e.g. "warm").
+    expect(new Set(leftKeywords).size).toBe(leftKeywords.length)
   })
 
-  // grain-2 note: previously re-typed the brand field after Generate to
-  // prove determinism (re-entering the same value -> same tags). That field
-  // is unmounted post-Generate now (see context/decisions/), so - like the
-  // palette's own determinism test below it - this now proves the same
-  // guarantee via two independent fresh mounts instead of a post-Generate
-  // re-edit. Editing the (now-unmounted) field silently no-ops rather than
-  // failing, which would have made the old version a test that can't fail.
-  it('shows the same mood tags for a fresh mount given the same brand input (determinism)', () => {
+  it('shows the same merged keyword list for a fresh mount given the same brand input (determinism)', () => {
     const { unmount } = render(<ColorGenerator />)
     generate('#3366ff')
-    const firstTags = within(getMoodTagList())
-      .getAllByRole('listitem')
-      .map((tag) => tag.textContent)
+    const firstKeywords = getLeftKeywords()
     unmount()
 
     render(<ColorGenerator />)
     generate('#3366ff')
-    const secondTags = within(getMoodTagList())
-      .getAllByRole('listitem')
-      .map((tag) => tag.textContent)
+    const secondKeywords = getLeftKeywords()
 
-    expect(secondTags).toEqual(firstTags)
-  })
-
-  // grain-3 note: this test used to switch through all 5 generation modes via
-  // ModeSelector (now removed - see ColorGenerator.tsx's class doc comment).
-  // Repeated Regenerate clicks are the only still-reachable way to recompute
-  // `palette` multiple times, so the "always stays in the 1-2 range across
-  // repeated recomputes" intent is verified that way instead.
-  it('recomputing the palette via repeated Regenerate clicks always shows 1-2 mood tags', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-
-    const regenerateButton = screen.getByRole('button', { name: 'Regenerate' })
-    for (let round = 0; round < 3; round += 1) {
-      fireEvent.click(regenerateButton)
-      const tags = within(getMoodTagList()).getAllByRole('listitem')
-      expect(tags.length).toBeGreaterThanOrEqual(1)
-      expect(tags.length).toBeLessThanOrEqual(2)
-    }
-  })
-
-  it('mood tags keep showing in the 1-2 range after regeneration', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
-
-    const tags = within(getMoodTagList()).getAllByRole('listitem')
-    expect(tags.length).toBeGreaterThanOrEqual(1)
-    expect(tags.length).toBeLessThanOrEqual(2)
+    expect(secondKeywords).toEqual(firstKeywords)
   })
 })
 
@@ -1182,7 +1180,14 @@ describe('grain-3: Palette Description panel (left panel)', () => {
     expect(keywords.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('shows the exact same keywords as the right panel\'s vibe keyword line (single source of truth)', () => {
+  // grain-1 (2026-08-26): the left panel's keyword list is no longer an
+  // exact copy of the right panel's vibe keyword line - it is that same line
+  // *plus* any getMoodTags() words the former right-panel MoodTag chips used
+  // to show (deduped, lowercased - see ColorGenerator.tsx's class doc
+  // comment). This still proves "single source of truth" for the shared
+  // portion: the left list starts with exactly the right panel's keywords,
+  // in the same order, and only ever appends non-duplicate mood words after.
+  it('starts with the exact same keywords as the right panel\'s vibe keyword line, then appends any non-duplicate mood words (single source of truth)', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
@@ -1194,7 +1199,15 @@ describe('grain-3: Palette Description panel (left panel)', () => {
     const rightLine = screen.getByRole('status', { name: 'Palette vibe keywords' }).textContent!
     const rightKeywords = rightLine.replace(/^keyword:\s*/, '').split(', ')
 
-    expect(leftKeywords).toEqual(rightKeywords)
+    expect(leftKeywords.slice(0, rightKeywords.length)).toEqual(rightKeywords)
+
+    const hsl = averageHsl(generatePalette('#3366ff', 'complementary')!)
+    const lowerRightKeywords = new Set(rightKeywords.map((word) => word.toLowerCase()))
+    const expectedExtra = getMoodTags(hsl)
+      .map((word) => word.toLowerCase())
+      .filter((word) => !lowerRightKeywords.has(word))
+
+    expect(leftKeywords.slice(rightKeywords.length)).toEqual(expectedExtra)
   })
 
   it('the left panel never renders the removed ModeSelector or RecentPalettes elements, before or after Generate', () => {

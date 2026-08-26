@@ -21,7 +21,6 @@ import type { Theme } from '../lib/theme'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
 import { ColorStudy } from './ColorStudy'
-import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
 import { PaletteDescription } from './PaletteDescription'
 import { PaletteExportActions } from './PaletteExportActions'
@@ -93,9 +92,11 @@ export interface ColorGeneratorProps {
  * overwritten by the next Regenerate click.
  *
  * Right below the palette, a PaletteExportActions renders whenever `palette`
- * exists: "Copy HEX" / "Copy CSS Variables" buttons that copy grain-1's
- * paletteToHexList()/paletteToCssVariablesText() output to the clipboard
- * (spec C M-1), with a transient success/failure message.
+ * exists: a "Copy CSS Variables" button that copies grain-1's
+ * paletteToCssVariablesText() output to the clipboard (spec C M-1), with a
+ * transient success/failure message. (grain-1, 2026-08-26: the former
+ * "Copy HEX" button was removed from that toolbar - see
+ * PaletteExportActions.tsx's class doc comment.)
  *
  * grain-3 (Harmony mode selector removal - assumption — needs confirmation):
  * the left panel's ModeSelector (5 standard color-wheel harmony mode buttons -
@@ -109,11 +110,21 @@ export interface ColorGeneratorProps {
  * explicitly flagged as an assumption needing human confirmation rather than
  * silently dropped.
  *
- * Next to the palette, a MoodTag always shows the 1-2 deterministic mood
- * adjectives that getMoodTags(averageHsl(palette)) derives from the current
- * palette's averaged H/S/L via a fixed lookup table - no AI judgment (M-4).
- * It recomputes on every palette change (regenerate, mode switch, lock, or
- * manual color edit) since all of those replace `palette`.
+ * getMoodTags(averageHsl(palette)) still derives the current palette's 1-2
+ * deterministic mood adjectives from a fixed lookup table - no AI judgment
+ * (M-4) - and `moodTags` is still threaded to PaletteExportActions for its MD
+ * export (spec C). It recomputes on every palette change (regenerate, mode
+ * switch, lock, or manual color edit) since all of those replace `palette`.
+ *
+ * grain-1 (2026-08-26, MoodTag chip removal - assumption — needs
+ * confirmation): the right-panel MoodTag chip list that used to render these
+ * adjectives as pill chips has been removed entirely per the card's "칩 형태
+ * 태그 제거" instruction; `MoodTag.tsx`/`.css` are deleted (no remaining
+ * caller). `moodTags` is no longer dropped once computed - it is instead
+ * merged into `paletteKeywords` below (case-insensitively deduped against
+ * `vibeKeywords`) and shown as plain text in the left PaletteDescription
+ * panel's keyword list, so the same words survive, just relocated and no
+ * longer rendered as standalone chips.
  *
  * An AestheticMatch is always computed alongside MoodTag via
  * matchAesthetic(averageHsl(palette)) - the closest of 10 predefined
@@ -160,11 +171,20 @@ export interface ColorGeneratorProps {
  * palette's deterministic name/description/keywords, all derived from
  * grain-2's src/lib/palette.ts additions
  * (getPaletteName/getPaletteDescription) plus the same getVibeKeywords()
- * output VibeKeywords already renders on the right (`vibeKeywords` below is
- * reused as-is, not recomputed a second time, so the two panels can never
- * disagree). Like MoodTag/AestheticMatch/VibeKeywords, this recomputes on
- * every palette change since `paletteName`/`paletteDescriptionLines` are
- * memoized off the same `palette` dependency.
+ * output VibeKeywords already renders on the right. Like
+ * AestheticMatch/VibeKeywords, this recomputes on every palette change since
+ * `paletteName`/`paletteDescriptionLines` are memoized off the same
+ * `palette` dependency.
+ *
+ * grain-1 (2026-08-26, keyword relocation): PaletteDescription's `keywords`
+ * prop is now `paletteKeywords` rather than `vibeKeywords` reused as-is -
+ * `vibeKeywords` followed by whichever `moodTags` words are not already
+ * present in it (case-insensitive comparison, since `getMoodTags` capitalizes
+ * its words - e.g. "Warm" - while `getVibeKeywords` does not). This is the
+ * one new "how do these two word lists combine" decision this grain makes
+ * (recorded in the design spec); every other rendered word still comes
+ * straight from the existing getMoodTags()/getVibeKeywords() outputs,
+ * unchanged.
  *
  * grain-3 (custom Color Study base color): clicking a Palette chip (see
  * PaletteSwatch's `onSelectBase`) sets `baseColorIndex` to that slot. It is
@@ -243,6 +263,24 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
     () => (palette ? getVibeKeywords(averageHsl(palette)) : []),
     [palette],
   )
+  // grain-1 (2026-08-26): the left PaletteDescription panel's keyword list -
+  // `vibeKeywords` followed by whichever `moodTags` words are not already
+  // present in it. Comparison (and the appended words themselves) is
+  // lowercased since `getMoodTags` capitalizes its words (e.g. "Warm") while
+  // `getVibeKeywords` does not - without lowercasing, a word appearing in
+  // both (e.g. "Warm"/"warm") would render twice instead of deduping. See
+  // the class doc comment's "keyword relocation" note.
+  const paletteKeywords = useMemo(() => {
+    const seen = new Set(vibeKeywords.map((word) => word.toLowerCase()))
+    const extraMoodWords: string[] = []
+    for (const tag of moodTags) {
+      const lower = tag.toLowerCase()
+      if (seen.has(lower)) continue
+      seen.add(lower)
+      extraMoodWords.push(lower)
+    }
+    return [...vibeKeywords, ...extraMoodWords]
+  }, [vibeKeywords, moodTags])
   // grain-3: Palette Description panel's name/description - derived the same
   // "null when no palette" way as moodTags/aestheticMatch/vibeKeywords above,
   // via grain-2's getPaletteName/getPaletteDescription (see the class doc
@@ -312,7 +350,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
           <PaletteDescription
             name={paletteName}
             description={paletteDescriptionLines}
-            keywords={vibeKeywords}
+            keywords={paletteKeywords}
           />
         ) : (
           <>
@@ -388,7 +426,6 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
               moodTags={moodTags}
               aestheticMatch={aestheticMatch}
             />
-            <MoodTag tags={moodTags} />
             <AestheticMatch match={aestheticMatch} />
             <VibeKeywords keywords={vibeKeywords} />
             <ColorStudy colors={palette} baseColorIndex={baseColorIndex} />

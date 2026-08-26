@@ -5,7 +5,6 @@ import { averageHsl, generatePalette, getMoodTags, matchAesthetic } from '../lib
 import {
   paletteJsonFilename,
   paletteToCssVariablesText,
-  paletteToHexList,
   validateCssVariablesText,
   validatePaletteJson,
 } from '../lib/paletteExport'
@@ -96,28 +95,15 @@ describe('PaletteExportActions', () => {
     delete navigator.clipboard
   })
 
-  it('renders "Copy HEX", "Copy CSS Variables", "Download PNG", "Download JSON", and "Download MD" buttons', () => {
+  it('renders "Copy CSS Variables", "Download PNG", "Download JSON", and "Download MD" buttons, with no "Copy HEX" button', () => {
     mockClipboard(() => Promise.resolve())
     render(<PaletteExportActions {...defaultProps} />)
 
-    expect(screen.getByRole('button', { name: 'Copy HEX' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copy HEX' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy CSS Variables' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Download PNG' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Download JSON' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Download MD' })).toBeInTheDocument()
-  })
-
-  it('copies the exact HEX list text and shows success feedback on "Copy HEX" click', async () => {
-    const writeText = mockClipboard(() => Promise.resolve())
-    render(<PaletteExportActions {...defaultProps} />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Copy HEX' }))
-
-    expect(writeText).toHaveBeenCalledTimes(1)
-    expect(writeText).toHaveBeenCalledWith(paletteToHexList(samplePalette))
-
-    const status = await screen.findByRole('status')
-    expect(status).toHaveTextContent('HEX codes copied!')
   })
 
   it('copies the exact CSS variables block text and shows success feedback on "Copy CSS Variables" click', async () => {
@@ -150,7 +136,7 @@ describe('PaletteExportActions', () => {
     mockClipboard(() => Promise.reject(new Error('denied')))
     render(<PaletteExportActions {...defaultProps} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy HEX' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy CSS Variables' }))
 
     const status = await screen.findByRole('status')
     expect(status).toHaveTextContent('Copy failed. Please try again.')
@@ -167,15 +153,16 @@ describe('PaletteExportActions', () => {
     expect(status).toHaveTextContent('Copy failed. Please try again.')
   })
 
-  it('replaces a prior "Copy HEX" success message when "Copy CSS Variables" is clicked next', async () => {
+  it('replaces a prior "Copy CSS Variables" success message when "Download JSON" is clicked next', async () => {
     mockClipboard(() => Promise.resolve())
+    mockObjectUrl()
     render(<PaletteExportActions {...defaultProps} />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Copy HEX' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('HEX codes copied!')
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy CSS Variables' }))
     expect(await screen.findByRole('status')).toHaveTextContent('CSS variables copied!')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('JSON downloaded!')
     expect(screen.getAllByRole('status')).toHaveLength(1)
   })
 

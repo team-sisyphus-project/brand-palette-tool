@@ -6,9 +6,12 @@ export interface PaletteDescriptionProps {
   /** Deterministic 2-sentence description from getPaletteDescription(averageHsl(palette)). */
   description: string[]
   /**
-   * Deterministic vibe keywords from getVibeKeywords(averageHsl(palette)) -
-   * the same source VibeKeywords (right/preview panel) renders, reused as-is
-   * so the two panels never disagree about a palette's keywords.
+   * The palette's keyword list, plain text (no chip styling). Owned and
+   * combined by the caller (ColorGenerator) - this component renders
+   * whatever list it is given, whether that is raw getVibeKeywords() output
+   * or (as of grain-1, 2026-08-26) getVibeKeywords() plus the getMoodTags()
+   * words that used to render as the right-panel MoodTag chip list, merged
+   * and deduped one level up.
    */
   keywords: string[]
 }
