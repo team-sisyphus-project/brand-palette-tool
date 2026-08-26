@@ -12,6 +12,7 @@ import {
   type Locks,
   type PaletteColor,
 } from '../lib/palette'
+import { saveRecentPalette } from '../lib/recentPalettes'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
 import { ColorWheel } from './ColorWheel'
@@ -75,6 +76,13 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * read-only SVG dial mapping each of the 5 palette colors' hue onto a 360°
  * circle (M-6), so the geometric harmony the current GenerationMode encodes
  * (complementary/triadic/etc.) is visible at a glance.
+ *
+ * Every Regenerate click, mode change, and manual per-slot color edit also
+ * calls recentPalettes.ts's saveRecentPalette() with the resulting colors/
+ * mode/locks (spec C "최근 생성 팔레트 로컬 저장 관리", M-3) -
+ * (assumption — needs confirmation) on *those* actions specifically, not on
+ * every input keystroke, since an in-progress edit that hasn't been acted on
+ * yet isn't a "saved" palette worth keeping in the recent list.
  */
 export function ColorGenerator() {
   const [inputValue, setInputValue] = useState('#E84C40')
@@ -110,21 +118,27 @@ export function ColorGenerator() {
     const fresh = generatePalette(trimmed, nextMode)
     if (!fresh) return
     // Keep locked slots as-is; only unlocked slots adopt the new mode's colors.
-    setRegenerated(fresh.map((color, index) => (locks[index] && palette[index] ? palette[index] : color)))
+    const merged = fresh.map((color, index) => (locks[index] && palette[index] ? palette[index] : color))
+    setRegenerated(merged)
+    saveRecentPalette({ brandInput: trimmed, mode: nextMode, colors: merged, locks })
   }
 
   const handleRegenerate = () => {
     if (!palette) return
     const next = regeneratePalette(palette, trimmed, locks, undefined, mode)
-    if (next) setRegenerated(next)
+    if (!next) return
+    setRegenerated(next)
+    saveRecentPalette({ brandInput: trimmed, mode, colors: next, locks })
   }
 
   const handleSlotColorChange = (index: number, hex: string) => {
     if (!palette) return
     const next = updateSlotColor(palette, index, hex)
     if (next === palette) return // invalid hex from updateSlotColor's contract; no-op
+    const nextLocks = locks.map((locked, slot) => (slot === index ? true : locked))
     setRegenerated(next)
-    setLocks((prev) => prev.map((locked, slot) => (slot === index ? true : locked)))
+    setLocks(nextLocks)
+    saveRecentPalette({ brandInput: trimmed, mode, colors: next, locks: nextLocks })
   }
 
   return (
