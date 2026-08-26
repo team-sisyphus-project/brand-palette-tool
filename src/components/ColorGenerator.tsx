@@ -1,26 +1,32 @@
 import { useMemo, useState } from 'react'
 import {
+  BRAND_SLOT_INDEX,
   GENERATION_MODES,
   averageHsl,
   createInitialLocks,
   generatePalette,
   getMoodTags,
+  getVibeKeywords,
   matchAesthetic,
+  parseColorInput,
   regeneratePalette,
   updateSlotColor,
   type GenerationMode,
   type Locks,
   type PaletteColor,
 } from '../lib/palette'
+import type { Theme } from '../lib/theme'
 import { loadRecentPalettes, saveRecentPalette, type RecentPaletteEntry } from '../lib/recentPalettes'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
-import { ColorWheel } from './ColorWheel'
+import { ColorStudy } from './ColorStudy'
 import { ModeSelector } from './ModeSelector'
 import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
 import { PaletteExportActions } from './PaletteExportActions'
 import { RecentPalettes } from './RecentPalettes'
+import { ThemeToggle } from './ThemeToggle'
+import { VibeKeywords } from './VibeKeywords'
 import './ColorGenerator.css'
 
 const INVALID_COLOR_MESSAGE =
@@ -29,15 +35,53 @@ const INVALID_COLOR_MESSAGE =
 /** Default generation mode selected before the user picks one explicitly. */
 const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
 
+/** Number of optional additional brand-color Hex fields the intake form offers (grain-1). */
+const ADDITIONAL_COLOR_COUNT = 4
+
+/** Placeholder shared by the optional additional Hex fields (grain-1). */
+const ADDITIONAL_COLOR_PLACEHOLDER = '#3366ff or 51, 102, 255 (optional)'
+
+/** No-op fallback so ColorGenerator stays mountable without a theme wired up (e.g. in tests). */
+const NOOP_TOGGLE_THEME = () => {}
+
+export interface ColorGeneratorProps {
+  /**
+   * Currently resolved theme, owned by App's `useTheme()`. Optional (defaults
+   * to 'light') so existing call sites/tests that don't care about theming
+   * can keep mounting `<ColorGenerator />` bare.
+   */
+  theme?: Theme
+  /** Called when the user activates the color panel's theme toggle. */
+  onToggleTheme?: () => void
+}
+
 /**
- * Feature-level container for spec A's color generator: a single HEX/RGB
- * input feeds src/lib/palette.ts's generatePalette() and the 5-color
- * palette re-renders immediately on every keystroke (M-1). Invalid input
- * shows a validation message instead of a stale/partial palette.
+ * Feature-level container for spec A's color generator.
  *
- * The input defaults to the brand red `#E84C40` (see context/decisions/) so
- * a 5-color palette is already on screen at first mount, with zero user
- * interaction required.
+ * grain-1 (intake form + generate gate): alongside the brand main color
+ * field, the intake form also offers up to 4 optional additional Hex color
+ * fields and 1 mood-keyword field (see `ADDITIONAL_COLOR_COUNT`). Each
+ * additional Hex field is independently validated via `parseColorInput`
+ * (reused from src/lib/palette.ts) when non-empty; an empty field is valid
+ * (all 4 are optional). The mood-keyword field takes free text with no
+ * format validation.
+ *
+ * The 4 extra colors and the keyword are captured in local state only -
+ * they are not read by `generatePalette` (out of scope for this grain; see
+ * design-spec/spec/grain-1-intake-form-generate-gate.md).
+ *
+ * grain-1 also supersedes the previous "auto-render on mount / on every
+ * keystroke" behavior (flagged as an assumption - see the design spec
+ * draft): the palette/result section now only renders after the user clicks
+ * "Generate" while the brand main color is valid (`hasGenerated`). Editing
+ * any field before that first successful Generate click never reveals the
+ * result section. The brand input still defaults to `#E84C40` for
+ * convenience, but nothing is generated from it until Generate is clicked.
+ *
+ * A single HEX/RGB brand input feeds src/lib/palette.ts's generatePalette()
+ * and the 5-color palette re-renders on every keystroke *after* Generate has
+ * been clicked once (M-1). Invalid input shows a validation message instead
+ * of a stale/partial palette.
  *
  * Each palette slot can be locked/unlocked (brand slot starts locked via
  * createInitialLocks()). Regenerate re-derives only the unlocked slots via
@@ -73,33 +117,99 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * null, so no aesthetic name is ever forced onto the screen without a close
  * enough candidate.
  *
- * Below AestheticMatch, a ColorWheel renders whenever `palette` exists: a
- * read-only SVG dial mapping each of the 5 palette colors' hue onto a 360°
- * circle (M-6), so the geometric harmony the current GenerationMode encodes
- * (complementary/triadic/etc.) is visible at a glance.
+ * grain-2 (vibe keyword line): a VibeKeywords also renders alongside
+ * MoodTag/AestheticMatch, fed by getVibeKeywords(averageHsl(palette)) - a
+ * richer set of 5+ unique, plain-English adjectives (vs. MoodTag's compact
+ * 1-2 word pill) rendered as a single "keyword: a, b, c, ..." line for users
+ * with no color-theory background. It recomputes on every palette change the
+ * same way moodTags/aestheticMatch do, since all three derive from the same
+ * `palette` memo dependency.
  *
- * Every Regenerate click, mode change, and manual per-slot color edit also
+ * Below AestheticMatch, a ColorStudy section renders whenever `palette`
+ * exists: a read-only SVG dial (ColorWheel) mapping each of the 5 palette
+ * colors' hue onto a 360° circle (M-6), so the geometric harmony the current
+ * GenerationMode encodes (complementary/triadic/etc.) is visible at a glance.
+ *
+ * grain-1 (Color Study section shell): ColorWheel itself no longer renders
+ * inline with Palette/MoodTag/AestheticMatch - it is wrapped by ColorStudy,
+ * an independent section with its own "Color Study" heading, visually
+ * separated (top divider) from the group above it. Composition-only change;
+ * ColorWheel's own rendering/geometry is untouched (see ColorStudy.tsx).
+ *
+ * grain-2 (generated result view): once `showResult` is true, the intake
+ * form (brand field, 4 additional Hex fields, mood-keyword field, Generate
+ * button) is unmounted entirely from `panel-generator` - only ModeSelector
+ * remains there (its placement is unchanged, out of scope for this grain).
+ * This **supersedes** grain-1's "brand input stays visible/editable and the
+ * palette keeps live-updating from it after Generate" behavior: since the
+ * brand field is gone, the only ways to change the palette after Generate
+ * are ModeSelector, Regenerate, lock/unlock, and per-swatch color-picker
+ * edits (see context/decisions/ for which pre-existing tests this
+ * superseded and why). Regenerate moves into `panel-preview`, rendered
+ * directly above the color chips, and the whole preview panel is
+ * center-aligned via the `color-generator__preview--result` modifier class.
+ *
+ * grain-3 (custom Color Study base color): clicking a Palette chip (see
+ * PaletteSwatch's `onSelectBase`) sets `baseColorIndex` to that slot. It is
+ * passed down to `ColorStudy`, which uses `palette[baseColorIndex]` (falling
+ * back to the brand slot) as the base color for both the harmony explorer
+ * and the new Shades ramp - see ColorStudy.tsx.
+ *
+ * grain-1 (theme toggle placement): a ThemeToggle is now rendered inside
+ * `panel-preview` itself - in a dedicated top row, right-aligned, above
+ * everything else in that panel (Regenerate/palette chips when a result
+ * exists). It renders unconditionally (both before and after Generate),
+ * since `panel-preview`'s children below it are the only part gated by
+ * `showResult`. `theme`/`onToggleTheme` are owned by App's `useTheme()` and
+ * threaded down as props - ColorGenerator holds no theme state of its own.
+ *
+ * grain-2 (progressive intake form): the pre-generate form no longer renders
+ * all 4 additional-color fields up front. Only the brand `ColorInput` and
+ * the mood-keyword field are always visible; the 4 additional fields are
+ * revealed incrementally, one per click of the "+" add-color button that
+ * renders directly beneath the brand field (`revealedExtraColorCount`, see
+ * `handleAddExtraColor`). The button itself disappears once all 4 are
+ * revealed. This changes only *when* an additional field mounts - its
+ * validation (`extraColorErrors`, reusing `parseColorInput`) and the
+ * `extraColors` state shape (still a fixed 4-slot array) are unchanged from
+ * grain-1.
+ *
+ * grain-2 (recent palettes): every Regenerate click, mode change, and manual per-slot color edit also
  * calls recentPalettes.ts's saveRecentPalette() with the resulting colors/
  * mode/locks (spec C "최근 생성 팔레트 로컬 저장 관리", M-3) -
  * (assumption — needs confirmation) on *those* actions specifically, not on
  * every input keystroke, since an in-progress edit that hasn't been acted on
  * yet isn't a "saved" palette worth keeping in the recent list.
  *
- * A RecentPalettes list (grain-2) renders alongside the controls, sourced
- * from loadRecentPalettes() on mount and refreshed from every
- * saveRecentPalette() call's return value thereafter, so it always reflects
- * what is actually persisted. Selecting an entry (handleSelectRecent) writes
- * that entry's inputValue/mode/locks verbatim into state and its saved
- * `colors` straight into `regenerated` - the same short-circuit Regenerate/
- * mode-change/manual-edit use to bypass `basePalette` - so the exact
- * original palette reappears on screen instead of being recomputed from the
- * restored brand input (spec C M-3's "다시 불러올 수 있음").
+ * A RecentPalettes list (grain-2) renders alongside the controls (always
+ * visible, independent of `showResult`), sourced from loadRecentPalettes()
+ * on mount and refreshed from every saveRecentPalette() call's return value
+ * thereafter, so it always reflects what is actually persisted. Selecting an
+ * entry (handleSelectRecent) writes that entry's inputValue/mode/locks
+ * verbatim into state, marks `hasGenerated` so the result view is revealed
+ * immediately, and writes its saved `colors` straight into `regenerated` -
+ * the same short-circuit Regenerate/mode-change/manual-edit use to bypass
+ * `basePalette` - so the exact original palette reappears on screen instead
+ * of being recomputed from the restored brand input (spec C M-3's "다시
+ * 불러올 수 있음").
  */
-export function ColorGenerator() {
+export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_THEME }: ColorGeneratorProps) {
   const [inputValue, setInputValue] = useState('#E84C40')
+  const [extraColors, setExtraColors] = useState<string[]>(() =>
+    Array.from({ length: ADDITIONAL_COLOR_COUNT }, () => ''),
+  )
+  const [moodKeyword, setMoodKeyword] = useState('')
+  // grain-2: how many of the 4 additional-color fields are currently revealed
+  // (progressive disclosure - see the class doc comment above).
+  const [revealedExtraColorCount, setRevealedExtraColorCount] = useState(0)
   const [locks, setLocks] = useState<Locks>(() => createInitialLocks())
   const [mode, setMode] = useState<GenerationMode>(DEFAULT_MODE)
   const [regenerated, setRegenerated] = useState<PaletteColor[] | null>(null)
+  // grain-1: the palette/result section only renders once Generate has been
+  // clicked with a valid brand color - see the class doc comment above.
+  const [hasGenerated, setHasGenerated] = useState(false)
+  // grain-3: which palette slot Color Study currently uses as its base color.
+  const [baseColorIndex, setBaseColorIndex] = useState(BRAND_SLOT_INDEX)
   const [recentPalettes, setRecentPalettes] = useState<RecentPaletteEntry[]>(() => loadRecentPalettes())
 
   const trimmed = inputValue.trim()
@@ -109,15 +219,40 @@ export function ColorGenerator() {
   )
   const isInvalid = trimmed !== '' && basePalette === null
   const palette = regenerated ?? basePalette
+  const showResult = hasGenerated && palette !== null
   const moodTags = useMemo(() => (palette ? getMoodTags(averageHsl(palette)) : []), [palette])
   const aestheticMatch = useMemo(
     () => (palette ? matchAesthetic(averageHsl(palette)) : null),
     [palette],
   )
+  const vibeKeywords = useMemo(
+    () => (palette ? getVibeKeywords(averageHsl(palette)) : []),
+    [palette],
+  )
+  const extraColorErrors = useMemo(
+    () =>
+      extraColors.map((value) =>
+        value.trim() !== '' && parseColorInput(value) === null ? INVALID_COLOR_MESSAGE : null,
+      ),
+    [extraColors],
+  )
 
   const handleInputChange = (value: string) => {
     setInputValue(value)
     setRegenerated(null)
+  }
+
+  const handleExtraColorChange = (index: number, value: string) => {
+    setExtraColors((prev) => prev.map((current, slot) => (slot === index ? value : current)))
+  }
+
+  const handleAddExtraColor = () => {
+    setRevealedExtraColorCount((prev) => Math.min(prev + 1, ADDITIONAL_COLOR_COUNT))
+  }
+
+  const handleGenerate = () => {
+    if (!basePalette) return // invalid/empty brand color: keep the result section hidden (M-4)
+    setHasGenerated(true)
   }
 
   const handleToggleLock = (index: number) => {
@@ -158,25 +293,83 @@ export function ColorGenerator() {
    * brand input text, generation mode, per-slot locks, and the saved colors
    * themselves - written into `regenerated` so it bypasses `basePalette`'s
    * regeneration entirely rather than re-deriving from the restored input.
+   * Also marks `hasGenerated` so the result view (gated by grain-1's
+   * Generate click) is revealed immediately, the same way clicking Generate
+   * does - restoring a saved palette is itself a way of "generating" a
+   * result onto the screen.
    */
   const handleSelectRecent = (entry: RecentPaletteEntry) => {
     setInputValue(entry.brandInput)
     setMode(entry.mode)
     setLocks(entry.locks)
     setRegenerated(entry.colors)
+    setHasGenerated(true)
   }
+
+  const previewClassName = showResult
+    ? 'panel-preview color-generator__preview color-generator__preview--result'
+    : 'panel-preview color-generator__preview'
 
   return (
     <>
       <section className="panel-generator color-generator__controls">
-        <ColorInput
-          value={inputValue}
-          onChange={handleInputChange}
-          error={isInvalid ? INVALID_COLOR_MESSAGE : null}
-        />
-        {palette && (
+        {showResult ? (
+          <ModeSelector mode={mode} onChange={handleModeChange} />
+        ) : (
           <>
-            <ModeSelector mode={mode} onChange={handleModeChange} />
+            <ColorInput
+              id="brand-color-input"
+              label="Brand main color"
+              placeholder="#3366ff or 51, 102, 255"
+              value={inputValue}
+              onChange={handleInputChange}
+              error={isInvalid ? INVALID_COLOR_MESSAGE : null}
+            />
+            {revealedExtraColorCount > 0 && (
+              <div className="color-generator__extra-colors">
+                {extraColors.slice(0, revealedExtraColorCount).map((value, index) => (
+                  <ColorInput
+                    key={index}
+                    id={`additional-color-input-${index + 1}`}
+                    label={`Additional color ${index + 1}`}
+                    placeholder={ADDITIONAL_COLOR_PLACEHOLDER}
+                    value={value}
+                    onChange={(next) => handleExtraColorChange(index, next)}
+                    error={extraColorErrors[index]}
+                  />
+                ))}
+              </div>
+            )}
+            {revealedExtraColorCount < ADDITIONAL_COLOR_COUNT && (
+              <button
+                type="button"
+                className="color-generator__add-color"
+                aria-label="Add another color"
+                onClick={handleAddExtraColor}
+              >
+                +
+              </button>
+            )}
+            <ColorInput
+              id="mood-keyword-input"
+              label="Mood keyword"
+              placeholder="e.g. calm, bold, playful"
+              value={moodKeyword}
+              onChange={setMoodKeyword}
+            />
+            <button type="button" className="color-generator__generate" onClick={handleGenerate}>
+              Generate
+            </button>
+          </>
+        )}
+        <RecentPalettes entries={recentPalettes} onSelect={handleSelectRecent} />
+      </section>
+      <section className={previewClassName}>
+        <div className="color-generator__theme-toggle-row">
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        </div>
+        {showResult && palette && (
+          <>
             <button
               type="button"
               className="color-generator__regenerate"
@@ -184,18 +377,12 @@ export function ColorGenerator() {
             >
               Regenerate
             </button>
-          </>
-        )}
-        <RecentPalettes entries={recentPalettes} onSelect={handleSelectRecent} />
-      </section>
-      <section className="panel-preview color-generator__preview">
-        {palette && (
-          <>
             <Palette
               colors={palette}
               locks={locks}
               onToggleLock={handleToggleLock}
               onColorChange={handleSlotColorChange}
+              onSelectBase={setBaseColorIndex}
             />
             <PaletteExportActions
               palette={palette}
@@ -205,7 +392,8 @@ export function ColorGenerator() {
             />
             <MoodTag tags={moodTags} />
             <AestheticMatch match={aestheticMatch} />
-            <ColorWheel colors={palette} />
+            <VibeKeywords keywords={vibeKeywords} />
+            <ColorStudy colors={palette} baseColorIndex={baseColorIndex} />
           </>
         )}
       </section>

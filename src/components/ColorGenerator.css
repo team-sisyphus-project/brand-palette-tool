@@ -7,6 +7,60 @@
   width: 100%;
 }
 
+/* grain-1: the 4 optional additional Hex fields stack the same as the other
+   color-input fields (design-spec components/text-input) - no new spacing
+   token needed beyond the existing element-gap-md the controls column
+   already uses. */
+.color-generator__extra-colors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap-md);
+  width: 100%;
+}
+
+/*
+ * grain-2: "+" add-color button (design-spec components/add-color-button) -
+ * reveals one more of the 4 additional-color fields per click, sitting
+ * directly beneath the brand color field. Reuses the same icon-button
+ * token set as Palette's lock toggle (radius-control, touch-target-min,
+ * border-default) rather than the pill-shaped Generate/Regenerate
+ * action-button, since this is an icon-only affordance, not a labeled CTA -
+ * no new token values.
+ */
+.color-generator__add-color {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: var(--content-padding-sm);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-family: var(--font-text);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  cursor: pointer;
+}
+
+.color-generator__add-color:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
+}
+
+.color-generator__add-color:focus-visible {
+  outline: none;
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+}
+
+/* design-spec components/action-button: shared by Generate (grain-1) and
+   Regenerate. */
+.color-generator__generate,
 .color-generator__regenerate {
   align-self: flex-start;
   display: inline-flex;
@@ -25,4 +79,36 @@
   line-height: var(--leading-text);
   letter-spacing: var(--tracking-text);
   cursor: pointer;
+}
+
+/*
+ * grain-1: ThemeToggle's anchor row inside the preview/color panel - right
+ * aligned so the toggle sits at that panel's top-right corner, above the
+ * palette chips (and above Regenerate once a result exists). Rendered
+ * unconditionally, so it also occupies the top-right corner of the (empty)
+ * pre-generate preview panel.
+ */
+.color-generator__theme-toggle-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+/*
+ * grain-2: once a palette has been generated, the preview panel
+ * (color-generator__preview--result) centers its contents - the Regenerate
+ * button now rendered directly above the color chips, the chips themselves,
+ * mood tags, aesthetic match, and color wheel. Reuses the existing
+ * align-items/text-align layout primitives (no new spacing/color token
+ * needed - see context/decisions/). `.color-generator__regenerate` keeps the
+ * shared action-button align-self: flex-start above for its (now unused)
+ * generator-panel context, so it is re-centered here for its new home.
+ */
+.color-generator__preview--result {
+  align-items: center;
+  text-align: center;
+}
+
+.color-generator__preview--result .color-generator__regenerate {
+  align-self: center;
 }

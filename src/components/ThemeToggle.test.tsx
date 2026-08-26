@@ -7,14 +7,14 @@ describe('ThemeToggle', () => {
     render(<ThemeToggle theme="light" onToggle={() => {}} />)
     const button = screen.getByRole('switch', { name: 'Switch to dark theme' })
     expect(button).toHaveAttribute('aria-checked', 'false')
-    expect(button).toHaveTextContent('Light')
+    expect(button).toHaveTextContent('')
   })
 
   it('renders as an on switch when theme is dark', () => {
     render(<ThemeToggle theme="dark" onToggle={() => {}} />)
     const button = screen.getByRole('switch', { name: 'Switch to light theme' })
     expect(button).toHaveAttribute('aria-checked', 'true')
-    expect(button).toHaveTextContent('Dark')
+    expect(button).toHaveTextContent('')
   })
 
   it('calls onToggle when clicked', () => {

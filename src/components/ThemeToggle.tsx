@@ -11,7 +11,8 @@ export interface ThemeToggleProps {
 /**
  * Manual light/dark override control. Purely presentational — the caller
  * (App) owns the resolved `theme` (from `useTheme`) and reacts to `onToggle`
- * by flipping it. Modeled as a switch: `aria-checked` reflects "dark is on".
+ * by flipping it. Modeled as a real switch widget: a track with a sliding
+ * thumb, no text label — `aria-checked` reflects "dark is on".
  */
 export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
   const isDark = theme === 'dark'
@@ -24,7 +25,7 @@ export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
       aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
       onClick={onToggle}
     >
-      {isDark ? 'Dark' : 'Light'}
+      <span className="theme-toggle-thumb" aria-hidden="true" />
     </button>
   )
 }

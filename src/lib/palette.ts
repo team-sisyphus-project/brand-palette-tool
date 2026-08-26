@@ -503,6 +503,82 @@ export function regeneratePalette(
 }
 
 /**
+ * The 3 color-wheel harmony types the Color Study section's harmony
+ * explorer lets a user step through (grain-2). Deliberately a distinct,
+ * smaller type from `GenerationMode` above: this is the "explore accent
+ * hues around one base color" tool (no tint/shade split, no jitter, no
+ * palette-slot mutation), not the 5-color palette generator.
+ */
+export type HarmonyType = 'complementary' | 'analogous' | 'triadic'
+
+/** All harmony types, in a stable display order. */
+export const HARMONY_TYPES: HarmonyType[] = ['complementary', 'analogous', 'triadic']
+
+/**
+ * Pure HSL arithmetic for the harmony explorer (grain-2): given a base HSL
+ * and one of the 3 `HarmonyType`s, returns the accent color(s) that harmony
+ * theory places around the base hue, at the base's own saturation/lightness
+ * (no tint/shade pairing - that's `deriveHslByMode`'s job for the 5-color
+ * palette generator, and shade variation is a later grain's "Shades"
+ * visualization, out of scope here).
+ *
+ * - `complementary`: 1 accent, the hue directly opposite the base (+180deg).
+ * - `analogous`: 2 accents, the hues neighboring the base (+/-30deg).
+ * - `triadic`: 2 accents, the hues evenly spaced 120deg from the base
+ *   (+120deg/+240deg).
+ *
+ * Deterministic: the same `base`/`harmony` pair always returns the same
+ * colors, so toggling harmony types is a pure recomputation, not a
+ * randomized regenerate.
+ */
+export function getHarmonyColors(base: HSL, harmony: HarmonyType): PaletteColor[] {
+  const accentHues: number[] = (() => {
+    switch (harmony) {
+      case 'complementary':
+        return [base.h + 180]
+      case 'analogous':
+        return [base.h + 30, base.h - 30]
+      case 'triadic':
+        return [base.h + 120, base.h + 240]
+      default: {
+        const exhaustive: never = harmony
+        throw new Error(`Unknown harmony type: ${String(exhaustive)}`)
+      }
+    }
+  })()
+
+  return accentHues.map((h) => hslToPaletteColor({ h: normalizeHue(h), s: base.s, l: base.l }))
+}
+
+/**
+ * Fixed lightness levels (0-100, lightest first) `generateShades` samples to
+ * build one color's shade ramp (grain-3: Color Study "Shades" visualization).
+ * Deliberately absolute (not relative to the input color's own lightness) so
+ * every ramp - for the base color or for any harmony accent - spans the same
+ * visible lightness range and reads as one consistent ladder, the way a
+ * conventional 50/100/.../900 design-token shade scale does.
+ */
+const SHADE_LIGHTNESS_LEVELS = [90, 70, 50, 30, 10]
+
+/** Number of steps `generateShades` always returns. */
+export const SHADE_STEPS = SHADE_LIGHTNESS_LEVELS.length
+
+/**
+ * Generates a fixed-size lightness-step ramp ("Shades") for one HSL color:
+ * hue and saturation held fixed at `base`'s own values, lightness stepped
+ * across `SHADE_LIGHTNESS_LEVELS`. Pure and deterministic - the same `base`
+ * always returns the same `SHADE_STEPS`-length array, lightest first.
+ *
+ * Distinct from `deriveHslByMode`'s tint/shade *pair* (2 fixed offsets around
+ * one lightness) and from `getHarmonyColors` (accent hues at the base's own
+ * lightness) - this is the dedicated "vary lightness only, show the whole
+ * ladder" tool for Color Study's Shades panel.
+ */
+export function generateShades(base: HSL): PaletteColor[] {
+  return SHADE_LIGHTNESS_LEVELS.map((l) => hslToPaletteColor({ h: base.h, s: base.s, l }))
+}
+
+/**
  * Circular (vector) mean of a set of hue angles (degrees). A plain
  * arithmetic mean is wrong for hue because it wraps at 360 - e.g. averaging
  * 350 and 10 arithmetically gives 180 (the opposite side of the wheel) when
@@ -609,6 +685,84 @@ export function getMoodTags(hsl: HSL): string[] {
   const hueWord = hueMoodWord(hsl.h)
   const slWord = saturationLightnessMoodWord(hsl.s, hsl.l)
   return hueWord === slWord ? [hueWord] : [hueWord, slWord]
+}
+
+/**
+ * Hue-temperature band used by `getVibeKeywords`'s vocabulary lookup below.
+ * Reuses `hueMoodWord`'s own band boundaries (`WARM_HUE_MAX`/`COOL_HUE_MIN`/
+ * `COOL_HUE_MAX`) so the two hue-based lookups stay in agreement, but is kept
+ * as its own function (rather than refactoring `hueMoodWord` to share it) so
+ * `getMoodTags`'s existing output is untouched.
+ */
+function hueVibeBand(h: number): 'warm' | 'neutral' | 'cool' {
+  const hue = normalizeHue(h)
+  if (hue >= COOL_HUE_MIN && hue < COOL_HUE_MAX) return 'cool'
+  if (hue >= WARM_HUE_MAX && hue < COOL_HUE_MIN) return 'neutral'
+  return 'warm'
+}
+
+/**
+ * Plain-English, non-expert-friendly vibe vocabulary for `getVibeKeywords`
+ * (2026-08-26 grain: "Rich vibe-keyword generation logic"). Every entry is
+ * "(assumption — needs confirmation)", same status as `getMoodTags`'s bands
+ * and `AESTHETIC_ARCHETYPES` above - these are reasonable emotional-adjective
+ * choices, not a cited vocabulary study.
+ *
+ * Deliberately a *separate* word bank from `getMoodTags`'s single-word-per-
+ * axis output (`hueMoodWord`/`SATURATION_LIGHTNESS_MOOD`): `getMoodTags`
+ * exists for the compact 1-2 word `MoodTag` pill display, while this bank
+ * feeds the richer "keyword:" line (spec: 5+ comma-joined adjectives for
+ * users with no color-theory background) - two words per band, one band per
+ * axis (hue temperature / saturation / lightness), so a normal HSL input
+ * contributes 2+2+2 = 6 candidate words.
+ *
+ * Every word across all three banks is unique (no word appears twice) by
+ * construction, which is what lets `getVibeKeywords` guarantee 5+ *unique*
+ * adjectives without ever needing to pad or repeat. (Some individual words -
+ * e.g. "warm", "vibrant" - deliberately echo `getMoodTags`'s vocabulary,
+ * since those are the natural plain-English words for that band; the
+ * uniqueness guarantee only requires the 3 banks below to be disjoint from
+ * *each other*, not from `getMoodTags`.)
+ */
+const HUE_VIBE_WORDS: Record<'warm' | 'neutral' | 'cool', [string, string]> = {
+  warm: ['warm', 'cozy'], // (assumption — needs confirmation)
+  neutral: ['balanced', 'natural'], // (assumption — needs confirmation)
+  cool: ['cool', 'calm'], // (assumption — needs confirmation)
+}
+
+const SATURATION_VIBE_WORDS: Record<Band, [string, string]> = {
+  high: ['vibrant', 'bold'], // (assumption — needs confirmation)
+  mid: ['fresh', 'friendly'], // (assumption — needs confirmation)
+  low: ['soft', 'subtle'], // (assumption — needs confirmation)
+}
+
+const LIGHTNESS_VIBE_WORDS: Record<Band, [string, string]> = {
+  high: ['bright', 'cheerful'], // (assumption — needs confirmation)
+  mid: ['comfortable', 'steady'], // (assumption — needs confirmation)
+  low: ['deep', 'sophisticated'], // (assumption — needs confirmation)
+}
+
+/**
+ * Pure function: the same HSL input always yields the same 6 unique,
+ * plain-English emotional adjectives (no AI, no randomness) describing a
+ * palette's vibe for users with no color-theory background. Extends the
+ * hue/saturation/lightness lookup-table pattern `getMoodTags` established -
+ * same three axes (`hueVibeBand`, `saturationBand`, `lightnessBand`), a
+ * richer word bank per axis - so the same H/S/L thresholds classify a color
+ * identically for both the compact mood pill and this longer keyword line.
+ *
+ * Always returns at least 5 (in practice exactly 6, since the 3 word banks
+ * are disjoint by construction) unique adjectives, ready to be joined with
+ * `', '` for the "keyword:" line - "5+ clear, emotional keywords on one line"
+ * per spec.
+ */
+export function getVibeKeywords(hsl: HSL): string[] {
+  const words = [
+    ...HUE_VIBE_WORDS[hueVibeBand(hsl.h)],
+    ...SATURATION_VIBE_WORDS[saturationBand(hsl.s)],
+    ...LIGHTNESS_VIBE_WORDS[lightnessBand(hsl.l)],
+  ]
+  return Array.from(new Set(words))
 }
 
 /**

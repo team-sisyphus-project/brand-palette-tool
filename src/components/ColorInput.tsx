@@ -2,6 +2,12 @@ import type { ChangeEvent } from 'react'
 import './ColorInput.css'
 
 export interface ColorInputProps {
+  /** Unique DOM id for the field; also used to derive the error message id. */
+  id: string
+  /** Visible label text (also used as the field's accessible name). */
+  label: string
+  /** Placeholder text shown when the field is empty. */
+  placeholder: string
   /** Current raw text in the field (HEX or RGB string, possibly incomplete/invalid). */
   value: string
   /** Called with the new raw text on every keystroke. */
@@ -11,36 +17,39 @@ export interface ColorInputProps {
 }
 
 /**
- * Single text field that accepts a brand main color as either HEX
- * (`#3366ff`) or RGB (`51, 102, 255`). Parsing/validation is delegated to
- * the caller (see src/lib/palette.ts) — this component only renders the
- * field and surfaces a validation message.
+ * Single labeled text field, generically reused for the brand main color,
+ * the up-to-4 additional Hex color fields, and the mood-keyword field
+ * (Design Spec `components/text-input`). Parsing/validation is delegated to
+ * the caller (see src/lib/palette.ts's `parseColorInput` for the Hex
+ * fields) — this component only renders the field and surfaces a
+ * validation message when the caller passes one.
  */
-export function ColorInput({ value, onChange, error }: ColorInputProps) {
+export function ColorInput({ id, label, placeholder, value, onChange, error }: ColorInputProps) {
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     onChange(event.target.value)
   }
+  const errorId = `${id}-error`
 
   return (
     <div className="color-input">
-      <label className="color-input__label" htmlFor="brand-color-input">
-        Brand main color
+      <label className="color-input__label" htmlFor={id}>
+        {label}
       </label>
       <input
-        id="brand-color-input"
-        name="brand-color"
+        id={id}
+        name={id}
         className="color-input__field"
         type="text"
         autoComplete="off"
         spellCheck={false}
-        placeholder="#3366ff or 51, 102, 255"
+        placeholder={placeholder}
         value={value}
         onChange={handleChange}
         aria-invalid={Boolean(error)}
-        aria-describedby={error ? 'brand-color-error' : undefined}
+        aria-describedby={error ? errorId : undefined}
       />
       {error && (
-        <p id="brand-color-error" className="color-input__error" role="alert">
+        <p id={errorId} className="color-input__error" role="alert">
           {error}
         </p>
       )}

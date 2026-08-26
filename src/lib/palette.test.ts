@@ -3,11 +3,16 @@ import {
   AESTHETIC_ARCHETYPES,
   BRAND_SLOT_INDEX,
   GENERATION_MODES,
+  HARMONY_TYPES,
   PALETTE_SIZE,
+  SHADE_STEPS,
   averageHsl,
   createInitialLocks,
   generatePalette,
+  generateShades,
+  getHarmonyColors,
   getMoodTags,
+  getVibeKeywords,
   hexToRgb,
   hslToRgb,
   matchAesthetic,
@@ -807,6 +812,66 @@ describe('getMoodTags', () => {
   })
 })
 
+describe('getVibeKeywords', () => {
+  it('is a pure function: the same HSL input always yields the same keywords', () => {
+    const hsl: HSL = { h: 200, s: 55, l: 40 }
+    expect(getVibeKeywords(hsl)).toEqual(getVibeKeywords(hsl))
+    expect(getVibeKeywords({ ...hsl })).toEqual(getVibeKeywords({ ...hsl }))
+  })
+
+  it('always returns 5+ unique, non-empty, plain-English adjectives across the H/S/L band grid', () => {
+    const hues = [0, 30, 60, 90, 150, 180, 240, 299, 300, 330, 359]
+    const levels = [0, 15, 30, 45, 60, 75, 90, 100]
+
+    for (const h of hues) {
+      for (const s of levels) {
+        for (const l of levels) {
+          const keywords = getVibeKeywords({ h, s, l })
+          expect(keywords.length).toBeGreaterThanOrEqual(5)
+          expect(new Set(keywords).size).toBe(keywords.length) // no duplicate keywords
+          for (const word of keywords) {
+            expect(word.length).toBeGreaterThan(0)
+            expect(word).toMatch(/^[a-z]+$/) // plain-English, lowercase, no Korean/AI-punctuation
+          }
+        }
+      }
+    }
+  })
+
+  it('maps a warm, vivid, bright HSL to warm + high-saturation + high-lightness vocabulary', () => {
+    expect(getVibeKeywords({ h: 30, s: 70, l: 80 })).toEqual([
+      'warm',
+      'cozy',
+      'vibrant',
+      'bold',
+      'bright',
+      'cheerful',
+    ])
+  })
+
+  it('maps a cool, muted, dark HSL to cool + low-saturation + low-lightness vocabulary', () => {
+    expect(getVibeKeywords({ h: 240, s: 10, l: 20 })).toEqual([
+      'cool',
+      'calm',
+      'soft',
+      'subtle',
+      'deep',
+      'sophisticated',
+    ])
+  })
+
+  it('maps a neutral-hue, mid-saturation, mid-lightness HSL to balanced + mid vocabulary', () => {
+    expect(getVibeKeywords({ h: 120, s: 45, l: 50 })).toEqual([
+      'balanced',
+      'natural',
+      'fresh',
+      'friendly',
+      'comfortable',
+      'steady',
+    ])
+  })
+})
+
 describe('matchAesthetic', () => {
   it('exposes exactly 10 aesthetic archetypes', () => {
     expect(AESTHETIC_ARCHETYPES).toHaveLength(10)
@@ -851,5 +916,101 @@ describe('matchAesthetic', () => {
     const palette = generatePalette('#3366ff')!
     const avg = averageHsl(palette)
     expect(matchAesthetic(avg)).toBe(matchAesthetic(avg))
+  })
+})
+
+describe('generateShades', () => {
+  const base: HSL = { h: 210, s: 60, l: 45 }
+
+  it('returns SHADE_STEPS colors', () => {
+    expect(generateShades(base)).toHaveLength(SHADE_STEPS)
+    expect(SHADE_STEPS).toBe(5)
+  })
+
+  it('holds hue and saturation fixed, stepping only lightness, lightest first', () => {
+    const shades = generateShades(base)
+    for (const shade of shades) {
+      expect(shade.hsl.h).toBeCloseTo(base.h)
+      expect(shade.hsl.s).toBeCloseTo(base.s)
+    }
+    for (let i = 1; i < shades.length; i += 1) {
+      expect(shades[i].hsl.l).toBeLessThan(shades[i - 1].hsl.l)
+    }
+  })
+
+  it('spans a fixed lightness range regardless of the base color own lightness', () => {
+    const light = generateShades({ h: 0, s: 50, l: 95 })
+    const dark = generateShades({ h: 0, s: 50, l: 5 })
+    expect(light.map((c) => c.hsl.l)).toEqual(dark.map((c) => c.hsl.l))
+  })
+
+  it('is deterministic: the same base always returns the same ramp', () => {
+    expect(generateShades(base)).toEqual(generateShades({ ...base }))
+  })
+
+  it('returns valid, in-range hex/rgb/hsl for every step', () => {
+    for (const shade of generateShades(base)) {
+      expect(shade.hex).toMatch(/^#[0-9a-f]{6}$/)
+      expect(Number.isNaN(shade.hsl.h)).toBe(false)
+      expect(shade.hsl.s).toBeGreaterThanOrEqual(0)
+      expect(shade.hsl.s).toBeLessThanOrEqual(100)
+      expect(shade.hsl.l).toBeGreaterThanOrEqual(0)
+      expect(shade.hsl.l).toBeLessThanOrEqual(100)
+    }
+  })
+
+  it('produces different ramps for different base hues', () => {
+    const blue = generateShades({ h: 210, s: 60, l: 50 })
+    const red = generateShades({ h: 0, s: 60, l: 50 })
+    expect(blue.map((c) => c.hex)).not.toEqual(red.map((c) => c.hex))
+  })
+})
+
+describe('getHarmonyColors', () => {
+  const base: HSL = { h: 40, s: 60, l: 50 }
+
+  it('exposes exactly the 3 harmony types, in a stable order', () => {
+    expect(HARMONY_TYPES).toEqual(['complementary', 'analogous', 'triadic'])
+  })
+
+  it('complementary returns exactly 1 accent, at the opposite hue (+180deg)', () => {
+    const accents = getHarmonyColors(base, 'complementary')
+    expect(accents).toHaveLength(1)
+    expect(accents[0].hsl.h).toBeCloseTo(220)
+    expect(accents[0].hsl.s).toBeCloseTo(base.s)
+    expect(accents[0].hsl.l).toBeCloseTo(base.l)
+  })
+
+  it('analogous returns exactly 2 accents, at +/-30deg from the base hue', () => {
+    const accents = getHarmonyColors(base, 'analogous')
+    expect(accents).toHaveLength(2)
+    expect(accents[0].hsl.h).toBeCloseTo(70)
+    expect(accents[1].hsl.h).toBeCloseTo(10)
+  })
+
+  it('triadic returns exactly 2 accents, evenly spaced 120deg from the base hue', () => {
+    const accents = getHarmonyColors(base, 'triadic')
+    expect(accents).toHaveLength(2)
+    expect(accents[0].hsl.h).toBeCloseTo(160)
+    expect(accents[1].hsl.h).toBeCloseTo(280)
+  })
+
+  it('wraps hues into [0, 360) rather than returning negative or >=360 values', () => {
+    const nearZero: HSL = { h: 10, s: 50, l: 50 }
+    const accents = getHarmonyColors(nearZero, 'analogous')
+    // 10 - 30 = -20, must normalize to 340
+    expect(accents[1].hsl.h).toBeCloseTo(340)
+  })
+
+  it('is deterministic: the same base/harmony pair always returns the same colors', () => {
+    expect(getHarmonyColors(base, 'triadic')).toEqual(getHarmonyColors({ ...base }, 'triadic'))
+  })
+
+  it('every harmony type returns colors matching valid hex output', () => {
+    for (const harmony of HARMONY_TYPES) {
+      for (const color of getHarmonyColors(base, harmony)) {
+        expect(color.hex).toMatch(/^#[0-9a-f]{6}$/)
+      }
+    }
   })
 })

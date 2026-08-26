@@ -1,29 +1,62 @@
 .theme-toggle {
+  position: relative;
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
-  justify-content: center;
-  min-width: var(--touch-target-min);
-  min-height: var(--touch-target-min);
-  padding: var(--content-padding-sm) var(--content-padding-md);
-  font-family: var(--font-text);
-  font-size: var(--text-body-sm);
-  font-weight: var(--weight-text-medium);
-  line-height: var(--leading-text);
-  letter-spacing: var(--tracking-text);
-  color: var(--color-text-secondary);
-  background-color: var(--color-bg-surface);
-  border: var(--border-width-default) solid var(--color-border-default);
-  border-radius: var(--radius-control);
+  width: 52px;
+  height: var(--touch-target-min);
+  padding: 0;
+  background: none;
+  border: none;
   cursor: pointer;
 }
 
-.theme-toggle:hover {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-border-hover);
+/* Track: rendered on the button's own background so it sits centered
+   within the full touch target without shrinking the hit area. */
+.theme-toggle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 28px;
+  transform: translateY(-50%);
+  background-color: var(--color-bg-muted);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-pill);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
-.theme-toggle:focus-visible {
+.theme-toggle[aria-checked='true']::before {
+  background-color: var(--color-action-bg);
+  border-color: var(--color-action-bg);
+}
+
+.theme-toggle:focus-visible::before {
   outline: none;
   border-width: var(--border-width-focus);
   border-color: var(--color-border-focus);
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  transform: translate(0, -50%);
+  background-color: var(--color-text-on-action);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-subtle);
+  transition: transform 0.2s ease;
+}
+
+.theme-toggle[aria-checked='true'] .theme-toggle-thumb {
+  transform: translate(24px, -50%);
+}
+
+.theme-toggle:hover::before {
+  border-color: var(--color-border-hover);
 }

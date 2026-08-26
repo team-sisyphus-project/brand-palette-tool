@@ -1,8 +1,12 @@
 :root {
   color-scheme: light dark;
 
-  /* Design tokens — typography: Display (headers, >= 20px) */
-  --font-display: -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  /* Design tokens — typography: Display (headers, >= 20px)
+     Toss look-and-feel: Pretendard first (loaded in index.html), the
+     typeface Toss's own product UI uses, falling back to each OS's native
+     Korean UI font (Apple SD Gothic Neo / Malgun Gothic) and finally the
+     prior system stack when neither is available. */
+  --font-display: "Pretendard", -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
   --text-display-lg: 34px;
   --text-display-md: 28px;
   --text-display-sm: 22px;
@@ -13,8 +17,9 @@
   --weight-display-semibold: 600;
   --weight-display-bold: 700;
 
-  /* Design tokens — typography: Text (body/label, < 20px) */
-  --font-text: -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  /* Design tokens — typography: Text (body/label, < 20px)
+     Toss look-and-feel: same Pretendard-first stack as Display, see above. */
+  --font-text: "Pretendard", -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
   --text-body-lg: 17px;
   --text-body-md: 15px;
   --text-body-sm: 13px;
@@ -24,8 +29,9 @@
   --weight-text-medium: 500;
   --weight-text-semibold: 600;
 
-  /* Design tokens — typography: Rounded (badges/tags) */
-  --font-rounded: ui-rounded, "SF Pro Rounded", var(--font-text);
+  /* Design tokens — typography: Rounded (badges/tags)
+     Toss look-and-feel: Pretendard first, same rationale as Display/Text. */
+  --font-rounded: "Pretendard", ui-rounded, "SF Pro Rounded", var(--font-text);
   --text-rounded-md: 13px;
   --text-rounded-sm: 11px;
   --tracking-rounded: 0em;
@@ -41,10 +47,12 @@
   --weight-mono-regular: 400;
   --weight-mono-medium: 500;
 
-  /* Design tokens — radius (continuous-corner approximation via standard border-radius) */
-  --radius-control: 8px;
-  --radius-card: 12px;
-  --radius-container: 20px;
+  /* Design tokens — radius (continuous-corner approximation via standard
+     border-radius). Toss look-and-feel: every step bumped rounder than the
+     prior iOS-derived scale (Toss's cards/controls read noticeably softer). */
+  --radius-control: 12px;
+  --radius-card: 16px;
+  --radius-container: 28px;
   --radius-pill: 999px;
 
   /* Design tokens — material (Liquid Glass blur amount; theme-independent) */
@@ -74,22 +82,27 @@
   --space-9: 64px;
   --touch-target-min: 44px;
 
-  /* Design tokens — color: adaptive semantic tokens (light values are the default/fallback) */
+  /* Design tokens — color: adaptive semantic tokens (light values are the
+     default/fallback). Toss look-and-feel: the light-theme neutrals below
+     are Toss's own solid gray scale (Gray900/700/300, Toss's "Blue 500"
+     accent, "Red 500" error) in place of the prior translucent iOS scale —
+     see context/decisions/ and design-spec/token-groups/color/base.md for
+     the contrast-ratio verification of every swap. */
   --color-system-bg-primary: #ffffff;
-  --color-system-bg-secondary: #f2f2f7;
+  --color-system-bg-secondary: #f2f4f6;
   --color-system-bg-tertiary: #ffffff;
-  --color-text-primary: rgba(0, 0, 0, 0.85);
-  /* alpha 0.75 (not the historical 0.6): verified via contrast.test.ts to hold
-     >=4.5:1 against both --color-system-bg-primary (#fff, ~5.16:1) and
-     --color-system-bg-secondary (#f2f2f7, ~4.85:1) for WCAG AA. */
-  --color-text-secondary: rgba(60, 60, 67, 0.75);
+  --color-text-primary: #191f28;
+  /* #191f28 (Toss Gray900, opaque): verified via contrast.test.ts to hold
+     >=4.5:1 against both --color-system-bg-primary (#fff, ~16.56:1) and
+     --color-system-bg-secondary (#f2f4f6, ~15.02:1) for WCAG AA. */
+  --color-text-secondary: #4e5968;
   --color-text-tertiary: rgba(60, 60, 67, 0.3);
-  --border-subtle: rgba(60, 60, 67, 0.29);
-  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --color-accent: #007aff;
+  --border-subtle: #e5e8eb;
+  --shadow-subtle: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --color-accent: #3182f6;
   --color-status-success: #34c759;
   --color-status-warning: #ff9f0a;
-  --color-status-error: #ff3b30;
+  --color-status-error: #f04452;
   --material-thick-bg: rgba(255, 255, 255, 0.72);
   --material-thin-bg: rgba(255, 255, 255, 0.55);
 
@@ -97,6 +110,13 @@
      that need a background/border/action color stay in sync with the active theme. */
   --color-bg-surface: var(--color-system-bg-tertiary);
   --color-bg-muted: var(--color-system-bg-secondary);
+  /* Page-level (body) background — distinct from --color-bg-muted so a
+     future muted-surface tweak can't silently change the page background.
+     Defaults to the secondary system background (pre-existing behavior);
+     explicitly overridden to pure white in the light theme below
+     (grain-1, see context/decisions/). Dark/OS-preference values are
+     untouched — they keep tracking --color-system-bg-secondary. */
+  --color-bg-page: var(--color-system-bg-secondary);
   --color-bg-hover: color-mix(in srgb, var(--color-system-bg-tertiary) 92%, var(--color-text-primary) 8%);
   --color-border-default: var(--border-subtle);
   --color-border-hover: color-mix(in srgb, var(--border-subtle) 100%, var(--color-text-primary) 20%);
@@ -124,24 +144,28 @@
 :root[data-theme='light'] {
   color-scheme: light;
   --color-system-bg-primary: #ffffff;
-  --color-system-bg-secondary: #f2f2f7;
+  --color-system-bg-secondary: #f2f4f6;
   --color-system-bg-tertiary: #ffffff;
-  --color-text-primary: rgba(0, 0, 0, 0.85);
-  /* alpha 0.75 (not the historical 0.6): verified via contrast.test.ts to hold
-     >=4.5:1 against both --color-system-bg-primary (#fff, ~5.16:1) and
-     --color-system-bg-secondary (#f2f2f7, ~4.85:1) for WCAG AA. */
-  --color-text-secondary: rgba(60, 60, 67, 0.75);
+  --color-text-primary: #191f28;
+  /* #191f28 (Toss Gray900, opaque): verified via contrast.test.ts to hold
+     >=4.5:1 against both --color-system-bg-primary (#fff, ~16.56:1) and
+     --color-system-bg-secondary (#f2f4f6, ~15.02:1) for WCAG AA. */
+  --color-text-secondary: #4e5968;
   --color-text-tertiary: rgba(60, 60, 67, 0.3);
-  --border-subtle: rgba(60, 60, 67, 0.29);
-  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --color-accent: #007aff;
+  --border-subtle: #e5e8eb;
+  --shadow-subtle: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --color-accent: #3182f6;
   --color-status-success: #34c759;
   --color-status-warning: #ff9f0a;
-  --color-status-error: #ff3b30;
+  --color-status-error: #f04452;
   --color-border-focus: #6e6e73;
   --color-action-bg: #6e6e73;
   --material-thick-bg: rgba(255, 255, 255, 0.72);
   --material-thin-bg: rgba(255, 255, 255, 0.55);
+  /* grain-1 (prior job): light-mode page background is pure white,
+     independent of --color-bg-muted (which stays
+     --color-system-bg-secondary, now Toss Gray100 #f2f4f6). */
+  --color-bg-page: #ffffff;
 }
 
 /* Manual theme toggle: explicit opt-in to dark, always wins over OS preference. */
@@ -155,10 +179,16 @@
   --color-text-tertiary: rgba(235, 235, 245, 0.3);
   --border-subtle: rgba(84, 84, 88, 0.6);
   --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
-  --color-accent: #0a84ff;
+  /* Toss look-and-feel: same brand blue/red as the light theme (dark-theme
+     neutrals are intentionally left unchanged — out of this grain's scope,
+     see context/decisions/). Both re-verified >=4.5:1 against their
+     pairings: --color-action-bg-strong (this accent mixed 82% toward black)
+     vs --color-text-on-action ~5.21:1; --color-status-error vs
+     --color-system-bg-primary/secondary ~6.96:1 / ~5.64:1. */
+  --color-accent: #3182f6;
   --color-status-success: #30d158;
   --color-status-warning: #ff9f0a;
-  --color-status-error: #ff453a;
+  --color-status-error: #ff5b6a;
   --color-border-focus: #5c5c61;
   --color-action-bg: #5c5c61;
   --material-thick-bg: rgba(28, 28, 30, 0.72);
@@ -177,10 +207,10 @@
     --color-text-tertiary: rgba(235, 235, 245, 0.3);
     --border-subtle: rgba(84, 84, 88, 0.6);
     --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
-    --color-accent: #0a84ff;
+    --color-accent: #3182f6;
     --color-status-success: #30d158;
     --color-status-warning: #ff9f0a;
-    --color-status-error: #ff453a;
+    --color-status-error: #ff5b6a;
     --color-border-focus: #5c5c61;
     --color-action-bg: #5c5c61;
     --material-thick-bg: rgba(28, 28, 30, 0.72);
@@ -212,7 +242,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--color-system-bg-secondary);
+  background: var(--color-bg-page);
   color: var(--color-text-primary);
   font-family: var(--font-text);
 }

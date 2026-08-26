@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { generatePalette, generateShades, getHarmonyColors, hexToRgb, rgbToHsl } from '../lib/palette'
 import { ColorGenerator } from './ColorGenerator'
 
 // RecentPalettes (grain-2) persists to localStorage on every Regenerate/mode
@@ -17,6 +18,48 @@ function extractHex(label: string): string {
 
 function getInput(): HTMLInputElement {
   return screen.getByLabelText('Brand main color') as HTMLInputElement
+}
+
+function getAdditionalColorInput(n: 1 | 2 | 3 | 4): HTMLInputElement {
+  return screen.getByLabelText(`Additional color ${n}`) as HTMLInputElement
+}
+
+function getMoodKeywordInput(): HTMLInputElement {
+  return screen.getByLabelText('Mood keyword') as HTMLInputElement
+}
+
+function getGenerateButton(): HTMLElement {
+  return screen.getByRole('button', { name: 'Generate' })
+}
+
+/**
+ * grain-2: the 4 additional-color fields are progressively disclosed - each
+ * click of the "+" add-color button reveals exactly one more. Tests that
+ * need N of them visible call this first instead of assuming they're all
+ * mounted from the start (grain-1's original, now-superseded behavior).
+ */
+function getAddColorButton(): HTMLElement {
+  return screen.getByRole('button', { name: 'Add another color' })
+}
+
+function revealExtraColors(count: 1 | 2 | 3 | 4) {
+  for (let i = 0; i < count; i += 1) {
+    fireEvent.click(getAddColorButton())
+  }
+}
+
+/**
+ * grain-1: the palette/result section only renders after Generate is
+ * clicked with a valid brand color (supersedes the old auto-render-on-mount
+ * / auto-render-on-keystroke behavior). This helper optionally types a new
+ * brand value, then clicks Generate - the single gate every "does a palette
+ * show up" assertion below now has to go through.
+ */
+function generate(value?: string) {
+  if (value !== undefined) {
+    fireEvent.change(getInput(), { target: { value } })
+  }
+  fireEvent.click(getGenerateButton())
 }
 
 function getColorPicker(hex: string): HTMLInputElement {
@@ -53,6 +96,241 @@ function mockDeterministicRandom() {
   })
 }
 
+// grain-1 (theme toggle placement): App no longer renders ThemeToggle in its
+// header — ColorGenerator now owns rendering it, anchored inside the
+// color/preview panel (`panel-preview` / `.color-generator__preview`),
+// top-right, above whatever else that panel renders. It must be present in
+// both the pre-generate (empty preview) and post-generate (result) states,
+// and `theme`/`onToggleTheme` must be threaded straight through to the
+// underlying ThemeToggle.
+describe('grain-1: theme toggle placement (color panel top-right)', () => {
+  function getPreviewSection(): HTMLElement {
+    // panel-preview is always present; grab it by its stable class rather
+    // than via the (sometimes absent, pre-generate) palette list.
+    return document.querySelector('.color-generator__preview') as HTMLElement
+  }
+
+  it('renders the toggle inside the color/preview panel before Generate, not the controls panel', () => {
+    render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
+
+    const toggle = screen.getByRole('switch')
+    expect(getPreviewSection()).toContainElement(toggle)
+
+    const controlsPanel = getInput().closest('section')!
+    expect(within(controlsPanel).queryByRole('switch')).not.toBeInTheDocument()
+  })
+
+  it('keeps the toggle inside the color/preview panel after Generate, positioned above the color chips', () => {
+    render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
+    generate('#3366ff')
+
+    const preview = getPreviewSection()
+    const toggle = screen.getByRole('switch')
+    expect(preview).toContainElement(toggle)
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    // DOCUMENT_POSITION_FOLLOWING (4) means `list` comes after `toggle`.
+    expect(toggle.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('right-aligns the toggle row so the toggle anchors to the top-right corner of the color panel', () => {
+    render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
+
+    const toggle = screen.getByRole('switch')
+    const row = toggle.closest('.color-generator__theme-toggle-row')
+    expect(row).toBeInTheDocument()
+    // The row is the first child of the preview panel in both pre/post-generate states.
+    expect(getPreviewSection().firstElementChild).toBe(row)
+  })
+
+  it('reflects the theme prop and calls onToggleTheme when clicked', () => {
+    const onToggleTheme = vi.fn()
+    render(<ColorGenerator theme="dark" onToggleTheme={onToggleTheme} />)
+
+    const toggle = screen.getByRole('switch', { name: 'Switch to light theme' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(toggle)
+    expect(onToggleTheme).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('grain-1: intake form fields (pre-generate)', () => {
+  it('renders only the brand field, the mood-keyword field, and the add-color button - no additional Hex fields yet', () => {
+    render(<ColorGenerator />)
+
+    expect(getInput()).toBeInTheDocument()
+    expect(getMoodKeywordInput()).toBeInTheDocument()
+    expect(getAddColorButton()).toBeInTheDocument()
+    ;([1, 2, 3, 4] as const).forEach((n) =>
+      expect(screen.queryByLabelText(`Additional color ${n}`)).not.toBeInTheDocument(),
+    )
+
+    expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument()
+  })
+
+  it('each click of the add-color button reveals exactly one more additional Hex field, up to 4, then the button disappears', () => {
+    render(<ColorGenerator />)
+
+    ;([1, 2, 3, 4] as const).forEach((n) => {
+      fireEvent.click(getAddColorButton())
+      ;([1, 2, 3, 4] as const).forEach((slot) => {
+        if (slot <= n) {
+          expect(screen.getByLabelText(`Additional color ${slot}`)).toBeInTheDocument()
+        } else {
+          expect(screen.queryByLabelText(`Additional color ${slot}`)).not.toBeInTheDocument()
+        }
+      })
+    })
+
+    expect(screen.queryByRole('button', { name: 'Add another color' })).not.toBeInTheDocument()
+  })
+
+  it('all revealed additional Hex fields start empty with no error', () => {
+    render(<ColorGenerator />)
+    revealExtraColors(4)
+    ;([1, 2, 3, 4] as const).forEach((n) => expect(getAdditionalColorInput(n).value).toBe(''))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('an invalid value in one additional Hex field shows an error scoped to that field only', () => {
+    render(<ColorGenerator />)
+    revealExtraColors(4)
+
+    fireEvent.change(getAdditionalColorInput(2), { target: { value: 'not-a-color' } })
+
+    const alerts = screen.getAllByRole('alert')
+    expect(alerts).toHaveLength(1)
+    expect(getAdditionalColorInput(2)).toHaveAttribute('aria-invalid', 'true')
+    ;([1, 3, 4] as const).forEach((n) => expect(getAdditionalColorInput(n)).toHaveAttribute('aria-invalid', 'false'))
+  })
+
+  it('each additional Hex field is validated independently of the others', () => {
+    render(<ColorGenerator />)
+    revealExtraColors(4)
+
+    fireEvent.change(getAdditionalColorInput(1), { target: { value: 'nope' } })
+    fireEvent.change(getAdditionalColorInput(3), { target: { value: 'also-nope' } })
+
+    expect(screen.getAllByRole('alert')).toHaveLength(2)
+    expect(getAdditionalColorInput(1)).toHaveAttribute('aria-invalid', 'true')
+    expect(getAdditionalColorInput(2)).toHaveAttribute('aria-invalid', 'false')
+    expect(getAdditionalColorInput(3)).toHaveAttribute('aria-invalid', 'true')
+    expect(getAdditionalColorInput(4)).toHaveAttribute('aria-invalid', 'false')
+  })
+
+  it('a valid value in an additional Hex field shows no error', () => {
+    render(<ColorGenerator />)
+    revealExtraColors(1)
+    fireEvent.change(getAdditionalColorInput(1), { target: { value: '#123abc' } })
+    expect(getAdditionalColorInput(1)).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('clearing an invalid additional Hex field back to empty clears its error (empty is valid/optional)', () => {
+    render(<ColorGenerator />)
+    revealExtraColors(4)
+    const field = getAdditionalColorInput(4)
+
+    fireEvent.change(field, { target: { value: 'zzz' } })
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+
+    fireEvent.change(field, { target: { value: '' } })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(field).toHaveAttribute('aria-invalid', 'false')
+  })
+
+  it('the mood-keyword field accepts free text with no validation', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getMoodKeywordInput(), { target: { value: 'bold & playful!' } })
+    expect(getMoodKeywordInput().value).toBe('bold & playful!')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+// grain-2: the add-color button sits directly beneath the brand field so it
+// (and whatever it has revealed so far) is the first thing after the brand
+// input - before the mood-keyword field and Generate button.
+describe('grain-2: add-color button placement and progressive reveal order', () => {
+  function getControlsPanel(): HTMLElement {
+    return getInput().closest('section')!
+  }
+
+  it('positions the add-color button immediately after the brand field, before any revealed additional fields', () => {
+    render(<ColorGenerator />)
+
+    const children = Array.from(getControlsPanel().children)
+    const brandFieldIndex = children.findIndex((child) => child.contains(getInput()))
+    const addButtonIndex = children.findIndex((child) => child.contains(getAddColorButton()))
+
+    expect(addButtonIndex).toBeGreaterThan(brandFieldIndex)
+  })
+
+  it('keeps the add-color button before the mood-keyword field and Generate button once fields are revealed', () => {
+    render(<ColorGenerator />)
+    revealExtraColors(2)
+
+    const children = Array.from(getControlsPanel().children)
+    const addButtonIndex = children.findIndex((child) => child.contains(getAddColorButton()))
+    const keywordIndex = children.findIndex((child) => child.contains(getMoodKeywordInput()))
+
+    expect(keywordIndex).toBeGreaterThan(addButtonIndex)
+  })
+
+  it('reveals fields in order 1, 2, 3, 4 and never skips or duplicates a slot', () => {
+    render(<ColorGenerator />)
+
+    fireEvent.click(getAddColorButton())
+    expect(getAdditionalColorInput(1)).toBeInTheDocument()
+
+    fireEvent.click(getAddColorButton())
+    expect(getAdditionalColorInput(2)).toBeInTheDocument()
+    expect(screen.getAllByLabelText(/^Additional color /)).toHaveLength(2)
+  })
+})
+
+describe('grain-1: Generate gate', () => {
+  it('editing the brand field, additional fields, or the keyword field never reveals the result section before Generate is clicked', () => {
+    render(<ColorGenerator />)
+
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    revealExtraColors(1)
+    fireEvent.change(getAdditionalColorInput(1), { target: { value: '#00ff00' } })
+    fireEvent.change(getMoodKeywordInput(), { target: { value: 'calm' } })
+
+    expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
+  })
+
+  it('clicking Generate with an empty brand color keeps the result section hidden (M-4)', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '' } })
+    fireEvent.click(getGenerateButton())
+
+    expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
+  })
+
+  it('clicking Generate with an invalid brand color keeps the result section hidden and the error visible (M-4)', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: 'not-a-color' } })
+    fireEvent.click(getGenerateButton())
+
+    expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('clicking Generate with a valid brand color immediately reveals the 5-color palette (M-5)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(5)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
 describe('ColorGenerator', () => {
   it('renders no palette and no error once the input is cleared (M-1 baseline)', () => {
     render(<ColorGenerator />)
@@ -61,19 +339,23 @@ describe('ColorGenerator', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('defaults the brand input to #E84C40 and auto-generates a 5-color palette on first mount with zero interaction', () => {
+  it('defaults the brand input to #E84C40, and generates a 5-color palette once Generate is clicked', () => {
     render(<ColorGenerator />)
 
     expect(getInput().value).toBe('#E84C40')
+    expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
+
+    fireEvent.click(getGenerateButton())
+
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     expect(within(list).getAllByRole('listitem')).toHaveLength(5)
     expect(screen.getByText('#e84c40')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('renders a 5-color palette immediately when a valid HEX is typed (M-1)', () => {
+  it('renders a 5-color palette after Generate is clicked with a valid HEX value (M-1)', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     expect(within(list).getAllByRole('listitem')).toHaveLength(5)
@@ -82,13 +364,13 @@ describe('ColorGenerator', () => {
 
   it('includes the exact brand HEX among the 5 rendered swatches', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
   })
 
-  it('renders a 5-color palette immediately when a valid RGB string is typed', () => {
+  it('renders a 5-color palette after Generate is clicked with a valid RGB string', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '51, 102, 255' } })
+    generate('51, 102, 255')
 
     expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
@@ -102,33 +384,22 @@ describe('ColorGenerator', () => {
     expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
   })
 
-  it('clears the palette and error once the field is emptied again', () => {
-    render(<ColorGenerator />)
-    const input = getInput()
-
-    fireEvent.change(input, { target: { value: '#3366ff' } })
-    expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
-
-    fireEvent.change(input, { target: { value: '' } })
-    expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  })
-
-  it('updates the palette immediately as the input changes to a new valid color', () => {
-    render(<ColorGenerator />)
-    const input = getInput()
-
-    fireEvent.change(input, { target: { value: '#3366ff' } })
-    expect(screen.getByText('#3366ff')).toBeInTheDocument()
-
-    fireEvent.change(input, { target: { value: '#ff0000' } })
-    expect(screen.getByText('#ff0000')).toBeInTheDocument()
-    expect(screen.queryByText('#3366ff')).not.toBeInTheDocument()
-  })
+  // grain-2 note: two pre-existing tests previously lived here -
+  // "clears the palette and error once the field is emptied again" and
+  // "after Generate, the palette keeps updating live as the brand input
+  // changes to a new valid color" - both drove the scenario by editing the
+  // brand field *after* clicking Generate. grain-2 unmounts the brand field
+  // (along with the rest of the intake form) once a palette exists, so that
+  // scenario is no longer reachable through the UI; removed rather than kept
+  // red, per context/decisions/. The still-valid half of each test's intent
+  // survives elsewhere: "renders no palette and no error once the input is
+  // cleared (M-1 baseline)" above covers pre-generate clearing, and the
+  // "grain-2: generated result view" describe block below covers the new
+  // hidden-intake-form behavior.
 
   it('renders the brand main color slot locked by default (aria-pressed)', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
@@ -136,7 +407,7 @@ describe('ColorGenerator', () => {
 
   it('renders derived color slots unlocked by default', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
@@ -146,7 +417,7 @@ describe('ColorGenerator', () => {
 
   it('toggles a derived slot lock state on click', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
@@ -161,7 +432,7 @@ describe('ColorGenerator', () => {
 
   it('keeps a locked slot unchanged after clicking Regenerate, while the palette stays 5 colors (M-2)', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
@@ -185,26 +456,26 @@ describe('ColorGenerator', () => {
   // Grain-1 edge cases: parseColorInput/generatePalette already normalize
   // whitespace, case, and 3-digit hex — these confirm the same holds through
   // the real ColorInput -> ColorGenerator wiring, not just the pure functions.
-  it('renders a palette immediately for whitespace-padded, uppercase hex input', () => {
+  it('renders a palette for whitespace-padded, uppercase hex input after Generate', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '  #3366FF  ' } })
+    generate('  #3366FF  ')
 
     expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('renders a palette immediately for 3-digit shorthand hex input', () => {
+  it('renders a palette for 3-digit shorthand hex input after Generate', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#36f' } })
+    generate('#36f')
 
     expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
   })
 
-  it('renders a palette immediately for whitespace-padded rgb input', () => {
+  it('renders a palette for whitespace-padded rgb input after Generate', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '  51 , 102 , 255  ' } })
+    generate('  51 , 102 , 255  ')
 
     expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
@@ -212,38 +483,27 @@ describe('ColorGenerator', () => {
 
   it('renders the brand slot locked by default even for uppercase/whitespace/shorthand input variants', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '  #36F  ' } })
+    generate('  #36F  ')
 
     const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
   })
 
-  // Grain-1 DoneWhen: "same result on re-entering the same input" must hold through the real
-  // ColorInput -> useMemo(generatePalette) -> Palette wiring, not just at the
-  // pure-function level (already covered in palette.test.ts).
-  it('re-entering the exact same brand input (after typing something else) renders the identical 5-color palette', () => {
-    render(<ColorGenerator />)
-    const input = getInput()
-
-    fireEvent.change(input, { target: { value: '#3366ff' } })
-    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
-    const firstPass = getHexes(list)
-
-    fireEvent.change(input, { target: { value: '#ff0000' } })
-    expect(getHexes(list)).not.toEqual(firstPass)
-
-    fireEvent.change(input, { target: { value: '#3366ff' } })
-    expect(getHexes(list)).toEqual(firstPass)
-  })
-
+  // grain-2 note: "re-entering the exact same brand input (after typing
+  // something else) renders the identical 5-color palette" previously lived
+  // here, re-editing the brand field after Generate to prove determinism.
+  // That field is unmounted post-Generate under grain-2 (see the class doc
+  // comment and context/decisions/), so the same determinism guarantee (M-1)
+  // is now verified the only way still reachable through the UI - a fresh
+  // mount with the same input, below.
   it('renders the same 5-color palette for a fresh mount given the same brand input (no hidden randomness in the base path)', () => {
     const { unmount } = render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
     const firstPass = getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))
     unmount()
 
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
     const secondPass = getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))
 
     expect(secondPass).toEqual(firstPass)
@@ -257,7 +517,7 @@ describe('M-2: lock/regenerate integration', () => {
 
   it('brand main color starts locked by default', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
@@ -266,7 +526,7 @@ describe('M-2: lock/regenerate integration', () => {
   it('locking an arbitrary slot keeps it unchanged across repeated regenerations while the rest keep changing', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
@@ -296,7 +556,7 @@ describe('M-2: lock/regenerate integration', () => {
 
   it('clicking the brand slot lock toggle button itself can unlock/relock it', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
     expect(brandLock).toHaveAttribute('aria-pressed', 'true')
@@ -311,7 +571,7 @@ describe('M-2: lock/regenerate integration', () => {
   it('unlocking the brand slot and regenerating still reflects the input value as the brand color', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     fireEvent.click(screen.getByRole('button', { name: 'Toggle lock for #3366ff color' }))
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
@@ -325,7 +585,7 @@ describe('M-2: lock/regenerate integration', () => {
   it('locking multiple derived slots at once keeps only those slots unchanged across repeated regenerations while the rest keep changing', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
@@ -365,7 +625,7 @@ describe('M-2: lock/regenerate integration', () => {
   it('with an achromatic (#000000) brand input and lock combinations, the locked color stays unchanged with no NaN and the rest regenerate', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#000000' } })
+    generate('#000000')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
@@ -389,7 +649,7 @@ describe('M-2: lock/regenerate integration', () => {
   it('with an achromatic (#ffffff) brand input and lock combinations, the locked color stays unchanged with no NaN and the rest regenerate', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#ffffff' } })
+    generate('#ffffff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
@@ -412,7 +672,7 @@ describe('M-2: lock/regenerate integration', () => {
   it('after unlocking and regenerating, the slot is no longer fixed and its value changes', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const lockButtons = within(list).getAllByRole('button', { name: /Toggle lock for/ })
@@ -452,7 +712,7 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
 
   it('changing a derived slot color via the color picker immediately updates the swatch background and HEX text', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const originalHex = findLockButtonHex(list, false)
@@ -470,7 +730,7 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
 
   it('changing a color via the color picker automatically locks that slot', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const originalHex = findLockButtonHex(list, false)
@@ -483,7 +743,7 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
 
   it('changing the brand slot color via the color picker is reflected immediately', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     fireEvent.change(getColorPicker('#3366ff'), { target: { value: '#123456' } })
 
@@ -493,7 +753,7 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
 
   it('changing the brand slot color via the color picker keeps its lock state (aria-pressed) unchanged', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     fireEvent.change(getColorPicker('#3366ff'), { target: { value: '#123456' } })
 
@@ -504,7 +764,7 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
   it('a color edited via the color picker survives regeneration (auto-lock protects it from regenerate)', () => {
     mockDeterministicRandom()
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const originalHex = findLockButtonHex(list, false)
@@ -520,17 +780,30 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
 // alongside the palette. Clipboard-copy behavior itself (exact text copied,
 // success/failure feedback, CSS syntax validity) is covered in
 // PaletteExportActions.test.tsx, which owns navigator.clipboard mocking.
+// grain-1 note: this originally drove "a palette exists" by typing into the
+// brand field without clicking Generate (pre-Generate-gate auto-render). The
+// Generate gate (see the class doc comment) supersedes that - a palette (and
+// so PaletteExportActions) only ever appears after Generate is clicked, and
+// the brand field is unmounted afterward (grain-2), so "hides them without
+// one" is now only reachable pre-Generate rather than by clearing the field
+// again post-Generate. Split into two tests that verify the same intent
+// (no buttons without a palette; buttons appear once one exists) through the
+// reachable flow.
 describe('grain-2: palette export actions wiring', () => {
-  it('shows Copy HEX / Copy CSS Variables buttons once a palette exists, and hides them without one', () => {
+  it('does not show Copy HEX / Copy CSS Variables buttons before Generate is clicked', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    expect(screen.getByRole('button', { name: 'Copy HEX' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Copy CSS Variables' })).toBeInTheDocument()
-
-    fireEvent.change(getInput(), { target: { value: '' } })
     expect(screen.queryByRole('button', { name: 'Copy HEX' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Copy CSS Variables' })).not.toBeInTheDocument()
+  })
+
+  it('shows Copy HEX / Copy CSS Variables buttons once Generate reveals a palette', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    expect(screen.getByRole('button', { name: 'Copy HEX' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy CSS Variables' })).toBeInTheDocument()
   })
 })
 
@@ -539,7 +812,7 @@ describe('grain-2: generation mode selection (M-3)', () => {
 
   it('all 5 generation mode buttons are shown when a palette exists', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const group = screen.getByRole('group', { name: 'Select generation mode' })
     MODE_LABELS.forEach((label) => {
@@ -553,16 +826,22 @@ describe('grain-2: generation mode selection (M-3)', () => {
     expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
   })
 
-  it('the default generation mode (Complementary) is shown selected from the start', () => {
+  it('generation mode buttons are not rendered before Generate is clicked, even with a valid brand color', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
+  })
+
+  it('the default generation mode (Complementary) is shown selected from the start', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
 
     expect(screen.getByRole('button', { name: 'Complementary' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('selecting each of the 5 modes for the same brand input immediately renders a distinct palette', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const signatures = MODE_LABELS.map((label) => {
@@ -578,7 +857,7 @@ describe('grain-2: generation mode selection (M-3)', () => {
 
   it('switching modes keeps the brand main color slot unchanged', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     for (const label of ['Analogous', 'Triadic', 'Split Complementary', 'Monochromatic', 'Complementary']) {
       fireEvent.click(screen.getByRole('button', { name: label }))
@@ -588,7 +867,7 @@ describe('grain-2: generation mode selection (M-3)', () => {
 
   it('locking a derived slot and then switching modes leaves the locked color unchanged', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const derivedLock = findLockButtonHex(list, false)
@@ -620,9 +899,15 @@ describe('grain-1: emotion/mood tags (M-4)', () => {
     expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
   })
 
-  it('entering a valid color immediately shows 1-2 mood tags along with the palette', () => {
+  it('mood tags are not rendered before Generate is clicked, even with a valid brand color', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
+  })
+
+  it('clicking Generate with a valid color immediately shows 1-2 mood tags along with the palette', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
 
     const tags = within(getMoodTagList()).getAllByRole('listitem')
     expect(tags.length).toBeGreaterThanOrEqual(1)
@@ -630,17 +915,23 @@ describe('grain-1: emotion/mood tags (M-4)', () => {
     tags.forEach((tag) => expect(tag.textContent).not.toBe(''))
   })
 
-  it('re-entering the same brand input shows the same mood tags (determinism)', () => {
-    render(<ColorGenerator />)
-    const input = getInput()
-
-    fireEvent.change(input, { target: { value: '#3366ff' } })
+  // grain-2 note: previously re-typed the brand field after Generate to
+  // prove determinism (re-entering the same value -> same tags). That field
+  // is unmounted post-Generate now (see context/decisions/), so - like the
+  // palette's own determinism test below it - this now proves the same
+  // guarantee via two independent fresh mounts instead of a post-Generate
+  // re-edit. Editing the (now-unmounted) field silently no-ops rather than
+  // failing, which would have made the old version a test that can't fail.
+  it('shows the same mood tags for a fresh mount given the same brand input (determinism)', () => {
+    const { unmount } = render(<ColorGenerator />)
+    generate('#3366ff')
     const firstTags = within(getMoodTagList())
       .getAllByRole('listitem')
       .map((tag) => tag.textContent)
+    unmount()
 
-    fireEvent.change(input, { target: { value: '#ff0000' } })
-    fireEvent.change(input, { target: { value: '#3366ff' } })
+    render(<ColorGenerator />)
+    generate('#3366ff')
     const secondTags = within(getMoodTagList())
       .getAllByRole('listitem')
       .map((tag) => tag.textContent)
@@ -650,7 +941,7 @@ describe('grain-1: emotion/mood tags (M-4)', () => {
 
   it('recomputing the palette by switching generation modes always shows 1-2 mood tags', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     for (const label of ['Analogous', 'Triadic', 'Split Complementary', 'Monochromatic', 'Complementary']) {
       fireEvent.click(screen.getByRole('button', { name: label }))
@@ -662,7 +953,7 @@ describe('grain-1: emotion/mood tags (M-4)', () => {
 
   it('mood tags keep showing in the 1-2 range after regeneration', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
 
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
@@ -695,7 +986,7 @@ describe('grain-1: aesthetic name matching (M-5)', () => {
 
   it('shows exactly one archetype name when the average HSL is close enough to an archetype center', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
+    generate('#26d9ac')
 
     const match = screen.getByRole('status', { name: 'Palette aesthetic match' })
     expect(match).toHaveTextContent('Tropical')
@@ -703,28 +994,293 @@ describe('grain-1: aesthetic name matching (M-5)', () => {
 
   it('shows nothing when the average HSL is outside the threshold from every archetype', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#1a3300' } })
+    generate('#1a3300')
 
     expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
   })
 
+  // grain-2 note: this test's title always said "switching generation
+  // modes", but its body actually drove the change by re-editing the brand
+  // field after Generate (a pre-existing title/body mismatch). That field is
+  // unmounted post-Generate now (see context/decisions/), so the body is
+  // fixed here to match what the title always claimed - GENERATION_MODES
+  // 'triadic' pushes #26d9ac's average hue (~165 -> ~345) out of every
+  // archetype's threshold while 'complementary' (default) matches Tropical,
+  // pre-verified via src/lib/palette.ts's own averageHsl/matchAesthetic
+  // (node scratch script), same approach as the file-level comment above.
   it('recomputes the match every time the palette is recalculated by switching generation modes', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
+    generate('#26d9ac')
     expect(screen.getByRole('status', { name: 'Palette aesthetic match' })).toHaveTextContent('Tropical')
 
-    fireEvent.change(getInput(), { target: { value: '#1a3300' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Triadic' }))
     expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
 
-    fireEvent.change(getInput(), { target: { value: '#26d9ac' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Complementary' }))
     expect(screen.getByRole('status', { name: 'Palette aesthetic match' })).toHaveTextContent('Tropical')
+  })
+})
+
+// grain-2: rich vibe-keyword "keyword:" line (5+ comma-joined adjectives,
+// spec A "provide intuitive vibe keywords"). VibeKeywords only renders
+// whatever getVibeKeywords(averageHsl(palette)) returns, so here we verify at
+// the ColorGenerator wiring level whether "5+ keywords are always shown
+// whenever a palette exists" and "the same input yields the same keywords
+// (determinism)". The detailed H/S/L band -> word mapping is covered by
+// palette.test.ts's getVibeKeywords unit tests.
+describe('grain-2: vibe keyword line', () => {
+  function getVibeKeywordsLine(): HTMLElement {
+    return screen.getByRole('status', { name: 'Palette vibe keywords' })
+  }
+
+  it('the vibe keyword line is not rendered when there is no palette', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '' } })
+    expect(screen.queryByRole('status', { name: 'Palette vibe keywords' })).not.toBeInTheDocument()
+  })
+
+  it('the vibe keyword line is not rendered before Generate is clicked, even with a valid brand color', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    expect(screen.queryByRole('status', { name: 'Palette vibe keywords' })).not.toBeInTheDocument()
+  })
+
+  it('clicking Generate with a valid color immediately shows a "keyword:" line with 5+ comma-separated keywords', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const line = getVibeKeywordsLine()
+    expect(line).toHaveTextContent(/^keyword:/)
+    const keywords = line.textContent!.replace(/^keyword:\s*/, '').split(', ')
+    expect(keywords.length).toBeGreaterThanOrEqual(5)
+    expect(new Set(keywords).size).toBe(keywords.length) // all unique
+  })
+
+  it('shows the same vibe keywords for a fresh mount given the same brand input (determinism)', () => {
+    const { unmount } = render(<ColorGenerator />)
+    generate('#3366ff')
+    const firstLine = getVibeKeywordsLine().textContent
+    unmount()
+
+    render(<ColorGenerator />)
+    generate('#3366ff')
+    const secondLine = getVibeKeywordsLine().textContent
+
+    expect(secondLine).toEqual(firstLine)
+  })
+
+  it('recomputing the palette by switching generation modes always shows 5+ vibe keywords', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    for (const label of ['Analogous', 'Triadic', 'Split Complementary', 'Monochromatic', 'Complementary']) {
+      fireEvent.click(screen.getByRole('button', { name: label }))
+      const keywords = getVibeKeywordsLine()
+        .textContent!.replace(/^keyword:\s*/, '')
+        .split(', ')
+      expect(keywords.length).toBeGreaterThanOrEqual(5)
+    }
+  })
+
+  it('the vibe keyword line keeps showing 5+ keywords after regeneration', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    const keywords = getVibeKeywordsLine()
+      .textContent!.replace(/^keyword:\s*/, '')
+      .split(', ')
+    expect(keywords.length).toBeGreaterThanOrEqual(5)
+  })
+})
+
+// grain-2: once a palette exists, the whole intake form (brand field, 4
+// additional Hex fields, mood-keyword field, Generate button) is unmounted
+// from the DOM, the preview panel gains a center-aligned modifier class, and
+// Regenerate is rendered inside that preview panel directly above the color
+// chips (previously it lived in the controls panel next to ModeSelector).
+describe('grain-2: generated result view (center + hide form + Regenerate above chips)', () => {
+  function getPreviewPanel(): HTMLElement {
+    return screen.getByRole('list', { name: 'Generated 5-color palette' }).closest('section')!
+  }
+
+  it('before Generate, the intake form is visible and the preview panel has no center-aligned modifier', () => {
+    render(<ColorGenerator />)
+
+    expect(getInput()).toBeInTheDocument()
+    revealExtraColors(4)
+    ;([1, 2, 3, 4] as const).forEach((n) => expect(getAdditionalColorInput(n)).toBeInTheDocument())
+    expect(getMoodKeywordInput()).toBeInTheDocument()
+    expect(getGenerateButton()).toBeInTheDocument()
+  })
+
+  it('after Generate, the brand field, all revealed additional Hex fields, the add-color button, the mood-keyword field, and the Generate button are entirely unmounted', () => {
+    render(<ColorGenerator />)
+    revealExtraColors(4)
+    generate('#3366ff')
+
+    expect(screen.queryByLabelText('Brand main color')).not.toBeInTheDocument()
+    ;([1, 2, 3, 4] as const).forEach((n) =>
+      expect(screen.queryByLabelText(`Additional color ${n}`)).not.toBeInTheDocument(),
+    )
+    expect(screen.queryByLabelText('Mood keyword')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Generate' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add another color' })).not.toBeInTheDocument()
+  })
+
+  it('after Generate, the mode selector is still shown (its placement is unchanged, out of scope)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    expect(screen.getByRole('group', { name: 'Select generation mode' })).toBeInTheDocument()
+  })
+
+  it('after Generate, the preview panel carries the center-aligned result modifier class', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    expect(getPreviewPanel()).toHaveClass('color-generator__preview--result')
+  })
+
+  it('before Generate, the (empty) preview panel does not carry the center-aligned result modifier class', () => {
+    const { container } = render(<ColorGenerator />)
+
+    const preview = container.querySelector('.color-generator__preview')!
+    expect(preview).not.toHaveClass('color-generator__preview--result')
+  })
+
+  it('Regenerate renders inside the preview panel, immediately before the color chips', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const preview = getPreviewPanel()
+    const children = Array.from(preview.children)
+    const regenerateIndex = children.findIndex(
+      (child) => child.tagName === 'BUTTON' && child.textContent === 'Regenerate',
+    )
+    const paletteIndex = children.findIndex((child) =>
+      child.matches('[role="list"][aria-label="Generated 5-color palette"]'),
+    )
+
+    expect(regenerateIndex).toBeGreaterThanOrEqual(0)
+    expect(paletteIndex).toBeGreaterThan(regenerateIndex)
+  })
+
+  it('Regenerate no longer renders in the controls panel', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const controlsPanel = screen.getByRole('group', { name: 'Select generation mode' }).closest('section')!
+    expect(within(controlsPanel).queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument()
+  })
+
+  it('Regenerate still works after moving above the color chips (locked slot survives)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    expect(within(list).getAllByRole('listitem')).toHaveLength(5)
+  })
+})
+
+// grain-3 (custom Color Study base color + Shades): clicking a Palette chip
+// (PaletteSwatch's onSelectBase) sets Color Study's base color, which drives
+// both the HarmonyExplorer accent(s) and the new Shades ramp.
+describe('grain-3: custom Color Study base color via Palette chip click', () => {
+  function hslOfHex(hex: string) {
+    return rgbToHsl(hexToRgb(hex)!)
+  }
+
+  function getColorStudySection(): HTMLElement {
+    return screen.getByRole('region', { name: 'Color Study' })
+  }
+
+  it('defaults Color Study base color to the brand main color', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const expectedAccent = getHarmonyColors(hslOfHex('#3366ff'), 'complementary')[0]
+    expect(within(getColorStudySection()).getByText(expectedAccent.hex)).toBeInTheDocument()
+  })
+
+  it('clicking a non-brand Palette chip switches Color Study base color and recomputes the harmony accent', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    // Read the derived slot's exact (unrounded) HSL straight from generatePalette
+    // rather than round-tripping through its rendered HEX text - HEX rounding
+    // would otherwise make the "expected" H/S drift slightly from what the
+    // component actually holds in state for a derived slot.
+    const derived = generatePalette('#3366ff', 'complementary')![1]
+
+    fireEvent.click(screen.getByRole('button', { name: `Set ${derived.hex} as Color Study base color` }))
+
+    const expectedAccent = getHarmonyColors(derived.hsl, 'complementary')[0]
+    expect(within(getColorStudySection()).getByText(expectedAccent.hex)).toBeInTheDocument()
+  })
+
+  it('clicking a Palette chip also updates the Shades "Base" ramp', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const derived = generatePalette('#3366ff', 'complementary')![1]
+
+    fireEvent.click(screen.getByRole('button', { name: `Set ${derived.hex} as Color Study base color` }))
+
+    const expectedShade = generateShades(derived.hsl)[2] // middle (50%) step
+    const shadesGroup = within(getColorStudySection()).getByRole('list', { name: 'Base shades' })
+    expect(
+      within(shadesGroup).getByText(`${Math.round(expectedShade.hsl.l)}% ${expectedShade.hex}`),
+    ).toBeInTheDocument()
+  })
+
+  it('clicking a chip to select it as the base does not also toggle its lock state', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const derivedHex = getHexes(list).find((hex) => hex !== '#3366ff')!
+    const lockButton = screen.getByRole('button', { name: `Toggle lock for ${derivedHex} color` })
+    expect(lockButton).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: `Set ${derivedHex} as Color Study base color` }))
+
+    expect(lockButton).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('clicking a chip lock toggle does not also change the Color Study base color', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const derivedHex = getHexes(list).find((hex) => hex !== '#3366ff')!
+
+    fireEvent.click(screen.getByRole('button', { name: `Toggle lock for ${derivedHex} color` }))
+
+    const expectedAccent = getHarmonyColors(hslOfHex('#3366ff'), 'complementary')[0]
+    expect(within(getColorStudySection()).getByText(expectedAccent.hex)).toBeInTheDocument()
   })
 })
 
 // grain-2 (spec C "최근 생성 팔레트 로컬 저장 관리", M-3): RecentPalettes renders
 // whatever recentPalettes.ts has saved and, on selection, restores that exact
 // entry back onto the screen - bypassing regeneration entirely rather than
-// re-deriving a palette from the restored brand input.
+// re-deriving a palette from the restored brand input. RecentPalettes itself
+// renders unconditionally (independent of `showResult`), so it stays visible
+// through the pre-generate intake form too. Selecting an entry also reveals
+// the result view immediately (handleSelectRecent marks `hasGenerated`, the
+// same way clicking Generate does) - and since the brand input is unmounted
+// once a result is showing (grain-2's "generated result view" supersedes
+// "brand input stays visible/editable after Generate"), these tests verify a
+// restore through the still-visible result surface (ModeSelector, the
+// palette itself, and lock state) rather than the now-hidden input's value.
 describe('grain-2: recent palettes list + restore', () => {
   function getRecentList(): HTMLElement {
     return screen.getByRole('list', { name: 'Recent palettes list' })
@@ -737,7 +1293,7 @@ describe('grain-2: recent palettes list + restore', () => {
 
   it('adds an entry to the recent-palettes list after Regenerate is clicked', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
     const items = within(getRecentList()).getAllByRole('listitem')
@@ -746,7 +1302,7 @@ describe('grain-2: recent palettes list + restore', () => {
 
   it('adds an entry to the recent-palettes list after switching generation mode', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
     fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
 
     const items = within(getRecentList()).getAllByRole('listitem')
@@ -755,7 +1311,7 @@ describe('grain-2: recent palettes list + restore', () => {
 
   it('adds an entry to the recent-palettes list after a manual per-slot color edit', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
     const originalHex = findLockButtonHex(
       screen.getByRole('list', { name: 'Generated 5-color palette' }),
       false,
@@ -766,11 +1322,11 @@ describe('grain-2: recent palettes list + restore', () => {
     expect(items).toHaveLength(1)
   })
 
-  it('selecting a recent entry restores the exact original palette on screen, even after changing the input and mode away from it', () => {
+  it('selecting a recent entry restores the exact original palette on screen, even after switching mode away from it', () => {
     render(<ColorGenerator />)
 
     // Build and save a distinctive palette: Analogous mode, one extra locked slot.
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
     fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const derivedHexBeforeLock = findLockButtonHex(list, false)
@@ -785,16 +1341,16 @@ describe('grain-2: recent palettes list + restore', () => {
     // more entries ahead of it.
     const recentButtonForSavedEntry = within(getRecentList()).getAllByRole('button')[0]
 
-    // Wander away: different input, different mode (each of which saves its
-    // own new recent entry ahead of the one captured above).
-    fireEvent.change(getInput(), { target: { value: '#ff0000' } })
+    // Wander away: a different mode (which saves its own new recent entry
+    // ahead of the one captured above). The brand input is unmounted once a
+    // result is showing (grain-2), so switching mode is the only still-
+    // reachable way to change the palette away from the saved one.
     fireEvent.click(screen.getByRole('button', { name: 'Triadic' }))
     expect(getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))).not.toEqual(savedHexes)
 
     // Restore via the captured recent-palettes entry.
     fireEvent.click(recentButtonForSavedEntry)
 
-    expect(getInput().value).toBe('#3366ff')
     expect(screen.getByRole('button', { name: 'Analogous' })).toHaveAttribute('aria-pressed', 'true')
     const restoredList = screen.getByRole('list', { name: 'Generated 5-color palette' })
     expect(getHexes(restoredList)).toEqual(savedHexes)
@@ -807,7 +1363,7 @@ describe('grain-2: recent palettes list + restore', () => {
 
   it('selecting a recent entry does not trigger regeneration (restored palette matches on repeated selection)', () => {
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
     const savedHexes = getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))
 
@@ -836,7 +1392,7 @@ describe('grain-3: recent palettes survive a simulated refresh (M-3)', () => {
 
   it('rehydrates the saved recent-palette list on a fresh mount after unmounting (simulated refresh)', () => {
     const { unmount } = render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
     expect(within(getRecentList()).getAllByRole('listitem')).toHaveLength(1)
 
@@ -846,18 +1402,20 @@ describe('grain-3: recent palettes survive a simulated refresh (M-3)', () => {
     render(<ColorGenerator />)
 
     // The new instance's initial recentPalettes state comes only from
-    // loadRecentPalettes() on mount - no interaction needed for it to appear.
+    // loadRecentPalettes() on mount - no interaction needed for it to appear
+    // (RecentPalettes renders unconditionally, independent of the
+    // Generate-gated result view).
     expect(within(getRecentList()).getAllByRole('listitem')).toHaveLength(1)
   })
 
   it('accumulates entries saved before and after a simulated refresh into a single persisted list', () => {
     const { unmount } = render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
     unmount()
     render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#ff0000' } })
+    generate('#ff0000')
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
     // Both the pre-refresh and post-refresh saves persisted into the same
@@ -869,7 +1427,7 @@ describe('grain-3: recent palettes survive a simulated refresh (M-3)', () => {
     const { unmount } = render(<ColorGenerator />)
 
     // Build and save a distinctive palette: Analogous mode, an extra locked slot.
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    generate('#3366ff')
     fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
     const originalList = screen.getByRole('list', { name: 'Generated 5-color palette' })
     const derivedHexBeforeLock = findLockButtonHex(originalList, false)
@@ -885,15 +1443,16 @@ describe('grain-3: recent palettes survive a simulated refresh (M-3)', () => {
     unmount()
     render(<ColorGenerator />)
 
-    // The fresh instance starts from its own default state, not the saved one.
+    // The fresh instance starts from its own default, pre-generate state.
     expect(getInput().value).toBe('#E84C40')
 
     // Two saves happened before the refresh (the Analogous mode change, then
     // Regenerate) - the newest (index 0) is the one matching savedHexes.
+    // Selecting it reveals the result view immediately (handleSelectRecent
+    // marks hasGenerated), the same way Generate does.
     const recentButton = within(getRecentList()).getAllByRole('button')[0]
     fireEvent.click(recentButton)
 
-    expect(getInput().value).toBe('#3366ff')
     expect(screen.getByRole('button', { name: 'Analogous' })).toHaveAttribute('aria-pressed', 'true')
     const restoredList = screen.getByRole('list', { name: 'Generated 5-color palette' })
     expect(getHexes(restoredList)).toEqual(savedHexes)

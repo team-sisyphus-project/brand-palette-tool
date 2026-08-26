@@ -9,13 +9,6 @@
   text-align: center;
 }
 
-.app__header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--element-gap-md);
-}
-
 .app__intro h1 {
   margin: 0;
   font-family: var(--font-display);
