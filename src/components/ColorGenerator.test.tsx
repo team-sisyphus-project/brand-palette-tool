@@ -1,12 +1,23 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { generatePalette, generateShades, getHarmonyColors, hexToRgb, rgbToHsl } from '../lib/palette'
+import {
+  averageHsl,
+  generatePalette,
+  generateShades,
+  getHarmonyColors,
+  getMoodTags,
+  hexToRgb,
+  rgbToHsl,
+} from '../lib/palette'
 import { ColorGenerator } from './ColorGenerator'
 
-// RecentPalettes (grain-2) persists to localStorage on every Regenerate/mode
-// change/manual edit and reads it back on mount - clear between tests so one
-// test's saved entries never leak into another's RecentPalettes list.
+// grain-3: RecentPalettes (grain-2) and its localStorage persistence were
+// removed entirely from ColorGenerator (see its class doc comment,
+// "(assumption — needs confirmation)"), but other suites (e.g.
+// recentPalettes.test.ts) still exercise src/lib/recentPalettes.ts directly
+// against the same jsdom localStorage - clearing between tests here keeps
+// this file isolated regardless.
 beforeEach(() => {
   window.localStorage.clear()
 })
@@ -168,7 +179,6 @@ describe('grain-1: intake form fields (pre-generate)', () => {
 
     expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument()
   })
 
@@ -790,176 +800,109 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
 // (no buttons without a palette; buttons appear once one exists) through the
 // reachable flow.
 describe('grain-2: palette export actions wiring', () => {
-  it('does not show Copy HEX / Copy CSS Variables buttons before Generate is clicked', () => {
+  it('does not show the Copy CSS Variables button before Generate is clicked', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
 
-    expect(screen.queryByRole('button', { name: 'Copy HEX' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Copy CSS Variables' })).not.toBeInTheDocument()
   })
 
-  it('shows Copy HEX / Copy CSS Variables buttons once Generate reveals a palette', () => {
+  it('shows the Copy CSS Variables button once Generate reveals a palette', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
-    expect(screen.getByRole('button', { name: 'Copy HEX' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy CSS Variables' })).toBeInTheDocument()
   })
-})
 
-describe('grain-2: generation mode selection (M-3)', () => {
-  const MODE_LABELS = ['Complementary', 'Analogous', 'Triadic', 'Split Complementary', 'Monochromatic']
-
-  it('all 5 generation mode buttons are shown when a palette exists', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-
-    const group = screen.getByRole('group', { name: 'Select generation mode' })
-    MODE_LABELS.forEach((label) => {
-      expect(within(group).getByRole('button', { name: label })).toBeInTheDocument()
-    })
-  })
-
-  it('generation mode buttons are not rendered when there is no palette', () => {
-    render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '' } })
-    expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
-  })
-
-  it('generation mode buttons are not rendered before Generate is clicked, even with a valid brand color', () => {
+  // grain-1 (2026-08-26): "Copy HEX" was removed from PaletteExportActions'
+  // toolbar per the card's "우측 결과 영역 정리" instruction - see
+  // PaletteExportActions.test.tsx for the button-level coverage of the
+  // remaining toolbar buttons.
+  it('never shows a Copy HEX button, before or after Generate', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
-    expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
-  })
+    expect(screen.queryByRole('button', { name: 'Copy HEX' })).not.toBeInTheDocument()
 
-  it('the default generation mode (Complementary) is shown selected from the start', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-
-    expect(screen.getByRole('button', { name: 'Complementary' })).toHaveAttribute('aria-pressed', 'true')
-  })
-
-  it('selecting each of the 5 modes for the same brand input immediately renders a distinct palette', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-
-    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
-    const signatures = MODE_LABELS.map((label) => {
-      const button = screen.getByRole('button', { name: label })
-      fireEvent.click(button)
-      expect(button).toHaveAttribute('aria-pressed', 'true')
-      return getHexes(list).join(',')
-    })
-
-    // Spec A's M-3: all 5 modes must produce a distinct palette for the same brand input.
-    expect(new Set(signatures).size).toBe(MODE_LABELS.length)
-  })
-
-  it('switching modes keeps the brand main color slot unchanged', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-
-    for (const label of ['Analogous', 'Triadic', 'Split Complementary', 'Monochromatic', 'Complementary']) {
-      fireEvent.click(screen.getByRole('button', { name: label }))
-      expect(screen.getByText('#3366ff')).toBeInTheDocument()
-    }
-  })
-
-  it('locking a derived slot and then switching modes leaves the locked color unchanged', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-
-    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
-    const derivedLock = findLockButtonHex(list, false)
-    fireEvent.click(screen.getByRole('button', { name: `Toggle lock for ${derivedLock} color` }))
-
-    fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
-    expect(screen.getByText(derivedLock)).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Triadic' }))
-    expect(screen.getByText(derivedLock)).toBeInTheDocument()
+    fireEvent.click(getGenerateButton())
+    expect(screen.queryByRole('button', { name: 'Copy HEX' })).not.toBeInTheDocument()
   })
 })
 
-// grain-1: deterministic emotion/mood tags based on average H/S/L (M-4).
-// MoodTag only renders whatever getMoodTags(averageHsl(palette)) returns, so
-// here we verify at the ColorGenerator wiring level whether "1-2 tags are
-// always shown whenever a palette exists" and "the same input yields the
-// same tags (determinism)". The detailed rules for individual H/S/L
-// band -> word mapping are covered by palette.test.ts's getMoodTags unit
-// tests.
-describe('grain-1: emotion/mood tags (M-4)', () => {
-  function getMoodTagList(): HTMLElement {
-    return screen.getByRole('list', { name: 'Palette mood tags' })
+// grain-3: the "grain-2: generation mode selection (M-3)" describe block that
+// used to live here (5 generation-mode buttons via ModeSelector, selecting
+// each renders a distinct palette, switching modes keeps the brand slot/
+// locked slots unchanged) has been removed. ModeSelector itself is deleted
+// (see ColorGenerator.tsx's class doc comment, "(assumption — needs
+// confirmation)") - there is no remaining UI to switch generation modes, so
+// that whole scenario is unreachable. Coverage for `mode`-parameterized
+// palette generation itself (5 distinct modes producing 5 distinct palettes)
+// still lives in palette.test.ts's own generatePalette/deriveHslByMode unit
+// tests; this file only ever exercised that logic through UI wiring.
+
+// grain-1 (2026-08-26): the right-panel MoodTag chip list is removed
+// entirely (see ColorGenerator.tsx's class doc comment, "MoodTag chip
+// removal"). getMoodTags(averageHsl(palette)) itself is untouched and still
+// feeds PaletteExportActions' MD export - only its rendering as standalone
+// pill chips is gone. The words themselves now surface as plain text inside
+// the left PaletteDescription panel's keyword list instead (covered by
+// "grain-1: mood tag words relocated into the left keyword list" below), so
+// this block only proves the chip list itself is never rendered again.
+describe('grain-1: emotion/mood tag chips are removed (M-4 superseded)', () => {
+  it('never renders a "Palette mood tags" chip list, with or without a palette', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '' } })
+    expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
+
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
+
+    fireEvent.click(getGenerateButton())
+    expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
+  })
+})
+
+// grain-1 (2026-08-26): mood tag words fold into the left panel's keyword
+// list (dedupe-with-vibeKeywords decision - see ColorGenerator.tsx's class
+// doc comment and context/decisions/). getMoodTags's H/S/L band -> word
+// mapping itself is covered by palette.test.ts's own unit tests; this block
+// only verifies the wiring-level "the words end up in the left panel" and
+// "same input -> same merged list (determinism)" guarantees.
+describe('grain-1: mood tag words relocated into the left keyword list', () => {
+  function getLeftKeywords(): (string | null)[] {
+    const panel = screen.getByRole('region', { name: 'Palette description' })
+    return within(within(panel).getByRole('list', { name: 'Palette keywords' }))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent)
   }
 
-  it('mood tags are not rendered when there is no palette', () => {
-    render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '' } })
-    expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
-  })
-
-  it('mood tags are not rendered before Generate is clicked, even with a valid brand color', () => {
-    render(<ColorGenerator />)
-    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
-    expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
-  })
-
-  it('clicking Generate with a valid color immediately shows 1-2 mood tags along with the palette', () => {
+  it('includes every getMoodTags() word (lowercased) not already present in the vibe keywords', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
-    const tags = within(getMoodTagList()).getAllByRole('listitem')
-    expect(tags.length).toBeGreaterThanOrEqual(1)
-    expect(tags.length).toBeLessThanOrEqual(2)
-    tags.forEach((tag) => expect(tag.textContent).not.toBe(''))
+    const hsl = averageHsl(generatePalette('#3366ff', 'complementary')!)
+    const moodWords = getMoodTags(hsl).map((word) => word.toLowerCase())
+
+    const leftKeywords = getLeftKeywords()
+    moodWords.forEach((word) => expect(leftKeywords).toContain(word))
+    // No duplicate entries even when a mood word already appears among the
+    // vibe keywords (e.g. "warm").
+    expect(new Set(leftKeywords).size).toBe(leftKeywords.length)
   })
 
-  // grain-2 note: previously re-typed the brand field after Generate to
-  // prove determinism (re-entering the same value -> same tags). That field
-  // is unmounted post-Generate now (see context/decisions/), so - like the
-  // palette's own determinism test below it - this now proves the same
-  // guarantee via two independent fresh mounts instead of a post-Generate
-  // re-edit. Editing the (now-unmounted) field silently no-ops rather than
-  // failing, which would have made the old version a test that can't fail.
-  it('shows the same mood tags for a fresh mount given the same brand input (determinism)', () => {
+  it('shows the same merged keyword list for a fresh mount given the same brand input (determinism)', () => {
     const { unmount } = render(<ColorGenerator />)
     generate('#3366ff')
-    const firstTags = within(getMoodTagList())
-      .getAllByRole('listitem')
-      .map((tag) => tag.textContent)
+    const firstKeywords = getLeftKeywords()
     unmount()
 
     render(<ColorGenerator />)
     generate('#3366ff')
-    const secondTags = within(getMoodTagList())
-      .getAllByRole('listitem')
-      .map((tag) => tag.textContent)
+    const secondKeywords = getLeftKeywords()
 
-    expect(secondTags).toEqual(firstTags)
-  })
-
-  it('recomputing the palette by switching generation modes always shows 1-2 mood tags', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-
-    for (const label of ['Analogous', 'Triadic', 'Split Complementary', 'Monochromatic', 'Complementary']) {
-      fireEvent.click(screen.getByRole('button', { name: label }))
-      const tags = within(getMoodTagList()).getAllByRole('listitem')
-      expect(tags.length).toBeGreaterThanOrEqual(1)
-      expect(tags.length).toBeLessThanOrEqual(2)
-    }
-  })
-
-  it('mood tags keep showing in the 1-2 range after regeneration', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
-
-    const tags = within(getMoodTagList()).getAllByRole('listitem')
-    expect(tags.length).toBeGreaterThanOrEqual(1)
-    expect(tags.length).toBeLessThanOrEqual(2)
+    expect(secondKeywords).toEqual(firstKeywords)
   })
 })
 
@@ -999,26 +942,18 @@ describe('grain-1: aesthetic name matching (M-5)', () => {
     expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
   })
 
-  // grain-2 note: this test's title always said "switching generation
-  // modes", but its body actually drove the change by re-editing the brand
-  // field after Generate (a pre-existing title/body mismatch). That field is
-  // unmounted post-Generate now (see context/decisions/), so the body is
-  // fixed here to match what the title always claimed - GENERATION_MODES
-  // 'triadic' pushes #26d9ac's average hue (~165 -> ~345) out of every
-  // archetype's threshold while 'complementary' (default) matches Tropical,
-  // pre-verified via src/lib/palette.ts's own averageHsl/matchAesthetic
-  // (node scratch script), same approach as the file-level comment above.
-  it('recomputes the match every time the palette is recalculated by switching generation modes', () => {
-    render(<ColorGenerator />)
-    generate('#26d9ac')
-    expect(screen.getByRole('status', { name: 'Palette aesthetic match' })).toHaveTextContent('Tropical')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Triadic' }))
-    expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Complementary' }))
-    expect(screen.getByRole('status', { name: 'Palette aesthetic match' })).toHaveTextContent('Tropical')
-  })
+  // grain-3 note: this suite used to also verify "recomputes the match every
+  // time the palette is recalculated by switching generation modes" by
+  // toggling ModeSelector between Triadic/Complementary (deterministic HSL
+  // arithmetic, no jitter, so the match flips predictably). ModeSelector is
+  // now removed (see ColorGenerator.tsx's class doc comment), and no
+  // remaining UI action moves averageHsl by a precise, reproducible amount
+  // (Regenerate jitters; a manual per-slot edit only moves one of 5 slots).
+  // The recompute-on-`palette`-change guarantee itself (matchAesthetic runs
+  // inside a useMemo keyed on `palette`, same as moodTags/vibeKeywords) is
+  // exercised the same way for those siblings via repeated Regenerate above/
+  // below, so no coverage gap - just this one specific deterministic
+  // transition is no longer reproducible through the UI.
 })
 
 // grain-2: rich vibe-keyword "keyword:" line (5+ comma-joined adjectives,
@@ -1069,12 +1004,17 @@ describe('grain-2: vibe keyword line', () => {
     expect(secondLine).toEqual(firstLine)
   })
 
-  it('recomputing the palette by switching generation modes always shows 5+ vibe keywords', () => {
+  // grain-3 note: previously switched through all 5 generation modes via
+  // ModeSelector (now removed - see ColorGenerator.tsx's class doc comment).
+  // Repeated Regenerate clicks are the only still-reachable way to recompute
+  // `palette` multiple times, mirroring the equivalent mood-tags update above.
+  it('recomputing the palette via repeated Regenerate clicks always shows 5+ vibe keywords', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
-    for (const label of ['Analogous', 'Triadic', 'Split Complementary', 'Monochromatic', 'Complementary']) {
-      fireEvent.click(screen.getByRole('button', { name: label }))
+    const regenerateButton = screen.getByRole('button', { name: 'Regenerate' })
+    for (let round = 0; round < 3; round += 1) {
+      fireEvent.click(regenerateButton)
       const keywords = getVibeKeywordsLine()
         .textContent!.replace(/^keyword:\s*/, '')
         .split(', ')
@@ -1099,10 +1039,15 @@ describe('grain-2: vibe keyword line', () => {
 // additional Hex fields, mood-keyword field, Generate button) is unmounted
 // from the DOM, the preview panel gains a center-aligned modifier class, and
 // Regenerate is rendered inside that preview panel directly above the color
-// chips (previously it lived in the controls panel next to ModeSelector).
+// chips (previously it lived in the controls panel next to the now-removed
+// ModeSelector - see ColorGenerator.tsx's class doc comment).
 describe('grain-2: generated result view (center + hide form + Regenerate above chips)', () => {
   function getPreviewPanel(): HTMLElement {
     return screen.getByRole('list', { name: 'Generated 5-color palette' }).closest('section')!
+  }
+
+  function getControlsPanel(): HTMLElement {
+    return document.querySelector('.panel-generator') as HTMLElement
   }
 
   it('before Generate, the intake form is visible and the preview panel has no center-aligned modifier', () => {
@@ -1129,11 +1074,12 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     expect(screen.queryByRole('button', { name: 'Add another color' })).not.toBeInTheDocument()
   })
 
-  it('after Generate, the mode selector is still shown (its placement is unchanged, out of scope)', () => {
+  it('after Generate, the left panel renders the Palette Description panel instead of a mode selector', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
-    expect(screen.getByRole('group', { name: 'Select generation mode' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Palette description' })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
   })
 
   it('after Generate, the preview panel carries the center-aligned result modifier class', () => {
@@ -1171,8 +1117,7 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     render(<ColorGenerator />)
     generate('#3366ff')
 
-    const controlsPanel = screen.getByRole('group', { name: 'Select generation mode' }).closest('section')!
-    expect(within(controlsPanel).queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument()
+    expect(within(getControlsPanel()).queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument()
   })
 
   it('Regenerate still works after moving above the color chips (locked slot survives)', () => {
@@ -1187,6 +1132,95 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
 
     expect(screen.getByText('#3366ff')).toBeInTheDocument()
     expect(within(list).getAllByRole('listitem')).toHaveLength(5)
+  })
+})
+
+// grain-3 (left-panel Palette Description panel): replaces the removed
+// ModeSelector/RecentPalettes markup in `panel-generator` (see
+// ColorGenerator.tsx's class doc comment for why both were removed
+// wholesale, not just relocated). PaletteDescription itself only renders
+// whatever name/description/keywords it is given - the wiring-level
+// guarantee this suite verifies is "a palette exists -> the left panel always
+// shows a name, at least one description line, and the keyword list, and
+// never shows the old ModeSelector/RecentPalettes elements".
+describe('grain-3: Palette Description panel (left panel)', () => {
+  function getControlsPanel(): HTMLElement {
+    return document.querySelector('.panel-generator') as HTMLElement
+  }
+
+  it('is not rendered when there is no palette', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '' } })
+    expect(screen.queryByRole('region', { name: 'Palette description' })).not.toBeInTheDocument()
+  })
+
+  it('is not rendered before Generate is clicked, even with a valid brand color', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    expect(screen.queryByRole('region', { name: 'Palette description' })).not.toBeInTheDocument()
+  })
+
+  it('shows a non-empty name, at least one description line, and the keyword list once Generate reveals a palette', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const panel = screen.getByRole('region', { name: 'Palette description' })
+    const name = within(panel).getByRole('heading', { level: 2 })
+    expect(name.textContent).not.toBe('')
+
+    const lines = within(within(panel).getByRole('list', { name: 'Palette description text' })).getAllByRole(
+      'listitem',
+    )
+    expect(lines.length).toBeGreaterThanOrEqual(1)
+    lines.forEach((line) => expect(line.textContent).not.toBe(''))
+
+    const keywords = within(within(panel).getByRole('list', { name: 'Palette keywords' })).getAllByRole(
+      'listitem',
+    )
+    expect(keywords.length).toBeGreaterThanOrEqual(1)
+  })
+
+  // grain-1 (2026-08-26): the left panel's keyword list is no longer an
+  // exact copy of the right panel's vibe keyword line - it is that same line
+  // *plus* any getMoodTags() words the former right-panel MoodTag chips used
+  // to show (deduped, lowercased - see ColorGenerator.tsx's class doc
+  // comment). This still proves "single source of truth" for the shared
+  // portion: the left list starts with exactly the right panel's keywords,
+  // in the same order, and only ever appends non-duplicate mood words after.
+  it('starts with the exact same keywords as the right panel\'s vibe keyword line, then appends any non-duplicate mood words (single source of truth)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const panel = screen.getByRole('region', { name: 'Palette description' })
+    const leftKeywords = within(within(panel).getByRole('list', { name: 'Palette keywords' }))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent)
+
+    const rightLine = screen.getByRole('status', { name: 'Palette vibe keywords' }).textContent!
+    const rightKeywords = rightLine.replace(/^keyword:\s*/, '').split(', ')
+
+    expect(leftKeywords.slice(0, rightKeywords.length)).toEqual(rightKeywords)
+
+    const hsl = averageHsl(generatePalette('#3366ff', 'complementary')!)
+    const lowerRightKeywords = new Set(rightKeywords.map((word) => word.toLowerCase()))
+    const expectedExtra = getMoodTags(hsl)
+      .map((word) => word.toLowerCase())
+      .filter((word) => !lowerRightKeywords.has(word))
+
+    expect(leftKeywords.slice(rightKeywords.length)).toEqual(expectedExtra)
+  })
+
+  it('the left panel never renders the removed ModeSelector or RecentPalettes elements, before or after Generate', () => {
+    render(<ColorGenerator />)
+    expect(within(getControlsPanel()).queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
+    expect(within(getControlsPanel()).queryByRole('region', { name: 'Recent palettes' })).not.toBeInTheDocument()
+    expect(within(getControlsPanel()).queryByRole('list', { name: 'Recent palettes list' })).not.toBeInTheDocument()
+
+    generate('#3366ff')
+
+    expect(within(getControlsPanel()).queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
+    expect(within(getControlsPanel()).queryByRole('region', { name: 'Recent palettes' })).not.toBeInTheDocument()
+    expect(within(getControlsPanel()).queryByRole('list', { name: 'Recent palettes list' })).not.toBeInTheDocument()
   })
 })
 
@@ -1269,197 +1303,14 @@ describe('grain-3: custom Color Study base color via Palette chip click', () => 
   })
 })
 
-// grain-2 (spec C "최근 생성 팔레트 로컬 저장 관리", M-3): RecentPalettes renders
-// whatever recentPalettes.ts has saved and, on selection, restores that exact
-// entry back onto the screen - bypassing regeneration entirely rather than
-// re-deriving a palette from the restored brand input. RecentPalettes itself
-// renders unconditionally (independent of `showResult`), so it stays visible
-// through the pre-generate intake form too. Selecting an entry also reveals
-// the result view immediately (handleSelectRecent marks `hasGenerated`, the
-// same way clicking Generate does) - and since the brand input is unmounted
-// once a result is showing (grain-2's "generated result view" supersedes
-// "brand input stays visible/editable after Generate"), these tests verify a
-// restore through the still-visible result surface (ModeSelector, the
-// palette itself, and lock state) rather than the now-hidden input's value.
-describe('grain-2: recent palettes list + restore', () => {
-  function getRecentList(): HTMLElement {
-    return screen.getByRole('list', { name: 'Recent palettes list' })
-  }
-
-  it('shows no recent-palettes section before anything has been saved', () => {
-    render(<ColorGenerator />)
-    expect(screen.queryByRole('region', { name: 'Recent palettes' })).not.toBeInTheDocument()
-  })
-
-  it('adds an entry to the recent-palettes list after Regenerate is clicked', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
-
-    const items = within(getRecentList()).getAllByRole('listitem')
-    expect(items).toHaveLength(1)
-  })
-
-  it('adds an entry to the recent-palettes list after switching generation mode', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-    fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
-
-    const items = within(getRecentList()).getAllByRole('listitem')
-    expect(items).toHaveLength(1)
-  })
-
-  it('adds an entry to the recent-palettes list after a manual per-slot color edit', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-    const originalHex = findLockButtonHex(
-      screen.getByRole('list', { name: 'Generated 5-color palette' }),
-      false,
-    )
-    fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
-
-    const items = within(getRecentList()).getAllByRole('listitem')
-    expect(items).toHaveLength(1)
-  })
-
-  it('selecting a recent entry restores the exact original palette on screen, even after switching mode away from it', () => {
-    render(<ColorGenerator />)
-
-    // Build and save a distinctive palette: Analogous mode, one extra locked slot.
-    generate('#3366ff')
-    fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
-    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
-    const derivedHexBeforeLock = findLockButtonHex(list, false)
-    fireEvent.click(screen.getByRole('button', { name: `Toggle lock for ${derivedHexBeforeLock} color` }))
-    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
-    const savedHexes = getHexes(list)
-    const savedLockStates = within(list)
-      .getAllByRole('button', { name: /Toggle lock for/ })
-      .map((button) => button.getAttribute('aria-pressed'))
-    // Keep a handle to this exact entry's button - it's a keyed list item, so
-    // the same DOM node is reused (just reordered) as later actions prepend
-    // more entries ahead of it.
-    const recentButtonForSavedEntry = within(getRecentList()).getAllByRole('button')[0]
-
-    // Wander away: a different mode (which saves its own new recent entry
-    // ahead of the one captured above). The brand input is unmounted once a
-    // result is showing (grain-2), so switching mode is the only still-
-    // reachable way to change the palette away from the saved one.
-    fireEvent.click(screen.getByRole('button', { name: 'Triadic' }))
-    expect(getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))).not.toEqual(savedHexes)
-
-    // Restore via the captured recent-palettes entry.
-    fireEvent.click(recentButtonForSavedEntry)
-
-    expect(screen.getByRole('button', { name: 'Analogous' })).toHaveAttribute('aria-pressed', 'true')
-    const restoredList = screen.getByRole('list', { name: 'Generated 5-color palette' })
-    expect(getHexes(restoredList)).toEqual(savedHexes)
-    expect(
-      within(restoredList)
-        .getAllByRole('button', { name: /Toggle lock for/ })
-        .map((button) => button.getAttribute('aria-pressed')),
-    ).toEqual(savedLockStates)
-  })
-
-  it('selecting a recent entry does not trigger regeneration (restored palette matches on repeated selection)', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
-    const savedHexes = getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))
-
-    const recentButton = within(getRecentList()).getByRole('button')
-    fireEvent.click(recentButton)
-    fireEvent.click(recentButton)
-    fireEvent.click(recentButton)
-
-    expect(getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))).toEqual(savedHexes)
-  })
-})
-
-// grain-3 (spec C M-3, "새로고침 후에도 최근 팔레트를 안정적으로 다시 불러와
-// 적용할 수 있는지 검증"): no browser-level e2e runner exists in this stack,
-// so a page refresh is simulated the same way theme.test.ts proves
-// persistence across a fresh hook instance - here, unmounting the whole
-// ColorGenerator tree and mounting a brand new one against the *same* jsdom
-// localStorage (never cleared between the two renders within a test). A real
-// refresh destroys all in-memory React state and re-runs the app's initial
-// mount logic against whatever is already on disk; unmount() + a second
-// render() reproduces exactly that boundary.
-describe('grain-3: recent palettes survive a simulated refresh (M-3)', () => {
-  function getRecentList(): HTMLElement {
-    return screen.getByRole('list', { name: 'Recent palettes list' })
-  }
-
-  it('rehydrates the saved recent-palette list on a fresh mount after unmounting (simulated refresh)', () => {
-    const { unmount } = render(<ColorGenerator />)
-    generate('#3366ff')
-    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
-    expect(within(getRecentList()).getAllByRole('listitem')).toHaveLength(1)
-
-    // Simulate a page refresh: destroy this instance's React state entirely
-    // and mount a brand new tree. localStorage is untouched (no clear()).
-    unmount()
-    render(<ColorGenerator />)
-
-    // The new instance's initial recentPalettes state comes only from
-    // loadRecentPalettes() on mount - no interaction needed for it to appear
-    // (RecentPalettes renders unconditionally, independent of the
-    // Generate-gated result view).
-    expect(within(getRecentList()).getAllByRole('listitem')).toHaveLength(1)
-  })
-
-  it('accumulates entries saved before and after a simulated refresh into a single persisted list', () => {
-    const { unmount } = render(<ColorGenerator />)
-    generate('#3366ff')
-    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
-
-    unmount()
-    render(<ColorGenerator />)
-    generate('#ff0000')
-    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
-
-    // Both the pre-refresh and post-refresh saves persisted into the same
-    // underlying storage, newest first.
-    expect(within(getRecentList()).getAllByRole('listitem')).toHaveLength(2)
-  })
-
-  it('selecting a rehydrated recent entry after a simulated refresh restores the identical palette state', () => {
-    const { unmount } = render(<ColorGenerator />)
-
-    // Build and save a distinctive palette: Analogous mode, an extra locked slot.
-    generate('#3366ff')
-    fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
-    const originalList = screen.getByRole('list', { name: 'Generated 5-color palette' })
-    const derivedHexBeforeLock = findLockButtonHex(originalList, false)
-    fireEvent.click(screen.getByRole('button', { name: `Toggle lock for ${derivedHexBeforeLock} color` }))
-    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
-    const savedHexes = getHexes(originalList)
-    const savedLockStates = within(originalList)
-      .getAllByRole('button', { name: /Toggle lock for/ })
-      .map((button) => button.getAttribute('aria-pressed'))
-
-    // Simulate a full page refresh: unmount and mount a fresh instance
-    // against the same localStorage, with no in-memory state carried over.
-    unmount()
-    render(<ColorGenerator />)
-
-    // The fresh instance starts from its own default, pre-generate state.
-    expect(getInput().value).toBe('#E84C40')
-
-    // Two saves happened before the refresh (the Analogous mode change, then
-    // Regenerate) - the newest (index 0) is the one matching savedHexes.
-    // Selecting it reveals the result view immediately (handleSelectRecent
-    // marks hasGenerated), the same way Generate does.
-    const recentButton = within(getRecentList()).getAllByRole('button')[0]
-    fireEvent.click(recentButton)
-
-    expect(screen.getByRole('button', { name: 'Analogous' })).toHaveAttribute('aria-pressed', 'true')
-    const restoredList = screen.getByRole('list', { name: 'Generated 5-color palette' })
-    expect(getHexes(restoredList)).toEqual(savedHexes)
-    expect(
-      within(restoredList)
-        .getAllByRole('button', { name: /Toggle lock for/ })
-        .map((button) => button.getAttribute('aria-pressed')),
-    ).toEqual(savedLockStates)
-  })
-})
+// grain-3: the "grain-2: recent palettes list + restore" and "grain-3: recent
+// palettes survive a simulated refresh (M-3)" describe blocks that used to
+// live here (RecentPalettes list rendering, selecting/restoring an entry,
+// localStorage persistence across a simulated refresh) have been removed.
+// RecentPalettes and ColorGenerator's use of recentPalettes.ts's
+// loadRecentPalettes()/saveRecentPalette() are both deleted (see
+// ColorGenerator.tsx's class doc comment, "(assumption — needs
+// confirmation)") - there is no remaining UI to view, select, or restore a
+// saved entry, so that whole scenario is unreachable. src/lib/recentPalettes.ts
+// itself is untouched and keeps its own unit test coverage in
+// recentPalettes.test.ts.

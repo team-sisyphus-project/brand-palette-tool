@@ -66,6 +66,31 @@
     min-width: 0;
     width: 100%;
   }
+
+  /*
+   * grain-1 (2026-08-26): once the panels stack, the PaletteDescription
+   * hero name steps down from --text-display-xl to --text-display-lg - the
+   * same size the page's own <h1> already reads at - so it never outgrows
+   * the now-full-width panel. Its macro-rhythm tapers with it (--space-6 ->
+   * --space-5) to match. Reuses existing scale tokens only, per
+   * policy/coding.md (정의가 있을 때 따른다) - no new tokens.
+   *
+   * Selectors are scoped under `.app-shell` (not the bare
+   * `.palette-description(__name)` class) so this override always wins
+   * over PaletteDescription.css's unconditional base rule: both rules
+   * share the same origin/layer, and PaletteDescription.css's <link>
+   * happens to be concatenated after App.css's, so with equal specificity
+   * the base rule would otherwise win by source order even while this
+   * media query is active. The extra ancestor selector raises specificity
+   * instead of relying on stylesheet order.
+   */
+  .app-shell .palette-description {
+    gap: var(--space-5);
+  }
+
+  .app-shell .palette-description__name {
+    font-size: var(--text-display-lg);
+  }
 }
 
 @media (max-width: 768px) {
@@ -77,5 +102,21 @@
   .panel-generator,
   .panel-preview {
     padding: var(--space-4);
+  }
+
+  /*
+   * grain-1 (2026-08-26): a second step down for phone-width viewports -
+   * --text-display-md (28px), the next rung on the same display scale -
+   * plus a further-tightened vertical rhythm (--space-4) so name/
+   * description/keywords keep stacking cleanly instead of leaving
+   * disproportionately large gaps under a narrow column. Same
+   * `.app-shell` ancestor-scoping rationale as the 1024px block above.
+   */
+  .app-shell .palette-description {
+    gap: var(--space-4);
+  }
+
+  .app-shell .palette-description__name {
+    font-size: var(--text-display-md);
   }
 }

@@ -3,7 +3,6 @@ import type { GenerationMode, PaletteColor } from '../lib/palette'
 import {
   paletteJsonFilename,
   paletteToCssVariablesText,
-  paletteToHexList,
   paletteToJsonText,
   validateCssVariablesText,
 } from '../lib/paletteExport'
@@ -51,12 +50,18 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
 }
 
 /**
- * Spec C "HEX 코드 일괄 복사" / "CSS 변수 형식 복사" (M-1): two buttons that
- * copy the current palette to the clipboard via `navigator.clipboard.writeText`,
- * using grain-1's pure formatters (`paletteToHexList` /
- * `paletteToCssVariablesText`) for the copied text itself. This component
- * owns no color/text logic of its own - it only wires those formatters to
- * the Clipboard API and surfaces a transient success/failure message.
+ * Spec C "CSS 변수 형식 복사" (M-1): a button that copies the current palette
+ * to the clipboard via `navigator.clipboard.writeText`, using grain-1's pure
+ * formatter (`paletteToCssVariablesText`) for the copied text itself. This
+ * component owns no color/text logic of its own - it only wires that
+ * formatter to the Clipboard API and surfaces a transient success/failure
+ * message.
+ *
+ * grain-1 (2026-08-26): the former "Copy HEX" button (and its
+ * `paletteToHexList`-backed handler) was removed from this toolbar per the
+ * card's "우측 결과 영역 정리" instruction - `paletteToHexList` itself is
+ * untouched (out of this grain's boundary) and keeps its own unit test
+ * coverage in paletteExport.test.ts.
  *
  * Button styling reuses the existing secondary bordered button pattern (see
  * ThemeToggle.css's `.theme-toggle`) rather than introducing a new visual
@@ -125,10 +130,6 @@ export function PaletteExportActions({
     }
   }
 
-  const handleCopyHex = () => {
-    copyText(paletteToHexList(palette), 'HEX codes copied!')
-  }
-
   const handleCopyCssVariables = () => {
     const text = paletteToCssVariablesText(palette)
     if (!validateCssVariablesText(text).valid) return
@@ -175,9 +176,6 @@ export function PaletteExportActions({
   return (
     <div className="palette-export">
       <div className="palette-export__actions">
-        <button type="button" className="palette-export__button" onClick={handleCopyHex}>
-          Copy HEX
-        </button>
         <button type="button" className="palette-export__button" onClick={handleCopyCssVariables}>
           Copy CSS Variables
         </button>

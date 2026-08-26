@@ -6,6 +6,8 @@ import {
   createInitialLocks,
   generatePalette,
   getMoodTags,
+  getPaletteDescription,
+  getPaletteName,
   getVibeKeywords,
   matchAesthetic,
   parseColorInput,
@@ -16,15 +18,12 @@ import {
   type PaletteColor,
 } from '../lib/palette'
 import type { Theme } from '../lib/theme'
-import { loadRecentPalettes, saveRecentPalette, type RecentPaletteEntry } from '../lib/recentPalettes'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
 import { ColorStudy } from './ColorStudy'
-import { ModeSelector } from './ModeSelector'
-import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
+import { PaletteDescription } from './PaletteDescription'
 import { PaletteExportActions } from './PaletteExportActions'
-import { RecentPalettes } from './RecentPalettes'
 import { ThemeToggle } from './ThemeToggle'
 import { VibeKeywords } from './VibeKeywords'
 import './ColorGenerator.css'
@@ -93,22 +92,39 @@ export interface ColorGeneratorProps {
  * overwritten by the next Regenerate click.
  *
  * Right below the palette, a PaletteExportActions renders whenever `palette`
- * exists: "Copy HEX" / "Copy CSS Variables" buttons that copy grain-1's
- * paletteToHexList()/paletteToCssVariablesText() output to the clipboard
- * (spec C M-1), with a transient success/failure message.
+ * exists: a "Copy CSS Variables" button that copies grain-1's
+ * paletteToCssVariablesText() output to the clipboard (spec C M-1), with a
+ * transient success/failure message. (grain-1, 2026-08-26: the former
+ * "Copy HEX" button was removed from that toolbar - see
+ * PaletteExportActions.tsx's class doc comment.)
  *
- * A ModeSelector lets the user pick one of 5 standard color-wheel harmony
- * modes (Complementary/Analogous/Triadic/Split Complementary/Monochromatic,
- * see GenerationMode).
- * Selecting a mode immediately recomputes the palette for that mode while
- * keeping locked slots unchanged (M-3; see context/decisions/ for why this
- * reuses generatePalette() instead of the jittered regenerate path).
+ * grain-3 (Harmony mode selector removal - assumption — needs confirmation):
+ * the left panel's ModeSelector (5 standard color-wheel harmony mode buttons -
+ * Complementary/Analogous/Triadic/Split Complementary/Monochromatic, see
+ * GenerationMode) has been removed entirely per the card's "Harmony
+ * 선택기 버튼들을 완전히 제거" instruction, in favor of the new
+ * PaletteDescription panel below. Generation now always uses `mode`, fixed at
+ * `DEFAULT_MODE` (Complementary) - there is no remaining UI affordance to
+ * change it. This is a genuine capability loss versus the prior M-3 behavior
+ * (5 selectable harmony modes), not just a markup relocation, so it is
+ * explicitly flagged as an assumption needing human confirmation rather than
+ * silently dropped.
  *
- * Next to the palette, a MoodTag always shows the 1-2 deterministic mood
- * adjectives that getMoodTags(averageHsl(palette)) derives from the current
- * palette's averaged H/S/L via a fixed lookup table - no AI judgment (M-4).
- * It recomputes on every palette change (regenerate, mode switch, lock, or
- * manual color edit) since all of those replace `palette`.
+ * getMoodTags(averageHsl(palette)) still derives the current palette's 1-2
+ * deterministic mood adjectives from a fixed lookup table - no AI judgment
+ * (M-4) - and `moodTags` is still threaded to PaletteExportActions for its MD
+ * export (spec C). It recomputes on every palette change (regenerate, mode
+ * switch, lock, or manual color edit) since all of those replace `palette`.
+ *
+ * grain-1 (2026-08-26, MoodTag chip removal - assumption — needs
+ * confirmation): the right-panel MoodTag chip list that used to render these
+ * adjectives as pill chips has been removed entirely per the card's "칩 형태
+ * 태그 제거" instruction; `MoodTag.tsx`/`.css` are deleted (no remaining
+ * caller). `moodTags` is no longer dropped once computed - it is instead
+ * merged into `paletteKeywords` below (case-insensitively deduped against
+ * `vibeKeywords`) and shown as plain text in the left PaletteDescription
+ * panel's keyword list, so the same words survive, just relocated and no
+ * longer rendered as standalone chips.
  *
  * An AestheticMatch is always computed alongside MoodTag via
  * matchAesthetic(averageHsl(palette)) - the closest of 10 predefined
@@ -138,16 +154,37 @@ export interface ColorGeneratorProps {
  *
  * grain-2 (generated result view): once `showResult` is true, the intake
  * form (brand field, 4 additional Hex fields, mood-keyword field, Generate
- * button) is unmounted entirely from `panel-generator` - only ModeSelector
- * remains there (its placement is unchanged, out of scope for this grain).
- * This **supersedes** grain-1's "brand input stays visible/editable and the
- * palette keeps live-updating from it after Generate" behavior: since the
- * brand field is gone, the only ways to change the palette after Generate
- * are ModeSelector, Regenerate, lock/unlock, and per-swatch color-picker
- * edits (see context/decisions/ for which pre-existing tests this
- * superseded and why). Regenerate moves into `panel-preview`, rendered
- * directly above the color chips, and the whole preview panel is
- * center-aligned via the `color-generator__preview--result` modifier class.
+ * button) is unmounted entirely from `panel-generator`. This **supersedes**
+ * grain-1's "brand input stays visible/editable and the palette keeps
+ * live-updating from it after Generate" behavior: since the brand field is
+ * gone, the only ways to change the palette after Generate are Regenerate,
+ * lock/unlock, and per-swatch color-picker edits (see context/decisions/ for
+ * which pre-existing tests this superseded and why). Regenerate moves into
+ * `panel-preview`, rendered directly above the color chips, and the whole
+ * preview panel is center-aligned via the `color-generator__preview--result`
+ * modifier class.
+ *
+ * grain-3 (Palette Description panel): once `showResult` is true,
+ * `panel-generator` now renders a PaletteDescription instead of the removed
+ * ModeSelector - a large-typography, generous-whitespace panel (Apple
+ * landing page-style, per the card's visual brief) showing the current
+ * palette's deterministic name/description/keywords, all derived from
+ * grain-2's src/lib/palette.ts additions
+ * (getPaletteName/getPaletteDescription) plus the same getVibeKeywords()
+ * output VibeKeywords already renders on the right. Like
+ * AestheticMatch/VibeKeywords, this recomputes on every palette change since
+ * `paletteName`/`paletteDescriptionLines` are memoized off the same
+ * `palette` dependency.
+ *
+ * grain-1 (2026-08-26, keyword relocation): PaletteDescription's `keywords`
+ * prop is now `paletteKeywords` rather than `vibeKeywords` reused as-is -
+ * `vibeKeywords` followed by whichever `moodTags` words are not already
+ * present in it (case-insensitive comparison, since `getMoodTags` capitalizes
+ * its words - e.g. "Warm" - while `getVibeKeywords` does not). This is the
+ * one new "how do these two word lists combine" decision this grain makes
+ * (recorded in the design spec); every other rendered word still comes
+ * straight from the existing getMoodTags()/getVibeKeywords() outputs,
+ * unchanged.
  *
  * grain-3 (custom Color Study base color): clicking a Palette chip (see
  * PaletteSwatch's `onSelectBase`) sets `baseColorIndex` to that slot. It is
@@ -174,24 +211,18 @@ export interface ColorGeneratorProps {
  * `extraColors` state shape (still a fixed 4-slot array) are unchanged from
  * grain-1.
  *
- * grain-2 (recent palettes): every Regenerate click, mode change, and manual per-slot color edit also
- * calls recentPalettes.ts's saveRecentPalette() with the resulting colors/
- * mode/locks (spec C "최근 생성 팔레트 로컬 저장 관리", M-3) -
- * (assumption — needs confirmation) on *those* actions specifically, not on
- * every input keystroke, since an in-progress edit that hasn't been acted on
- * yet isn't a "saved" palette worth keeping in the recent list.
- *
- * A RecentPalettes list (grain-2) renders alongside the controls (always
- * visible, independent of `showResult`), sourced from loadRecentPalettes()
- * on mount and refreshed from every saveRecentPalette() call's return value
- * thereafter, so it always reflects what is actually persisted. Selecting an
- * entry (handleSelectRecent) writes that entry's inputValue/mode/locks
- * verbatim into state, marks `hasGenerated` so the result view is revealed
- * immediately, and writes its saved `colors` straight into `regenerated` -
- * the same short-circuit Regenerate/mode-change/manual-edit use to bypass
- * `basePalette` - so the exact original palette reappears on screen instead
- * of being recomputed from the restored brand input (spec C M-3's "다시
- * 불러올 수 있음").
+ * grain-3 (Recent Palettes removal - assumption — needs confirmation): the
+ * left panel's RecentPalettes list (grain-2, spec C "최근 생성 팔레트 로컬
+ * 저장 관리") has been removed entirely per the card's "Recent Palettes
+ * 목록을 완전히 제거" instruction, and along with its markup this component no
+ * longer calls recentPalettes.ts's loadRecentPalettes()/saveRecentPalette()
+ * at all - there is no remaining UI to view or restore a saved entry, so
+ * writing to that store on every Regenerate/manual edit would be a
+ * write-only side effect nothing in this app can ever read back. This is a
+ * genuine feature removal (not just hiding the list's markup), so - like the
+ * harmony mode selector above - it is explicitly flagged as an assumption
+ * needing human confirmation. src/lib/recentPalettes.ts itself is untouched
+ * (out of this grain's boundary) and keeps its own unit test coverage.
  */
 export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_THEME }: ColorGeneratorProps) {
   const [inputValue, setInputValue] = useState('#E84C40')
@@ -203,14 +234,17 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
   // (progressive disclosure - see the class doc comment above).
   const [revealedExtraColorCount, setRevealedExtraColorCount] = useState(0)
   const [locks, setLocks] = useState<Locks>(() => createInitialLocks())
-  const [mode, setMode] = useState<GenerationMode>(DEFAULT_MODE)
+  // grain-3: no remaining UI lets the user change the generation mode (the
+  // ModeSelector that used to drive this is removed - see the class doc
+  // comment's "(assumption — needs confirmation)" note above), so `mode` is
+  // now a fixed constant rather than state.
+  const mode: GenerationMode = DEFAULT_MODE
   const [regenerated, setRegenerated] = useState<PaletteColor[] | null>(null)
   // grain-1: the palette/result section only renders once Generate has been
   // clicked with a valid brand color - see the class doc comment above.
   const [hasGenerated, setHasGenerated] = useState(false)
   // grain-3: which palette slot Color Study currently uses as its base color.
   const [baseColorIndex, setBaseColorIndex] = useState(BRAND_SLOT_INDEX)
-  const [recentPalettes, setRecentPalettes] = useState<RecentPaletteEntry[]>(() => loadRecentPalettes())
 
   const trimmed = inputValue.trim()
   const basePalette = useMemo(
@@ -227,6 +261,36 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
   )
   const vibeKeywords = useMemo(
     () => (palette ? getVibeKeywords(averageHsl(palette)) : []),
+    [palette],
+  )
+  // grain-1 (2026-08-26): the left PaletteDescription panel's keyword list -
+  // `vibeKeywords` followed by whichever `moodTags` words are not already
+  // present in it. Comparison (and the appended words themselves) is
+  // lowercased since `getMoodTags` capitalizes its words (e.g. "Warm") while
+  // `getVibeKeywords` does not - without lowercasing, a word appearing in
+  // both (e.g. "Warm"/"warm") would render twice instead of deduping. See
+  // the class doc comment's "keyword relocation" note.
+  const paletteKeywords = useMemo(() => {
+    const seen = new Set(vibeKeywords.map((word) => word.toLowerCase()))
+    const extraMoodWords: string[] = []
+    for (const tag of moodTags) {
+      const lower = tag.toLowerCase()
+      if (seen.has(lower)) continue
+      seen.add(lower)
+      extraMoodWords.push(lower)
+    }
+    return [...vibeKeywords, ...extraMoodWords]
+  }, [vibeKeywords, moodTags])
+  // grain-3: Palette Description panel's name/description - derived the same
+  // "null when no palette" way as moodTags/aestheticMatch/vibeKeywords above,
+  // via grain-2's getPaletteName/getPaletteDescription (see the class doc
+  // comment).
+  const paletteName = useMemo(
+    () => (palette ? getPaletteName(averageHsl(palette)) : null),
+    [palette],
+  )
+  const paletteDescriptionLines = useMemo(
+    () => (palette ? getPaletteDescription(averageHsl(palette)) : []),
     [palette],
   )
   const extraColorErrors = useMemo(
@@ -259,23 +323,11 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
     setLocks((prev) => prev.map((locked, slot) => (slot === index ? !locked : locked)))
   }
 
-  const handleModeChange = (nextMode: GenerationMode) => {
-    setMode(nextMode)
-    if (!palette) return
-    const fresh = generatePalette(trimmed, nextMode)
-    if (!fresh) return
-    // Keep locked slots as-is; only unlocked slots adopt the new mode's colors.
-    const merged = fresh.map((color, index) => (locks[index] && palette[index] ? palette[index] : color))
-    setRegenerated(merged)
-    setRecentPalettes(saveRecentPalette({ brandInput: trimmed, mode: nextMode, colors: merged, locks }))
-  }
-
   const handleRegenerate = () => {
     if (!palette) return
     const next = regeneratePalette(palette, trimmed, locks, undefined, mode)
     if (!next) return
     setRegenerated(next)
-    setRecentPalettes(saveRecentPalette({ brandInput: trimmed, mode, colors: next, locks }))
   }
 
   const handleSlotColorChange = (index: number, hex: string) => {
@@ -285,25 +337,6 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
     const nextLocks = locks.map((locked, slot) => (slot === index ? true : locked))
     setRegenerated(next)
     setLocks(nextLocks)
-    setRecentPalettes(saveRecentPalette({ brandInput: trimmed, mode, colors: next, locks: nextLocks }))
-  }
-
-  /**
-   * Restores a saved recent-palette entry exactly as it was captured:
-   * brand input text, generation mode, per-slot locks, and the saved colors
-   * themselves - written into `regenerated` so it bypasses `basePalette`'s
-   * regeneration entirely rather than re-deriving from the restored input.
-   * Also marks `hasGenerated` so the result view (gated by grain-1's
-   * Generate click) is revealed immediately, the same way clicking Generate
-   * does - restoring a saved palette is itself a way of "generating" a
-   * result onto the screen.
-   */
-  const handleSelectRecent = (entry: RecentPaletteEntry) => {
-    setInputValue(entry.brandInput)
-    setMode(entry.mode)
-    setLocks(entry.locks)
-    setRegenerated(entry.colors)
-    setHasGenerated(true)
   }
 
   const previewClassName = showResult
@@ -313,8 +346,12 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
   return (
     <>
       <section className="panel-generator color-generator__controls">
-        {showResult ? (
-          <ModeSelector mode={mode} onChange={handleModeChange} />
+        {showResult && palette && paletteName ? (
+          <PaletteDescription
+            name={paletteName}
+            description={paletteDescriptionLines}
+            keywords={paletteKeywords}
+          />
         ) : (
           <>
             <ColorInput
@@ -362,7 +399,6 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
             </button>
           </>
         )}
-        <RecentPalettes entries={recentPalettes} onSelect={handleSelectRecent} />
       </section>
       <section className={previewClassName}>
         <div className="color-generator__theme-toggle-row">
@@ -390,7 +426,6 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
               moodTags={moodTags}
               aestheticMatch={aestheticMatch}
             />
-            <MoodTag tags={moodTags} />
             <AestheticMatch match={aestheticMatch} />
             <VibeKeywords keywords={vibeKeywords} />
             <ColorStudy colors={palette} baseColorIndex={baseColorIndex} />

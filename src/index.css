@@ -7,6 +7,12 @@
      Korean UI font (Apple SD Gothic Neo / Malgun Gothic) and finally the
      prior system stack when neither is available. */
   --font-display: "Pretendard", -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+  /* --text-display-xl (grain-1, 2026-08-26): Apple-landing-style hero size for
+     PaletteDescription's palette name, one step above the existing
+     --text-display-lg app title. Continues the same scale progression
+     (20/22/28/34 -> 48) rather than introducing a second scale. Recorded in
+     design-spec/token-groups/typography/base.md. */
+  --text-display-xl: 48px;
   --text-display-lg: 34px;
   --text-display-md: 28px;
   --text-display-sm: 22px;

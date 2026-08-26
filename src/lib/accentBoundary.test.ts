@@ -6,13 +6,20 @@ import { describe, expect, it } from 'vitest'
 /**
  * Regression guard for design spec §1.2 (Deference) / §6: every UI chrome
  * element (panel, button, badge, border) must stay on the semantic grayscale
- * token scale. The single sanctioned exception is the selected ModeSelector
- * chip, which alone may render the system blue accent
- * (`--color-accent` / `--color-action-bg-strong`). The only sanctioned
- * *saturation* exceptions anywhere in the UI are the palette swatch fill and
- * the color wheel marker fill, both of which render the user's own generated
- * colors (`color.hex`), not a design token.
+ * token scale. The only sanctioned *saturation* exceptions anywhere in the UI
+ * are the palette swatch fill and the color wheel marker fill, both of which
+ * render the user's own generated colors (`color.hex`), not a design token.
  *
+ * grain-3 (2026-08-26, left-panel Palette Description panel): the single
+ * sanctioned accent exception this describe block used to guard - the
+ * selected ModeSelector chip (`--color-accent` / `--color-action-bg-strong`)
+ * - no longer exists in the UI. ModeSelector was removed wholesale (see
+ * ColorGenerator.tsx's class doc comment, "(assumption — needs
+ * confirmation)"), and it was the only chrome CSS consumer of
+ * `--color-action-bg-strong` anywhere in the codebase (verified by grep
+ * before deletion). The guard below is updated accordingly: it now asserts
+ * no UI chrome CSS file consumes either token at all, rather than carving out
+ * one sanctioned exception - see context/decisions/ for the full rationale.
  * `src/index.css` is intentionally excluded from the "no hardcoded color
  * literals" scan below: it is the Token Group *definition* file (where
  * `--color-accent`, `--color-status-*`, etc. are declared as literal hex
@@ -26,8 +33,6 @@ import { describe, expect, it } from 'vitest'
 
 const srcDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const componentsDir = path.join(srcDir, 'components')
-const modeSelectorCssPath = path.join(componentsDir, 'ModeSelector.css')
-const selectedChipSelector = ".mode-selector__button[aria-pressed='true']"
 
 /** Recursively lists every `.css` file under `dir`. */
 function listCssFiles(dir: string): string[] {
@@ -38,32 +43,6 @@ function listCssFiles(dir: string): string[] {
   })
 }
 
-/**
- * Extracts the `{ ... }` body of the rule whose selector text is exactly
- * `selector` (matched as a literal substring, brace-balanced from the first
- * `{` after it). Unlike a bare attribute-selector search, `selector` here is
- * expected to be the full compound selector (e.g.
- * `.mode-selector__button[aria-pressed='true']`), so there is no ambiguity
- * with attribute selectors that happen to appear as the tail of another
- * compound selector.
- */
-function extractRuleBody(source: string, selector: string): string {
-  const index = source.indexOf(selector)
-  if (index === -1) {
-    throw new Error(`extractRuleBody: selector "${selector}" not found`)
-  }
-  const braceStart = source.indexOf('{', index)
-  let depth = 0
-  for (let i = braceStart; i < source.length; i++) {
-    if (source[i] === '{') depth++
-    else if (source[i] === '}') {
-      depth--
-      if (depth === 0) return source.slice(braceStart + 1, i)
-    }
-  }
-  throw new Error(`extractRuleBody: unbalanced braces for selector "${selector}"`)
-}
-
 /** Matches `var(--token)` / `var(--token, fallback)`, not `--token-suffix`. */
 function varUsagePattern(token: string): RegExp {
   return new RegExp(`var\\(\\s*${token}(?![\\w-])`, 'g')
@@ -71,14 +50,15 @@ function varUsagePattern(token: string): RegExp {
 
 const indexCssPath = path.join(srcDir, 'index.css')
 /**
- * `--color-action-bg-strong` is the token actually painted onto UI chrome
- * (via `var()` in ModeSelector.css). `--color-accent` itself is never
- * consumed directly by any chrome CSS — its only consumer anywhere is that
- * single `--color-action-bg-strong: color-mix(in srgb, var(--color-accent)
- * 82%, black);` derivation line in `index.css` (the token layer, not chrome).
- * Both facts together are what "single accent location" means end to end:
- * `--color-accent` flows through exactly one derivation, and that derived
- * value is painted in exactly one place.
+ * `--color-action-bg-strong` used to be the token painted onto UI chrome (via
+ * `var()` in the now-deleted ModeSelector.css's selected-chip rule).
+ * `--color-accent` itself is never consumed directly by any chrome CSS — its
+ * only consumer anywhere is that single `--color-action-bg-strong:
+ * color-mix(in srgb, var(--color-accent) 82%, black);` derivation line in
+ * `index.css` (the token layer, not chrome). grain-3: with ModeSelector gone,
+ * `--color-action-bg-strong` now has zero chrome consumers - "single accent
+ * location" below means neither token is painted onto any chrome element at
+ * all, not "painted in exactly one sanctioned place".
  */
 const CHROME_CONSUMED_ACCENT_TOKEN = '--color-action-bg-strong'
 const ROOT_ACCENT_TOKEN = '--color-accent'
@@ -86,26 +66,14 @@ const ROOT_ACCENT_TOKEN = '--color-accent'
 describe('single accent location guard (design spec §1.2 exception)', () => {
   const chromeCssFiles = listCssFiles(srcDir).filter((file) => file !== indexCssPath)
 
-  it('sanity check: scans a non-empty set of CSS files including ModeSelector.css', () => {
+  it('sanity check: scans a non-empty set of CSS files', () => {
     expect(chromeCssFiles.length).toBeGreaterThan(0)
-    expect(chromeCssFiles).toContain(modeSelectorCssPath)
   })
 
-  it(`${CHROME_CONSUMED_ACCENT_TOKEN} is referenced only in ModeSelector.css among UI chrome CSS files`, () => {
+  it(`${CHROME_CONSUMED_ACCENT_TOKEN} is not referenced by any UI chrome CSS file`, () => {
     const pattern = varUsagePattern(CHROME_CONSUMED_ACCENT_TOKEN)
     const filesUsingToken = chromeCssFiles.filter((file) => pattern.test(readFileSync(file, 'utf-8')))
-    expect(filesUsingToken).toEqual([modeSelectorCssPath])
-  })
-
-  it(`${CHROME_CONSUMED_ACCENT_TOKEN} in ModeSelector.css is used only inside the selected-chip rule`, () => {
-    const css = readFileSync(modeSelectorCssPath, 'utf-8')
-    const pattern = varUsagePattern(CHROME_CONSUMED_ACCENT_TOKEN)
-    const totalOccurrences = (css.match(pattern) ?? []).length
-    const selectedChipBody = extractRuleBody(css, selectedChipSelector)
-    const occurrencesInSelectedChipRule = (selectedChipBody.match(varUsagePattern(CHROME_CONSUMED_ACCENT_TOKEN)) ?? []).length
-
-    expect(totalOccurrences, `expected at least one usage of ${CHROME_CONSUMED_ACCENT_TOKEN} in ModeSelector.css`).toBeGreaterThan(0)
-    expect(occurrencesInSelectedChipRule).toBe(totalOccurrences)
+    expect(filesUsingToken).toEqual([])
   })
 
   it(`${ROOT_ACCENT_TOKEN} is never consumed directly by UI chrome CSS`, () => {
