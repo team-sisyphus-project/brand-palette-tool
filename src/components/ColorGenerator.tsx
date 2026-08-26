@@ -154,6 +154,17 @@ export interface ColorGeneratorProps {
  * since `panel-preview`'s children below it are the only part gated by
  * `showResult`. `theme`/`onToggleTheme` are owned by App's `useTheme()` and
  * threaded down as props - ColorGenerator holds no theme state of its own.
+ *
+ * grain-2 (progressive intake form): the pre-generate form no longer renders
+ * all 4 additional-color fields up front. Only the brand `ColorInput` and
+ * the mood-keyword field are always visible; the 4 additional fields are
+ * revealed incrementally, one per click of the "+" add-color button that
+ * renders directly beneath the brand field (`revealedExtraColorCount`, see
+ * `handleAddExtraColor`). The button itself disappears once all 4 are
+ * revealed. This changes only *when* an additional field mounts - its
+ * validation (`extraColorErrors`, reusing `parseColorInput`) and the
+ * `extraColors` state shape (still a fixed 4-slot array) are unchanged from
+ * grain-1.
  */
 export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_THEME }: ColorGeneratorProps) {
   const [inputValue, setInputValue] = useState('#E84C40')
@@ -161,6 +172,9 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
     Array.from({ length: ADDITIONAL_COLOR_COUNT }, () => ''),
   )
   const [moodKeyword, setMoodKeyword] = useState('')
+  // grain-2: how many of the 4 additional-color fields are currently revealed
+  // (progressive disclosure - see the class doc comment above).
+  const [revealedExtraColorCount, setRevealedExtraColorCount] = useState(0)
   const [locks, setLocks] = useState<Locks>(() => createInitialLocks())
   const [mode, setMode] = useState<GenerationMode>(DEFAULT_MODE)
   const [regenerated, setRegenerated] = useState<PaletteColor[] | null>(null)
@@ -202,6 +216,10 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
 
   const handleExtraColorChange = (index: number, value: string) => {
     setExtraColors((prev) => prev.map((current, slot) => (slot === index ? value : current)))
+  }
+
+  const handleAddExtraColor = () => {
+    setRevealedExtraColorCount((prev) => Math.min(prev + 1, ADDITIONAL_COLOR_COUNT))
   }
 
   const handleGenerate = () => {
@@ -255,19 +273,31 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
               onChange={handleInputChange}
               error={isInvalid ? INVALID_COLOR_MESSAGE : null}
             />
-            <div className="color-generator__extra-colors">
-              {extraColors.map((value, index) => (
-                <ColorInput
-                  key={index}
-                  id={`additional-color-input-${index + 1}`}
-                  label={`Additional color ${index + 1}`}
-                  placeholder={ADDITIONAL_COLOR_PLACEHOLDER}
-                  value={value}
-                  onChange={(next) => handleExtraColorChange(index, next)}
-                  error={extraColorErrors[index]}
-                />
-              ))}
-            </div>
+            {revealedExtraColorCount > 0 && (
+              <div className="color-generator__extra-colors">
+                {extraColors.slice(0, revealedExtraColorCount).map((value, index) => (
+                  <ColorInput
+                    key={index}
+                    id={`additional-color-input-${index + 1}`}
+                    label={`Additional color ${index + 1}`}
+                    placeholder={ADDITIONAL_COLOR_PLACEHOLDER}
+                    value={value}
+                    onChange={(next) => handleExtraColorChange(index, next)}
+                    error={extraColorErrors[index]}
+                  />
+                ))}
+              </div>
+            )}
+            {revealedExtraColorCount < ADDITIONAL_COLOR_COUNT && (
+              <button
+                type="button"
+                className="color-generator__add-color"
+                aria-label="Add another color"
+                onClick={handleAddExtraColor}
+              >
+                +
+              </button>
+            )}
             <ColorInput
               id="mood-keyword-input"
               label="Mood keyword"

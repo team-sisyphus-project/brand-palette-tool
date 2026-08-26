@@ -26,6 +26,22 @@ function getGenerateButton(): HTMLElement {
 }
 
 /**
+ * grain-2: the 4 additional-color fields are progressively disclosed - each
+ * click of the "+" add-color button reveals exactly one more. Tests that
+ * need N of them visible call this first instead of assuming they're all
+ * mounted from the start (grain-1's original, now-superseded behavior).
+ */
+function getAddColorButton(): HTMLElement {
+  return screen.getByRole('button', { name: 'Add another color' })
+}
+
+function revealExtraColors(count: 1 | 2 | 3 | 4) {
+  for (let i = 0; i < count; i += 1) {
+    fireEvent.click(getAddColorButton())
+  }
+}
+
+/**
  * grain-1: the palette/result section only renders after Generate is
  * clicked with a valid brand color (supersedes the old auto-render-on-mount
  * / auto-render-on-keystroke behavior). This helper optionally types a new
@@ -133,12 +149,15 @@ describe('grain-1: theme toggle placement (color panel top-right)', () => {
 })
 
 describe('grain-1: intake form fields (pre-generate)', () => {
-  it('renders the brand field, 4 optional additional Hex fields, and 1 mood-keyword field, with no result section', () => {
+  it('renders only the brand field, the mood-keyword field, and the add-color button - no additional Hex fields yet', () => {
     render(<ColorGenerator />)
 
     expect(getInput()).toBeInTheDocument()
-    ;([1, 2, 3, 4] as const).forEach((n) => expect(getAdditionalColorInput(n)).toBeInTheDocument())
     expect(getMoodKeywordInput()).toBeInTheDocument()
+    expect(getAddColorButton()).toBeInTheDocument()
+    ;([1, 2, 3, 4] as const).forEach((n) =>
+      expect(screen.queryByLabelText(`Additional color ${n}`)).not.toBeInTheDocument(),
+    )
 
     expect(screen.queryByRole('list', { name: 'Generated 5-color palette' })).not.toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Palette mood tags' })).not.toBeInTheDocument()
@@ -146,14 +165,33 @@ describe('grain-1: intake form fields (pre-generate)', () => {
     expect(screen.queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument()
   })
 
-  it('all 4 additional Hex fields start empty with no error', () => {
+  it('each click of the add-color button reveals exactly one more additional Hex field, up to 4, then the button disappears', () => {
     render(<ColorGenerator />)
+
+    ;([1, 2, 3, 4] as const).forEach((n) => {
+      fireEvent.click(getAddColorButton())
+      ;([1, 2, 3, 4] as const).forEach((slot) => {
+        if (slot <= n) {
+          expect(screen.getByLabelText(`Additional color ${slot}`)).toBeInTheDocument()
+        } else {
+          expect(screen.queryByLabelText(`Additional color ${slot}`)).not.toBeInTheDocument()
+        }
+      })
+    })
+
+    expect(screen.queryByRole('button', { name: 'Add another color' })).not.toBeInTheDocument()
+  })
+
+  it('all revealed additional Hex fields start empty with no error', () => {
+    render(<ColorGenerator />)
+    revealExtraColors(4)
     ;([1, 2, 3, 4] as const).forEach((n) => expect(getAdditionalColorInput(n).value).toBe(''))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('an invalid value in one additional Hex field shows an error scoped to that field only', () => {
     render(<ColorGenerator />)
+    revealExtraColors(4)
 
     fireEvent.change(getAdditionalColorInput(2), { target: { value: 'not-a-color' } })
 
@@ -165,6 +203,7 @@ describe('grain-1: intake form fields (pre-generate)', () => {
 
   it('each additional Hex field is validated independently of the others', () => {
     render(<ColorGenerator />)
+    revealExtraColors(4)
 
     fireEvent.change(getAdditionalColorInput(1), { target: { value: 'nope' } })
     fireEvent.change(getAdditionalColorInput(3), { target: { value: 'also-nope' } })
@@ -178,6 +217,7 @@ describe('grain-1: intake form fields (pre-generate)', () => {
 
   it('a valid value in an additional Hex field shows no error', () => {
     render(<ColorGenerator />)
+    revealExtraColors(1)
     fireEvent.change(getAdditionalColorInput(1), { target: { value: '#123abc' } })
     expect(getAdditionalColorInput(1)).toHaveAttribute('aria-invalid', 'false')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -185,6 +225,7 @@ describe('grain-1: intake form fields (pre-generate)', () => {
 
   it('clearing an invalid additional Hex field back to empty clears its error (empty is valid/optional)', () => {
     render(<ColorGenerator />)
+    revealExtraColors(4)
     const field = getAdditionalColorInput(4)
 
     fireEvent.change(field, { target: { value: 'zzz' } })
@@ -203,11 +244,53 @@ describe('grain-1: intake form fields (pre-generate)', () => {
   })
 })
 
+// grain-2: the add-color button sits directly beneath the brand field so it
+// (and whatever it has revealed so far) is the first thing after the brand
+// input - before the mood-keyword field and Generate button.
+describe('grain-2: add-color button placement and progressive reveal order', () => {
+  function getControlsPanel(): HTMLElement {
+    return getInput().closest('section')!
+  }
+
+  it('positions the add-color button immediately after the brand field, before any revealed additional fields', () => {
+    render(<ColorGenerator />)
+
+    const children = Array.from(getControlsPanel().children)
+    const brandFieldIndex = children.findIndex((child) => child.contains(getInput()))
+    const addButtonIndex = children.findIndex((child) => child.contains(getAddColorButton()))
+
+    expect(addButtonIndex).toBeGreaterThan(brandFieldIndex)
+  })
+
+  it('keeps the add-color button before the mood-keyword field and Generate button once fields are revealed', () => {
+    render(<ColorGenerator />)
+    revealExtraColors(2)
+
+    const children = Array.from(getControlsPanel().children)
+    const addButtonIndex = children.findIndex((child) => child.contains(getAddColorButton()))
+    const keywordIndex = children.findIndex((child) => child.contains(getMoodKeywordInput()))
+
+    expect(keywordIndex).toBeGreaterThan(addButtonIndex)
+  })
+
+  it('reveals fields in order 1, 2, 3, 4 and never skips or duplicates a slot', () => {
+    render(<ColorGenerator />)
+
+    fireEvent.click(getAddColorButton())
+    expect(getAdditionalColorInput(1)).toBeInTheDocument()
+
+    fireEvent.click(getAddColorButton())
+    expect(getAdditionalColorInput(2)).toBeInTheDocument()
+    expect(screen.getAllByLabelText(/^Additional color /)).toHaveLength(2)
+  })
+})
+
 describe('grain-1: Generate gate', () => {
   it('editing the brand field, additional fields, or the keyword field never reveals the result section before Generate is clicked', () => {
     render(<ColorGenerator />)
 
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    revealExtraColors(1)
     fireEvent.change(getAdditionalColorInput(1), { target: { value: '#00ff00' } })
     fireEvent.change(getMoodKeywordInput(), { target: { value: 'calm' } })
 
@@ -988,13 +1071,15 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     render(<ColorGenerator />)
 
     expect(getInput()).toBeInTheDocument()
+    revealExtraColors(4)
     ;([1, 2, 3, 4] as const).forEach((n) => expect(getAdditionalColorInput(n)).toBeInTheDocument())
     expect(getMoodKeywordInput()).toBeInTheDocument()
     expect(getGenerateButton()).toBeInTheDocument()
   })
 
-  it('after Generate, the brand field, all 4 additional Hex fields, the mood-keyword field, and the Generate button are entirely unmounted', () => {
+  it('after Generate, the brand field, all revealed additional Hex fields, the add-color button, the mood-keyword field, and the Generate button are entirely unmounted', () => {
     render(<ColorGenerator />)
+    revealExtraColors(4)
     generate('#3366ff')
 
     expect(screen.queryByLabelText('Brand main color')).not.toBeInTheDocument()
@@ -1003,6 +1088,7 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     )
     expect(screen.queryByLabelText('Mood keyword')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Generate' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add another color' })).not.toBeInTheDocument()
   })
 
   it('after Generate, the mode selector is still shown (its placement is unchanged, out of scope)', () => {

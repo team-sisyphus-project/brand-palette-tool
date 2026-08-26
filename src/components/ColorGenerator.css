@@ -18,6 +18,46 @@
   width: 100%;
 }
 
+/*
+ * grain-2: "+" add-color button (design-spec components/add-color-button) -
+ * reveals one more of the 4 additional-color fields per click, sitting
+ * directly beneath the brand color field. Reuses the same icon-button
+ * token set as Palette's lock toggle (radius-control, touch-target-min,
+ * border-default) rather than the pill-shaped Generate/Regenerate
+ * action-button, since this is an icon-only affordance, not a labeled CTA -
+ * no new token values.
+ */
+.color-generator__add-color {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: var(--content-padding-sm);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-family: var(--font-text);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  cursor: pointer;
+}
+
+.color-generator__add-color:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
+}
+
+.color-generator__add-color:focus-visible {
+  outline: none;
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+}
+
 /* design-spec components/action-button: shared by Generate (grain-1) and
    Regenerate. */
 .color-generator__generate,
