@@ -854,3 +854,69 @@ export function matchAesthetic(hsl: HSL): string | null {
   if (!closest || closest.distance >= AESTHETIC_MATCH_THRESHOLD) return null
   return closest.name
 }
+
+/**
+ * Fallback display name for the Palette Description panel (grain-2) when
+ * `matchAesthetic` finds no archetype close enough to name (distance at or
+ * above `AESTHETIC_MATCH_THRESHOLD`). The panel's typography is always-present
+ * ("large, confident title" per the design brief), so a palette without a
+ * matched aesthetic still needs a name rather than an empty slot.
+ * "(assumption — needs confirmation)", same status as the archetype names it
+ * stands in for.
+ */
+export const DEFAULT_PALETTE_NAME = 'Custom Palette' // (assumption — needs confirmation)
+
+/**
+ * Pure function: deterministic display name for a generated palette's
+ * Palette Description panel (grain-2). Reuses `matchAesthetic`'s
+ * closest-archetype lookup as-is - when `hsl` (typically `averageHsl(palette)`)
+ * lands within the match threshold of an archetype, that archetype's name IS
+ * the palette name. When `matchAesthetic` returns `null` ("never force an
+ * unsupported match"), falls back to `DEFAULT_PALETTE_NAME` so the panel
+ * always has a name to render. Same input always yields the same name.
+ */
+export function getPaletteName(hsl: HSL): string {
+  return matchAesthetic(hsl) ?? DEFAULT_PALETTE_NAME
+}
+
+/**
+ * Joins adjectives into an English list with "and" before the final item
+ * ("warm", "warm and cozy", "warm, cozy and bold"). Used by
+ * `getPaletteDescription` to turn `getMoodTags`'s 1-2 word array into a
+ * grammatical phrase. Pure string composition - no locale/pluralization
+ * concerns since every input word is a fixed-vocabulary adjective.
+ */
+function joinWithAnd(words: string[]): string {
+  if (words.length === 0) return ''
+  if (words.length === 1) return words[0]
+  return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
+}
+
+/**
+ * Pure function: deterministic 2-sentence description for the Palette
+ * Description panel (grain-2), composed entirely from this module's existing
+ * mood/vibe lookups - `getPaletteName` (which itself wraps `matchAesthetic`),
+ * `getMoodTags`, and `getVibeKeywords`. No AI, no randomness: fixed sentence
+ * templates filled from those functions' outputs, so the same `hsl` input
+ * (typically `averageHsl(palette)`) always returns the same 2 sentences.
+ *
+ * - Sentence 1 names the palette and states its mood, via `getPaletteName`
+ *   and `getMoodTags` (1-2 adjectives).
+ * - Sentence 2 surfaces a few of the richer `getVibeKeywords` adjectives (the
+ *   first 3 of its 5+ unique words) for anyone who wants more than the
+ *   compact mood pair - "the same vocabulary shown on the right today, now
+ *   read as prose instead of a chip/line".
+ *
+ * Both sentences are always non-empty because `getMoodTags` guarantees at
+ * least 1 word and `getVibeKeywords` guarantees at least 5.
+ */
+export function getPaletteDescription(hsl: HSL): string[] {
+  const name = getPaletteName(hsl)
+  const moodPhrase = joinWithAnd(getMoodTags(hsl).map((tag) => tag.toLowerCase()))
+  const keywordPhrase = getVibeKeywords(hsl).slice(0, 3).join(', ')
+
+  return [
+    `${name} — a ${moodPhrase} palette built around your brand color.`,
+    `Expect a ${keywordPhrase} feel throughout every shade.`,
+  ]
+}

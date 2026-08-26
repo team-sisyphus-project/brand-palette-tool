@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AESTHETIC_ARCHETYPES,
   BRAND_SLOT_INDEX,
+  DEFAULT_PALETTE_NAME,
   GENERATION_MODES,
   HARMONY_TYPES,
   PALETTE_SIZE,
@@ -12,6 +13,8 @@ import {
   generateShades,
   getHarmonyColors,
   getMoodTags,
+  getPaletteDescription,
+  getPaletteName,
   getVibeKeywords,
   hexToRgb,
   hslToRgb,
@@ -1012,5 +1015,73 @@ describe('getHarmonyColors', () => {
         expect(color.hex).toMatch(/^#[0-9a-f]{6}$/)
       }
     }
+  })
+})
+
+describe('getPaletteName', () => {
+  it('is deterministic: the same HSL input always yields the same name', () => {
+    const hsl: HSL = { h: 165, s: 70, l: 50 }
+    expect(getPaletteName(hsl)).toBe(getPaletteName({ ...hsl }))
+  })
+
+  it('returns the matched archetype name when matchAesthetic finds one', () => {
+    const tropical = AESTHETIC_ARCHETYPES.find((a) => a.name === 'Tropical')!
+    expect(getPaletteName(tropical.hsl)).toBe('Tropical')
+    expect(getPaletteName(tropical.hsl)).toBe(matchAesthetic(tropical.hsl))
+  })
+
+  it('falls back to DEFAULT_PALETTE_NAME when matchAesthetic returns null (no archetype within threshold)', () => {
+    // Same "far from every archetype" fixture matchAesthetic's own test suite uses.
+    const farFromEverything: HSL = { h: 89.41, s: 100, l: 12 }
+    expect(matchAesthetic(farFromEverything)).toBeNull()
+    expect(getPaletteName(farFromEverything)).toBe(DEFAULT_PALETTE_NAME)
+  })
+
+  it('always returns a non-empty string, matched or fallback', () => {
+    const matched = getPaletteName(AESTHETIC_ARCHETYPES[0].hsl)
+    const fallback = getPaletteName({ h: 89.41, s: 100, l: 12 })
+    expect(matched.length).toBeGreaterThan(0)
+    expect(fallback.length).toBeGreaterThan(0)
+  })
+})
+
+describe('getPaletteDescription', () => {
+  const base: HSL = { h: 165, s: 70, l: 50 }
+
+  it('is deterministic: the same HSL input always yields the same sentences', () => {
+    expect(getPaletteDescription(base)).toEqual(getPaletteDescription({ ...base }))
+  })
+
+  it('returns at least 1 non-empty sentence', () => {
+    const sentences = getPaletteDescription(base)
+    expect(sentences.length).toBeGreaterThanOrEqual(1)
+    for (const sentence of sentences) {
+      expect(typeof sentence).toBe('string')
+      expect(sentence.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('opens with the same name getPaletteName returns for the same HSL', () => {
+    const sentences = getPaletteDescription(base)
+    expect(sentences[0].startsWith(getPaletteName(base))).toBe(true)
+  })
+
+  it('produces different descriptions for meaningfully different HSL inputs', () => {
+    const warm = getPaletteDescription({ h: 20, s: 80, l: 55 })
+    const cool = getPaletteDescription({ h: 210, s: 80, l: 55 })
+    expect(warm).not.toEqual(cool)
+  })
+
+  it('still returns non-empty sentences when matchAesthetic finds no archetype (fallback name path)', () => {
+    const farFromEverything: HSL = { h: 89.41, s: 100, l: 12 }
+    const sentences = getPaletteDescription(farFromEverything)
+    expect(sentences.length).toBeGreaterThanOrEqual(1)
+    expect(sentences[0].startsWith(DEFAULT_PALETTE_NAME)).toBe(true)
+  })
+
+  it('is deterministic for a palette-derived average HSL', () => {
+    const palette = generatePalette('#3366ff')!
+    const avg = averageHsl(palette)
+    expect(getPaletteDescription(avg)).toEqual(getPaletteDescription({ ...avg }))
   })
 })
