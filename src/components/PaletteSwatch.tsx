@@ -42,6 +42,16 @@ export interface PaletteSwatchProps {
  * specific interactions stop the click from bubbling to `onSelectBase` so
  * they keep their own single meaning (open the picker / toggle the lock)
  * instead of also silently reassigning the base color.
+ *
+ * grain-2 (rounder squares + hover-only lock overlay): the lock toggle now
+ * lives inside `.palette-swatch__preview`, layered on top of the invisible
+ * color-picker input (later in DOM order so it still receives the click in
+ * its own corner - see PaletteSwatch.css) instead of as an always-visible
+ * row below the swatch. It is hidden by `opacity: 0` until the preview is
+ * hovered or the button itself receives keyboard focus (`:focus-visible`),
+ * per design-spec/token-groups/radius/base.md. `onToggleLock`'s contract
+ * (and its own `stopPropagation` so it never also fires `onSelectBase`) is
+ * unchanged - only where the button sits in the markup moved.
  */
 export function PaletteSwatch({
   color,
@@ -92,16 +102,16 @@ export function PaletteSwatch({
           onChange={handleColorPickerChange}
           aria-label={`Edit ${color.hex} color directly`}
         />
+        <button
+          type="button"
+          className="palette-swatch__lock"
+          aria-pressed={isLocked}
+          aria-label={`Toggle lock for ${color.hex} color`}
+          onClick={handleLockClick}
+        >
+          {isLocked ? '🔒' : '🔓'}
+        </button>
       </div>
-      <button
-        type="button"
-        className="palette-swatch__lock"
-        aria-pressed={isLocked}
-        aria-label={`Toggle lock for ${color.hex} color`}
-        onClick={handleLockClick}
-      >
-        {isLocked ? '🔒 Locked' : '🔓 Lock'}
-      </button>
       <span className="palette-swatch__hex">{color.hex}</span>
       {isBrand && <span className="palette-swatch__badge">Brand</span>}
     </div>
