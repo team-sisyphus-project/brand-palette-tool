@@ -249,6 +249,28 @@ export interface ColorGeneratorProps {
  * (title -> description -> form -> Generate), independent of `app-shell`'s
  * own 1024px/768px panel-generator/panel-preview breakpoints (post-generate,
  * untouched - see class doc comment above and context/decisions/).
+ *
+ * grain-1 (2026-08-26, real left/right split fix): `.color-generator__intake`
+ * itself was already a row-flex with two `flex: 1 1 0` columns, but
+ * `panel-generator` (its parent) only ever claims `flex: 4` of `app-shell`'s
+ * row (`panel-preview` claims the other `flex: 6`, empty pre-generate save
+ * for the ThemeToggle corner) - so the whole title+form split rendered
+ * squeezed inside the left ~40% of the page, reading as "both columns on the
+ * same side" instead of a true edge-to-edge split. Fixed by two new modifier
+ * classes, applied only pre-generate (`controlsClassName`/`previewClassName`
+ * above): `.color-generator__controls--intake` overrides `panel-generator`'s
+ * `flex: 4` to `flex: 1 1 auto` so it fills essentially the whole shell row,
+ * and `.color-generator__preview--intake` shrinks `panel-preview` to
+ * `flex: 0 0 auto` (content-sized - just the ThemeToggle corner) instead of
+ * its `flex: 6`/`min-width: 480px` post-generate sizing. Both modifiers are
+ * scoped under ColorGenerator.css (not App.css) since `panel-generator`'s/
+ * `panel-preview`'s base flex rules live in App.css, out of this grain's
+ * boundary - see ColorGenerator.css for the override rules and
+ * context/decisions/ for why overriding here (vs. touching App.css) was
+ * chosen. Also replaces the intro copy (title + body) with the attached
+ * spec's copy, including a new "Color Study" sub-section
+ * (`.color-generator__intro-subtitle`) - see recording in
+ * design-spec/token-groups/typography/base.md.
  */
 export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_THEME }: ColorGeneratorProps) {
   const [inputValue, setInputValue] = useState('#E84C40')
@@ -365,13 +387,16 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
     setLocks(nextLocks)
   }
 
+  const controlsClassName = showResult
+    ? 'panel-generator color-generator__controls'
+    : 'panel-generator color-generator__controls color-generator__controls--intake'
   const previewClassName = showResult
     ? 'panel-preview color-generator__preview color-generator__preview--result'
-    : 'panel-preview color-generator__preview'
+    : 'panel-preview color-generator__preview color-generator__preview--intake'
 
   return (
     <>
-      <section className="panel-generator color-generator__controls">
+      <section className={controlsClassName}>
         {showResult && palette && paletteName ? (
           <>
             <PaletteDescription
@@ -389,10 +414,26 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
         ) : (
           <div className="color-generator__intake">
             <div className="color-generator__intro">
-              <h1 className="color-generator__intro-title">Color Palette Generator</h1>
+              <h1 className="color-generator__intro-title">Build a palette around your brand</h1>
               <p className="color-generator__intro-description">
-                Enter a brand main color to instantly generate a 5-color palette.
+                Add up to four brand colors, describe the mood or vibe you want, and generate a
+                palette that brings them together.
               </p>
+              <p className="color-generator__intro-description">
+                Each palette includes a <strong>name, short description, and emotion keywords</strong> to
+                help you understand how the colors feel and work together.
+              </p>
+              <p className="color-generator__intro-description">
+                Copy or export your palette as <strong>CSS, PNG, JSON, or Markdown</strong> for use across
+                websites, presentations, design systems, and more.
+              </p>
+              <div className="color-generator__intro-section">
+                <h2 className="color-generator__intro-subtitle">Color Study</h2>
+                <p className="color-generator__intro-description">
+                  Explore hue relationships, tonal variations, and color combinations to better
+                  understand how your palette can be applied in real designs.
+                </p>
+              </div>
             </div>
             {/*
              * grain-1 (2026-08-26): a nested <section> (not a <div>) so the
