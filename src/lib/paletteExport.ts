@@ -7,7 +7,7 @@
  * actual `navigator.clipboard.writeText(...)` call is the caller's job.
  */
 
-import { BRAND_SLOT_INDEX, type PaletteColor } from './palette'
+import { BRAND_SLOT_INDEX, PALETTE_SIZE, hexToRgb, type HSL, type PaletteColor, type RGB } from './palette'
 
 /**
  * The selector `paletteToCssVariablesText` wraps declarations in by default.
@@ -161,4 +161,201 @@ export function validateCssVariablesText(text: string): CssValidationResult {
   }
 
   return { valid: errors.length === 0, errors }
+}
+
+/**
+ * Slot (0-based, `BRAND_SLOT_INDEX` first) -> palette role name, for the
+ * "JSON 다운로드 파일이 팔레트 색상·역할 정보를 빠짐없이 포함함" feature
+ * (spec C M-2). Spec C defines role names for the first time (spec A only
+ * defines the 5-color *generation* rule, not role names) and explicitly
+ * flags the slot-to-role assignment itself as an assumption:
+ *
+ * "실제 역할-슬롯 매핑은 (가정 — 확인 필요): 생성 순서상 1번(브랜드 메인)을
+ * 주조색, 2~3번을 보조색, 4번을 강조색, 5번을 배경/중성색으로 임시 배정한다."
+ *
+ * Recorded in the design spec's `content-copy` Token Group (grain-1).
+ */
+export const PALETTE_SLOT_ROLES: readonly string[] = [
+  '주조색', // slot 0 (BRAND_SLOT_INDEX) - 가정 — 확인 필요
+  '보조색', // slot 1 - 가정 — 확인 필요
+  '보조색', // slot 2 - 가정 — 확인 필요
+  '강조색', // slot 3 - 가정 — 확인 필요
+  '배경·중성색', // slot 4 - 가정 — 확인 필요
+]
+
+/** Fallback role name for a slot index beyond `PALETTE_SLOT_ROLES` (defensive; a valid palette never has more than `PALETTE_SIZE` slots). */
+const UNKNOWN_SLOT_ROLE = '미분류'
+
+/** Looks up the role name for a given 0-based slot index; see `PALETTE_SLOT_ROLES`. */
+export function roleForSlot(slotIndex: number): string {
+  return PALETTE_SLOT_ROLES[slotIndex] ?? UNKNOWN_SLOT_ROLE
+}
+
+/** One color's full color data plus its mapped role - one entry of `PaletteExportData.colors`. */
+export interface PaletteExportColorEntry {
+  slot: number
+  role: string
+  hex: string
+  rgb: RGB
+  hsl: HSL
+}
+
+/** The structured JSON export shape built by `buildPaletteExportData` (spec C M-2). */
+export interface PaletteExportData {
+  colors: PaletteExportColorEntry[]
+}
+
+/**
+ * Builds the structured export payload for the "JSON 다운로드" feature: every
+ * palette slot's full color data (hex/rgb/hsl) plus its mapped role name
+ * (`roleForSlot`), in slot order - so the payload is complete enough that
+ * `validatePaletteJson` can confirm nothing is missing (M-2).
+ */
+export function buildPaletteExportData(palette: PaletteColor[]): PaletteExportData {
+  return {
+    colors: palette.map((color, index) => ({
+      slot: index,
+      role: roleForSlot(index),
+      hex: color.hex,
+      rgb: color.rgb,
+      hsl: color.hsl,
+    })),
+  }
+}
+
+/**
+ * Formats a palette as pretty-printed JSON text - the "JSON 다운로드" file
+ * contents. Built from `buildPaletteExportData` so the emitted JSON always
+ * satisfies `validatePaletteJson`.
+ */
+export function paletteToJsonText(palette: PaletteColor[]): string {
+  return JSON.stringify(buildPaletteExportData(palette), null, 2)
+}
+
+/** Result of validating a palette JSON export payload. */
+export interface PaletteJsonValidationResult {
+  valid: boolean
+  errors: string[]
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+/**
+ * Validates that `jsonText` is a complete `PaletteExportData` payload - the
+ * "다운로드된 JSON 데이터가 누락 없이 모든 색상 및 역할 정보를 포함하고
+ * 있는지 검증" requirement (M-2). Checks, in order:
+ *
+ * - `jsonText` is non-empty and parses as JSON.
+ * - The parsed value has a `colors` array with exactly `PALETTE_SIZE` entries
+ *   (a palette is always fixed-size, spec A).
+ * - Every entry has a `slot` matching its array position, a non-empty `role`,
+ *   a parseable `hex`, an `rgb` object with `r`/`g`/`b` in [0, 255], and an
+ *   `hsl` object with `h` in [0, 360] and `s`/`l` in [0, 100].
+ *
+ * Returns every problem found (not just the first), mirroring
+ * `validateCssVariablesText`'s "report everything" contract.
+ */
+export function validatePaletteJson(jsonText: string): PaletteJsonValidationResult {
+  const trimmed = jsonText.trim()
+  if (!trimmed) {
+    return { valid: false, errors: ['입력이 비어 있습니다.'] }
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    return { valid: false, errors: ['올바른 JSON이 아닙니다.'] }
+  }
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return { valid: false, errors: ['최상위 값이 객체가 아닙니다.'] }
+  }
+
+  const colors = (parsed as { colors?: unknown }).colors
+  if (!Array.isArray(colors)) {
+    return { valid: false, errors: ['"colors" 배열이 없습니다.'] }
+  }
+
+  const errors: string[] = []
+  if (colors.length !== PALETTE_SIZE) {
+    errors.push(`"colors" 배열의 길이가 ${PALETTE_SIZE}이 아닙니다 (실제: ${colors.length}).`)
+  }
+
+  colors.forEach((entry, index) => {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      errors.push(`colors[${index}]: 객체가 아닙니다.`)
+      return
+    }
+
+    const record = entry as Record<string, unknown>
+
+    if (record.slot !== index) {
+      errors.push(`colors[${index}]: "slot" 값이 없거나 배열 위치(${index})와 일치하지 않습니다.`)
+    }
+
+    if (typeof record.role !== 'string' || !record.role.trim()) {
+      errors.push(`colors[${index}]: "role"이 없거나 비어 있습니다.`)
+    }
+
+    if (typeof record.hex !== 'string' || !hexToRgb(record.hex)) {
+      errors.push(`colors[${index}]: "hex"가 없거나 올바르지 않습니다.`)
+    }
+
+    const rgb = record.rgb as Partial<RGB> | undefined
+    if (
+      typeof rgb !== 'object' ||
+      rgb === null ||
+      !['r', 'g', 'b'].every((key) => {
+        const value = (rgb as Record<string, unknown>)[key]
+        return isFiniteNumber(value) && value >= 0 && value <= 255
+      })
+    ) {
+      errors.push(`colors[${index}]: "rgb"가 없거나 r/g/b 중 누락·범위 초과 값이 있습니다.`)
+    }
+
+    const hsl = record.hsl as Partial<HSL> | undefined
+    const hslValid =
+      typeof hsl === 'object' &&
+      hsl !== null &&
+      isFiniteNumber((hsl as Record<string, unknown>).h) &&
+      (hsl as HSL).h >= 0 &&
+      (hsl as HSL).h <= 360 &&
+      isFiniteNumber((hsl as Record<string, unknown>).s) &&
+      (hsl as HSL).s >= 0 &&
+      (hsl as HSL).s <= 100 &&
+      isFiniteNumber((hsl as Record<string, unknown>).l) &&
+      (hsl as HSL).l >= 0 &&
+      (hsl as HSL).l <= 100
+    if (!hslValid) {
+      errors.push(`colors[${index}]: "hsl"이 없거나 h/s/l 중 누락·범위 초과 값이 있습니다.`)
+    }
+  })
+
+  return { valid: errors.length === 0, errors }
+}
+
+/** Zero-padded `YYYYMMDD` for a local `Date` - used by `paletteJsonFilename`. */
+function formatYyyyMmDd(date: Date): string {
+  const year = date.getFullYear().toString().padStart(4, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${year}${month}${day}`
+}
+
+/**
+ * Builds the JSON export filename: `brand-palette-{HEX}-{YYYYMMDD}.json`,
+ * mirroring the `.md` export's filename convention from spec C
+ * ("파일명은 브랜드 메인 컬러 Hex와 생성 일시를 포함해 재다운로드 시 구분
+ * 가능하게 한다" - also "(가정 — 확인 필요)"), so re-downloading the same
+ * palette on a different day (or a different brand color) never collides.
+ * The leading `#` of the brand HEX is stripped since it is not filename-safe
+ * on every platform. `date` defaults to `new Date()` but is injectable for
+ * deterministic tests.
+ */
+export function paletteJsonFilename(palette: PaletteColor[], date: Date = new Date()): string {
+  const brandHex = palette[BRAND_SLOT_INDEX]?.hex.replace('#', '') ?? 'palette'
+  return `brand-palette-${brandHex}-${formatYyyyMmDd(date)}.json`
 }
