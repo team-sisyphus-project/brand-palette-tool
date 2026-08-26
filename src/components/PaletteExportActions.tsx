@@ -92,9 +92,8 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
  * `ColorGenerator`'s own state/memo values, since this component computes
  * none of that itself) and downloads it via the same `triggerBlobDownload`
  * path as PNG/JSON. The "Download MD" label and "MD downloaded!" feedback
- * follow the exact same `Download {FORMAT}` / `{FORMAT} downloaded!` copy
- * pattern already used for PNG/JSON (which was not itself recorded as a
- * content-copy token) - not a new copy decision, so nothing new to record.
+ * follow the `action-label-download` / `feedback-download-success` semantic
+ * tokens (content-copy/base) shared with the PNG/JSON buttons.
  */
 export function PaletteExportActions({
   palette,
