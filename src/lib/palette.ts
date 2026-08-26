@@ -688,68 +688,85 @@ export function getMoodTags(hsl: HSL): string[] {
 }
 
 /**
- * Hue-temperature band used by `getVibeKeywords`'s vocabulary lookup below.
- * Reuses `hueMoodWord`'s own band boundaries (`WARM_HUE_MAX`/`COOL_HUE_MIN`/
- * `COOL_HUE_MAX`) so the two hue-based lookups stay in agreement, but is kept
- * as its own function (rather than refactoring `hueMoodWord` to share it) so
- * `getMoodTags`'s existing output is untouched.
+ * Band-index helpers for `getVibeKeywords`'s vocabulary lookup below.
+ * Deliberately *not* `hueMoodWord`/`saturationBand`/`lightnessBand` (which
+ * `getMoodTags` owns) - grain-2 ("100+ unique name/description/keyword-set
+ * combinations") needs a finer partition of H/S/L than `getMoodTags`'s 3x3x3
+ * grid can offer (only 27 cells, too few to reach the 100+ unique
+ * keyword-*set* requirement across a representative HSL sample - see the
+ * grain-2 decision record), so `getVibeKeywords` gets its own, more
+ * fine-grained bands: hue split into 6 bins (60deg each) instead of 3
+ * temperature bands, saturation/lightness each split into 5 bins (20 points
+ * each) instead of 3. That is 6 x 5 x 5 = 150 possible band combinations -
+ * kept entirely separate from `hueMoodWord`/`saturationBand`/`lightnessBand`
+ * so `getMoodTags`'s existing thresholds and output are untouched.
  */
-function hueVibeBand(h: number): 'warm' | 'neutral' | 'cool' {
-  const hue = normalizeHue(h)
-  if (hue >= COOL_HUE_MIN && hue < COOL_HUE_MAX) return 'cool'
-  if (hue >= WARM_HUE_MAX && hue < COOL_HUE_MIN) return 'neutral'
-  return 'warm'
+function vibeHueBandIndex(h: number): number {
+  return Math.min(5, Math.floor(normalizeHue(h) / 60))
+}
+
+function vibeSaturationBandIndex(s: number): number {
+  return Math.min(4, Math.floor(clamp(s, 0, 100) / 20))
+}
+
+function vibeLightnessBandIndex(l: number): number {
+  return Math.min(4, Math.floor(clamp(l, 0, 100) / 20))
 }
 
 /**
  * Plain-English, non-expert-friendly vibe vocabulary for `getVibeKeywords`
- * (2026-08-26 grain: "Rich vibe-keyword generation logic"). Every entry is
- * "(assumption — needs confirmation)", same status as `getMoodTags`'s bands
- * and `AESTHETIC_ARCHETYPES` above - these are reasonable emotional-adjective
- * choices, not a cited vocabulary study.
+ * (grain-2: "rich vibe-keyword generation logic", 100+ unique keyword-set
+ * requirement). Every entry is "(assumption — needs confirmation)", same
+ * status as `getMoodTags`'s bands and `AESTHETIC_ARCHETYPES` above - these
+ * are reasonable emotional-adjective choices, not a cited vocabulary study.
  *
  * Deliberately a *separate* word bank from `getMoodTags`'s single-word-per-
  * axis output (`hueMoodWord`/`SATURATION_LIGHTNESS_MOOD`): `getMoodTags`
  * exists for the compact 1-2 word `MoodTag` pill display, while this bank
- * feeds the richer "keyword:" line (spec: 5+ comma-joined adjectives for
- * users with no color-theory background) - two words per band, one band per
- * axis (hue temperature / saturation / lightness), so a normal HSL input
- * contributes 2+2+2 = 6 candidate words.
+ * feeds the richer "keyword:" line - two words per band, one band per axis
+ * (hue / saturation / lightness), so a normal HSL input contributes
+ * 2+2+2 = 6 candidate words. 6 hue bins x 5 saturation bins x 5 lightness
+ * bins = 150 possible band combinations, each with its own 2+2+2 word set.
  *
- * Every word across all three banks is unique (no word appears twice) by
- * construction, which is what lets `getVibeKeywords` guarantee 5+ *unique*
- * adjectives without ever needing to pad or repeat. (Some individual words -
- * e.g. "warm", "vibrant" - deliberately echo `getMoodTags`'s vocabulary,
- * since those are the natural plain-English words for that band; the
- * uniqueness guarantee only requires the 3 banks below to be disjoint from
- * *each other*, not from `getMoodTags`.)
+ * Every word across all three banks (32 words total: 6x2 + 5x2 + 5x2) is
+ * unique (no word appears twice) by construction, which is what lets
+ * `getVibeKeywords` guarantee 5+ *unique* adjectives without ever needing to
+ * pad or repeat.
  */
-const HUE_VIBE_WORDS: Record<'warm' | 'neutral' | 'cool', [string, string]> = {
-  warm: ['warm', 'cozy'], // (assumption — needs confirmation)
-  neutral: ['balanced', 'natural'], // (assumption — needs confirmation)
-  cool: ['cool', 'calm'], // (assumption — needs confirmation)
-}
+const VIBE_HUE_WORDS: [string, string][] = [
+  ['fiery', 'sunny'], // (assumption — needs confirmation) 0-60deg
+  ['zesty', 'citrusy'], // (assumption — needs confirmation) 60-120deg
+  ['verdant', 'minty'], // (assumption — needs confirmation) 120-180deg
+  ['oceanic', 'breezy'], // (assumption — needs confirmation) 180-240deg
+  ['dreamy', 'mystic'], // (assumption — needs confirmation) 240-300deg
+  ['playful', 'romantic'], // (assumption — needs confirmation) 300-360deg
+]
 
-const SATURATION_VIBE_WORDS: Record<Band, [string, string]> = {
-  high: ['vibrant', 'bold'], // (assumption — needs confirmation)
-  mid: ['fresh', 'friendly'], // (assumption — needs confirmation)
-  low: ['soft', 'subtle'], // (assumption — needs confirmation)
-}
+const VIBE_SATURATION_WORDS: [string, string][] = [
+  ['muted', 'faded'], // (assumption — needs confirmation) 0-20%
+  ['soft', 'gentle'], // (assumption — needs confirmation) 20-40%
+  ['balanced', 'even'], // (assumption — needs confirmation) 40-60%
+  ['vivid', 'lush'], // (assumption — needs confirmation) 60-80%
+  ['bold', 'intense'], // (assumption — needs confirmation) 80-100%
+]
 
-const LIGHTNESS_VIBE_WORDS: Record<Band, [string, string]> = {
-  high: ['bright', 'cheerful'], // (assumption — needs confirmation)
-  mid: ['comfortable', 'steady'], // (assumption — needs confirmation)
-  low: ['deep', 'sophisticated'], // (assumption — needs confirmation)
-}
+const VIBE_LIGHTNESS_WORDS: [string, string][] = [
+  ['shadowy', 'somber'], // (assumption — needs confirmation) 0-20%
+  ['deep', 'moody'], // (assumption — needs confirmation) 20-40%
+  ['grounded', 'steady'], // (assumption — needs confirmation) 40-60%
+  ['airy', 'light'], // (assumption — needs confirmation) 60-80%
+  ['radiant', 'luminous'], // (assumption — needs confirmation) 80-100%
+]
 
 /**
  * Pure function: the same HSL input always yields the same 6 unique,
  * plain-English emotional adjectives (no AI, no randomness) describing a
- * palette's vibe for users with no color-theory background. Extends the
- * hue/saturation/lightness lookup-table pattern `getMoodTags` established -
- * same three axes (`hueVibeBand`, `saturationBand`, `lightnessBand`), a
- * richer word bank per axis - so the same H/S/L thresholds classify a color
- * identically for both the compact mood pill and this longer keyword line.
+ * palette's vibe for users with no color-theory background. Same
+ * hue/saturation/lightness axis structure `getMoodTags` established, but
+ * with its own finer-grained bands (`vibeHueBandIndex`/
+ * `vibeSaturationBandIndex`/`vibeLightnessBandIndex`, 6x5x5 = 150 cells) so
+ * the keyword-*set* itself has 100+ unique combinations across a
+ * representative HSL sample - see the grain-2 decision record.
  *
  * Always returns at least 5 (in practice exactly 6, since the 3 word banks
  * are disjoint by construction) unique adjectives, ready to be joined with
@@ -758,9 +775,9 @@ const LIGHTNESS_VIBE_WORDS: Record<Band, [string, string]> = {
  */
 export function getVibeKeywords(hsl: HSL): string[] {
   const words = [
-    ...HUE_VIBE_WORDS[hueVibeBand(hsl.h)],
-    ...SATURATION_VIBE_WORDS[saturationBand(hsl.s)],
-    ...LIGHTNESS_VIBE_WORDS[lightnessBand(hsl.l)],
+    ...VIBE_HUE_WORDS[vibeHueBandIndex(hsl.h)],
+    ...VIBE_SATURATION_WORDS[vibeSaturationBandIndex(hsl.s)],
+    ...VIBE_LIGHTNESS_WORDS[vibeLightnessBandIndex(hsl.l)],
   ]
   return Array.from(new Set(words))
 }
@@ -867,16 +884,88 @@ export function matchAesthetic(hsl: HSL): string | null {
 export const DEFAULT_PALETTE_NAME = 'Custom Palette' // (assumption — needs confirmation)
 
 /**
+ * Hue-modifier vocabulary for `getPaletteName`'s "modifier + archetype"
+ * combination (grain-2: 100+ unique palette names). One word per 30deg hue
+ * bin (12 bins spanning the full wheel) - deliberately its own vocabulary,
+ * disjoint in *purpose* from `getVibeKeywords`'s hue words: those describe a
+ * "vibe" in plain-English adjectives, this is a naming-brand-style modifier
+ * meant to read naturally in front of an archetype noun (e.g. "Sunset
+ * Tropical", "Cobalt Coastal"). "(assumption — needs confirmation)", same
+ * status as every other word bank in this module.
+ */
+const HUE_NAME_MODIFIERS: string[] = [
+  'Crimson', // 0-30deg
+  'Sunset', // 30-60deg
+  'Amber', // 60-90deg
+  'Golden', // 90-120deg
+  'Citrus', // 120-150deg
+  'Meadow', // 150-180deg
+  'Emerald', // 180-210deg
+  'Teal', // 210-240deg
+  'Azure', // 240-270deg
+  'Cobalt', // 270-300deg
+  'Violet', // 300-330deg
+  'Magenta', // 330-360deg
+]
+
+function hueNameModifier(h: number): string {
+  const index = Math.min(HUE_NAME_MODIFIERS.length - 1, Math.floor(normalizeHue(h) / 30))
+  return HUE_NAME_MODIFIERS[index]
+}
+
+/**
+ * Saturation x lightness modifier vocabulary for `getPaletteName` (grain-2).
+ * A 4x4 lookup (saturation quartile x lightness quartile, 16 cells) - finer
+ * than `getMoodTags`'s 3x3 `SATURATION_LIGHTNESS_MOOD` table so that, paired
+ * with the 12 `HUE_NAME_MODIFIERS`, the modifier alone spans 12 x 16 = 192
+ * unique strings. That is deliberate: `matchAesthetic` only ever resolves to
+ * 1 of 10 archetypes or `DEFAULT_PALETTE_NAME` (11 possible bases), and many
+ * HSL inputs fall outside every archetype's match threshold and land on the
+ * `DEFAULT_PALETTE_NAME` fallback - so the 100+ unique *name* requirement
+ * cannot depend on archetype-match variety alone. Keeping the modifier's own
+ * combinatorics (192) well above 100 guarantees the requirement holds even
+ * when every sampled color falls back to `DEFAULT_PALETTE_NAME`. See the
+ * grain-2 decision record for the full rationale and rejected alternatives.
+ * "(assumption — needs confirmation)", same status as every other word bank.
+ */
+const SATURATION_LIGHTNESS_NAME_MODIFIERS: string[][] = [
+  ['Ashen', 'Dusty', 'Chalky', 'Powdery'], // saturation 0-25%
+  ['Charcoal', 'Weathered', 'Muted', 'Hazy'], // saturation 25-50%
+  ['Deep', 'Rich', 'Fresh', 'Airy'], // saturation 50-75%
+  ['Midnight', 'Bold', 'Vivid', 'Radiant'], // saturation 75-100%
+]
+
+function saturationLightnessNameModifier(s: number, l: number): string {
+  const satIndex = Math.min(3, Math.floor(clamp(s, 0, 100) / 25))
+  const lightIndex = Math.min(3, Math.floor(clamp(l, 0, 100) / 25))
+  return SATURATION_LIGHTNESS_NAME_MODIFIERS[satIndex][lightIndex]
+}
+
+/**
+ * Combines the two independent modifier axes above into one "{S/L modifier}
+ * {Hue modifier}" phrase (e.g. "Vivid Sunset", "Ashen Teal") - 16 x 12 = 192
+ * unique phrases, entirely determined by `hsl`.
+ */
+function paletteNameModifier(hsl: HSL): string {
+  return `${saturationLightnessNameModifier(hsl.s, hsl.l)} ${hueNameModifier(hsl.h)}`
+}
+
+/**
  * Pure function: deterministic display name for a generated palette's
- * Palette Description panel (grain-2). Reuses `matchAesthetic`'s
- * closest-archetype lookup as-is - when `hsl` (typically `averageHsl(palette)`)
- * lands within the match threshold of an archetype, that archetype's name IS
- * the palette name. When `matchAesthetic` returns `null` ("never force an
- * unsupported match"), falls back to `DEFAULT_PALETTE_NAME` so the panel
- * always has a name to render. Same input always yields the same name.
+ * Palette Description panel (grain-2: "100+ unique palette names"). Builds
+ * on `matchAesthetic`'s closest-archetype lookup exactly as before (matching
+ * logic/threshold untouched - out of scope for grain-2), but now prefixes
+ * the resolved archetype name (or `DEFAULT_PALETTE_NAME` fallback) with
+ * `paletteNameModifier`'s deterministic "{S/L} {Hue}" adjective phrase, e.g.
+ * "Vivid Sunset Tropical" or "Ashen Teal Custom Palette". That modifier alone
+ * spans 192 unique phrases (see `SATURATION_LIGHTNESS_NAME_MODIFIERS`),
+ * which is what guarantees 100+ unique names regardless of how often
+ * `matchAesthetic` resolves to an archetype vs. falls back to
+ * `DEFAULT_PALETTE_NAME`. Same input always yields the same name.
  */
 export function getPaletteName(hsl: HSL): string {
-  return matchAesthetic(hsl) ?? DEFAULT_PALETTE_NAME
+  const base = matchAesthetic(hsl) ?? DEFAULT_PALETTE_NAME
+  return `${paletteNameModifier(hsl)} ${base}`
 }
 
 /**
@@ -893,6 +982,42 @@ function joinWithAnd(words: string[]): string {
 }
 
 /**
+ * Deterministic pseudo-hash of an HSL triplet into a bounded index, used
+ * below to pick a sentence template without adding randomness (grain-2:
+ * "expanded description templates"). Rounds each component so tiny floating
+ * point differences (e.g. from `averageHsl`) don't change which template is
+ * picked, then combines them with distinct prime-ish weights per axis so the
+ * opener/closer picks (which weight h/s/l differently, see
+ * `getPaletteDescription`) decorrelate rather than always moving together.
+ */
+function templateIndex(a: number, b: number, c: number, poolSize: number): number {
+  const raw = Math.round(a) * 13 + Math.round(b) * 7 + Math.round(c) * 3
+  return ((raw % poolSize) + poolSize) % poolSize
+}
+
+/**
+ * Opening-sentence templates for `getPaletteDescription` (grain-2: "expanded
+ * description templates"). Every template starts with `${name}` verbatim -
+ * that invariant is relied on by callers that check the description opens
+ * with `getPaletteName`'s output. "(assumption — needs confirmation)" word
+ * choices, same status as every other template/vocabulary in this module.
+ */
+const DESCRIPTION_OPENERS: Array<(name: string, moodPhrase: string) => string> = [
+  (name, mood) => `${name} — a ${mood} palette built around your brand color.`,
+  (name, mood) => `${name} brings a ${mood} feel to your brand color.`,
+  (name, mood) => `${name} wraps your brand color in a ${mood} mood.`,
+  (name, mood) => `${name} gives your brand color a ${mood} character.`,
+]
+
+/** Closing-sentence templates for `getPaletteDescription` (grain-2). */
+const DESCRIPTION_CLOSERS: Array<(keywordPhrase: string) => string> = [
+  (kw) => `Expect a ${kw} feel throughout every shade.`,
+  (kw) => `Every shade carries a ${kw} undertone.`,
+  (kw) => `This palette reads as ${kw} across the board.`,
+  (kw) => `Each shade leans ${kw} from tint to shade.`,
+]
+
+/**
  * Pure function: deterministic 2-sentence description for the Palette
  * Description panel (grain-2), composed entirely from this module's existing
  * mood/vibe lookups - `getPaletteName` (which itself wraps `matchAesthetic`),
@@ -901,22 +1026,25 @@ function joinWithAnd(words: string[]): string {
  * (typically `averageHsl(palette)`) always returns the same 2 sentences.
  *
  * - Sentence 1 names the palette and states its mood, via `getPaletteName`
- *   and `getMoodTags` (1-2 adjectives).
- * - Sentence 2 surfaces a few of the richer `getVibeKeywords` adjectives (the
- *   first 3 of its 5+ unique words) for anyone who wants more than the
- *   compact mood pair - "the same vocabulary shown on the right today, now
- *   read as prose instead of a chip/line".
+ *   and `getMoodTags` (1-2 adjectives), picking one of `DESCRIPTION_OPENERS`.
+ * - Sentence 2 surfaces one word from each of `getVibeKeywords`'s 3 axes
+ *   (hue/saturation/lightness) for anyone who wants more than the compact
+ *   mood pair, picking one of `DESCRIPTION_CLOSERS`.
  *
  * Both sentences are always non-empty because `getMoodTags` guarantees at
- * least 1 word and `getVibeKeywords` guarantees at least 5.
+ * least 1 word and `getVibeKeywords` guarantees at least 5. Because sentence
+ * 1 embeds `getPaletteName`'s output verbatim, and that name alone spans 100+
+ * unique combinations (see `getPaletteName`), the description also reaches
+ * 100+ unique combinations across a representative HSL sample.
  */
 export function getPaletteDescription(hsl: HSL): string[] {
   const name = getPaletteName(hsl)
   const moodPhrase = joinWithAnd(getMoodTags(hsl).map((tag) => tag.toLowerCase()))
-  const keywordPhrase = getVibeKeywords(hsl).slice(0, 3).join(', ')
+  const vibeWords = getVibeKeywords(hsl)
+  const keywordPhrase = [vibeWords[0], vibeWords[2], vibeWords[4]].filter(Boolean).join(', ')
 
-  return [
-    `${name} — a ${moodPhrase} palette built around your brand color.`,
-    `Expect a ${keywordPhrase} feel throughout every shade.`,
-  ]
+  const opener = DESCRIPTION_OPENERS[templateIndex(hsl.h, hsl.s, hsl.l, DESCRIPTION_OPENERS.length)]
+  const closer = DESCRIPTION_CLOSERS[templateIndex(hsl.s, hsl.l, hsl.h, DESCRIPTION_CLOSERS.length)]
+
+  return [opener(name, moodPhrase), closer(keywordPhrase)]
 }

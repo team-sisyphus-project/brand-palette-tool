@@ -7,6 +7,7 @@ import {
   generateShades,
   getHarmonyColors,
   getMoodTags,
+  getVibeKeywords,
   hexToRgb,
   rgbToHsl,
 } from '../lib/palette'
@@ -824,6 +825,29 @@ describe('grain-2: palette export actions wiring', () => {
     expect(screen.getByRole('button', { name: 'Copy CSS Variables' })).toBeInTheDocument()
   })
 
+  // grain-4 (2026-08-26): PaletteExportActions moved from below the palette
+  // chips in the preview panel to directly below PaletteDescription inside
+  // panel-generator - see ColorGenerator.tsx's class doc comment, "export
+  // actions relocation + duplicate keyword line removal".
+  it('renders inside panel-generator, immediately after the Palette Description panel, not inside the preview panel', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const controlsPanel = document.querySelector('.panel-generator') as HTMLElement
+    const exportButton = screen.getByRole('button', { name: 'Copy CSS Variables' })
+    expect(controlsPanel).toContainElement(exportButton)
+
+    const descriptionPanel = screen.getByRole('region', { name: 'Palette description' })
+    // DOCUMENT_POSITION_FOLLOWING (4) means the export button comes after
+    // the description panel in document order.
+    expect(
+      descriptionPanel.compareDocumentPosition(exportButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+
+    const previewPanel = document.querySelector('.color-generator__preview') as HTMLElement
+    expect(within(previewPanel).queryByRole('button', { name: 'Copy CSS Variables' })).not.toBeInTheDocument()
+  })
+
   // grain-1 (2026-08-26): "Copy HEX" was removed from PaletteExportActions'
   // toolbar per the card's "우측 결과 영역 정리" instruction - see
   // PaletteExportActions.test.tsx for the button-level coverage of the
@@ -966,82 +990,64 @@ describe('grain-1: aesthetic name matching (M-5)', () => {
   // transition is no longer reproducible through the UI.
 })
 
-// grain-2: rich vibe-keyword "keyword:" line (5+ comma-joined adjectives,
-// spec A "provide intuitive vibe keywords"). VibeKeywords only renders
-// whatever getVibeKeywords(averageHsl(palette)) returns, so here we verify at
-// the ColorGenerator wiring level whether "5+ keywords are always shown
-// whenever a palette exists" and "the same input yields the same keywords
-// (determinism)". The detailed H/S/L band -> word mapping is covered by
-// palette.test.ts's getVibeKeywords unit tests.
-describe('grain-2: vibe keyword line', () => {
-  function getVibeKeywordsLine(): HTMLElement {
-    return screen.getByRole('status', { name: 'Palette vibe keywords' })
+// grain-4 (2026-08-26): the standalone right-panel "keyword:" line
+// (VibeKeywords, rendered separately from PaletteDescription's own keyword
+// list) is removed entirely per the card's "우측에 중복 렌더링되던
+// VibeKeywords 인스턴스 제거" instruction - see ColorGenerator.tsx's class doc
+// comment, "export actions relocation + duplicate keyword line removal".
+// getVibeKeywords(averageHsl(palette)) itself is untouched and still feeds
+// `paletteKeywords`, which PaletteDescription's own keyword list renders - it
+// just no longer has a second, duplicate renderer. The "5+ unique keywords
+// always shown, deterministically, and after every Regenerate" guarantee this
+// block used to verify through VibeKeywords' own `role=status` line still
+// holds; it is re-verified below against the left panel's keyword list, the
+// only surviving renderer of that data (determinism itself, and the exact
+// getVibeKeywords()-then-mood-words ordering, are already covered by "grain-1:
+// mood tag words relocated into the left keyword list" and "grain-3: Palette
+// Description panel" below).
+describe('grain-4: vibe keywords surface only through the left Palette Description panel', () => {
+  function getLeftKeywords(): string[] {
+    const panel = screen.getByRole('region', { name: 'Palette description' })
+    return within(within(panel).getByRole('list', { name: 'Palette keywords' }))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent!)
   }
 
-  it('the vibe keyword line is not rendered when there is no palette', () => {
+  it('never renders a standalone "Palette vibe keywords" status line, before or after Generate', () => {
     render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '' } })
     expect(screen.queryByRole('status', { name: 'Palette vibe keywords' })).not.toBeInTheDocument()
-  })
 
-  it('the vibe keyword line is not rendered before Generate is clicked, even with a valid brand color', () => {
-    render(<ColorGenerator />)
     fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    expect(screen.queryByRole('status', { name: 'Palette vibe keywords' })).not.toBeInTheDocument()
+
+    fireEvent.click(getGenerateButton())
     expect(screen.queryByRole('status', { name: 'Palette vibe keywords' })).not.toBeInTheDocument()
   })
 
-  it('clicking Generate with a valid color immediately shows a "keyword:" line with 5+ comma-separated keywords', () => {
+  it('clicking Generate with a valid color immediately shows 5+ unique keywords in the left panel keyword list', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
-    const line = getVibeKeywordsLine()
-    expect(line).toHaveTextContent(/^keyword:/)
-    const keywords = line.textContent!.replace(/^keyword:\s*/, '').split(', ')
+    const keywords = getLeftKeywords()
     expect(keywords.length).toBeGreaterThanOrEqual(5)
     expect(new Set(keywords).size).toBe(keywords.length) // all unique
   })
 
-  it('shows the same vibe keywords for a fresh mount given the same brand input (determinism)', () => {
-    const { unmount } = render(<ColorGenerator />)
-    generate('#3366ff')
-    const firstLine = getVibeKeywordsLine().textContent
-    unmount()
-
-    render(<ColorGenerator />)
-    generate('#3366ff')
-    const secondLine = getVibeKeywordsLine().textContent
-
-    expect(secondLine).toEqual(firstLine)
-  })
-
-  // grain-3 note: previously switched through all 5 generation modes via
-  // ModeSelector (now removed - see ColorGenerator.tsx's class doc comment).
-  // Repeated Regenerate clicks are the only still-reachable way to recompute
-  // `palette` multiple times, mirroring the equivalent mood-tags update above.
-  it('recomputing the palette via repeated Regenerate clicks always shows 5+ vibe keywords', () => {
+  // grain-3 note (unchanged from the removed block): ModeSelector is gone, so
+  // repeated Regenerate clicks are the only still-reachable way to recompute
+  // `palette` multiple times.
+  it('recomputing the palette via repeated Regenerate clicks always shows 5+ unique keywords in the left panel', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
     const regenerateButton = screen.getByRole('button', { name: 'Regenerate' })
     for (let round = 0; round < 3; round += 1) {
       fireEvent.click(regenerateButton)
-      const keywords = getVibeKeywordsLine()
-        .textContent!.replace(/^keyword:\s*/, '')
-        .split(', ')
+      const keywords = getLeftKeywords()
       expect(keywords.length).toBeGreaterThanOrEqual(5)
+      expect(new Set(keywords).size).toBe(keywords.length)
     }
-  })
-
-  it('the vibe keyword line keeps showing 5+ keywords after regeneration', () => {
-    render(<ColorGenerator />)
-    generate('#3366ff')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
-
-    const keywords = getVibeKeywordsLine()
-      .textContent!.replace(/^keyword:\s*/, '')
-      .split(', ')
-    expect(keywords.length).toBeGreaterThanOrEqual(5)
   })
 })
 
@@ -1190,14 +1196,16 @@ describe('grain-3: Palette Description panel (left panel)', () => {
     expect(keywords.length).toBeGreaterThanOrEqual(1)
   })
 
-  // grain-1 (2026-08-26): the left panel's keyword list is no longer an
-  // exact copy of the right panel's vibe keyword line - it is that same line
-  // *plus* any getMoodTags() words the former right-panel MoodTag chips used
-  // to show (deduped, lowercased - see ColorGenerator.tsx's class doc
-  // comment). This still proves "single source of truth" for the shared
-  // portion: the left list starts with exactly the right panel's keywords,
-  // in the same order, and only ever appends non-duplicate mood words after.
-  it('starts with the exact same keywords as the right panel\'s vibe keyword line, then appends any non-duplicate mood words (single source of truth)', () => {
+  // grain-4 (2026-08-26): this used to compare the left panel's keyword list
+  // against the right panel's standalone VibeKeywords status line, which is
+  // now removed (see ColorGenerator.tsx's class doc comment, "export actions
+  // relocation + duplicate keyword line removal") - PaletteDescription's
+  // keyword list is the only remaining renderer of this data. Re-verified
+  // directly against src/lib/palette.ts's getVibeKeywords() output instead of
+  // a second UI element: the left list starts with exactly
+  // getVibeKeywords(hsl), in the same order, and only ever appends
+  // non-duplicate getMoodTags() words after (deduped, lowercased).
+  it('starts with the exact getVibeKeywords() output, then appends any non-duplicate mood words (single source of truth)', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
@@ -1206,18 +1214,17 @@ describe('grain-3: Palette Description panel (left panel)', () => {
       .getAllByRole('listitem')
       .map((item) => item.textContent)
 
-    const rightLine = screen.getByRole('status', { name: 'Palette vibe keywords' }).textContent!
-    const rightKeywords = rightLine.replace(/^keyword:\s*/, '').split(', ')
-
-    expect(leftKeywords.slice(0, rightKeywords.length)).toEqual(rightKeywords)
-
     const hsl = averageHsl(generatePalette('#3366ff', 'complementary')!)
-    const lowerRightKeywords = new Set(rightKeywords.map((word) => word.toLowerCase()))
+    const vibeKeywords = getVibeKeywords(hsl)
+
+    expect(leftKeywords.slice(0, vibeKeywords.length)).toEqual(vibeKeywords)
+
+    const lowerVibeKeywords = new Set(vibeKeywords.map((word) => word.toLowerCase()))
     const expectedExtra = getMoodTags(hsl)
       .map((word) => word.toLowerCase())
-      .filter((word) => !lowerRightKeywords.has(word))
+      .filter((word) => !lowerVibeKeywords.has(word))
 
-    expect(leftKeywords.slice(rightKeywords.length)).toEqual(expectedExtra)
+    expect(leftKeywords.slice(vibeKeywords.length)).toEqual(expectedExtra)
   })
 
   it('the left panel never renders the removed ModeSelector or RecentPalettes elements, before or after Generate', () => {

@@ -87,6 +87,11 @@
   --space-8: 48px;
   --space-9: 64px;
   --touch-target-min: 44px;
+  /* grain-2 (2026-08-26): app-shell's outer width cap for wide-screen
+     support. Shares the spacing Token Group's space-allocation axis with
+     the content-padding and space tokens above (see design-spec grain-2
+     decision). */
+  --content-max-width: 1920px;
 
   /* Design tokens — color: adaptive semantic tokens (light values are the
      default/fallback). Toss look-and-feel: the light-theme neutrals below

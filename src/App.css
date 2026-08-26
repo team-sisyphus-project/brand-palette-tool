@@ -51,6 +51,8 @@
   flex-wrap: wrap;
   gap: var(--space-5);
   padding: var(--space-6);
+  max-width: var(--content-max-width);
+  margin: 0 auto;
 }
 
 .panel-generator {
