@@ -136,4 +136,21 @@ describe('WCAG AA contrast — neutral gray action/focus tokens vs --color-text-
       WCAG_AA_NORMAL_TEXT,
     )
   })
+
+  // --color-action-bg-fixed (grain-1, 2026-08-26): the Generate/Regenerate
+  // CTA's fixed pure-black background - declared once at the base :root
+  // (not re-declared per theme), so it must read identically, and clear
+  // WCAG AA against --color-text-on-action, in both themes.
+  it.each(themes)('%s theme: --color-action-bg-fixed vs --color-text-on-action meets 4.5:1', (theme) => {
+    void theme
+    const actionBgFixed = readBaseRootToken('--color-action-bg-fixed')
+    const ratio = contrastOfTextOnBackground(textOnAction, actionBgFixed)
+    expect(ratio, `${theme} --color-action-bg-fixed (${actionBgFixed}) vs --color-text-on-action (${textOnAction}) = ${ratio.toFixed(3)}`).toBeGreaterThanOrEqual(
+      WCAG_AA_NORMAL_TEXT,
+    )
+  })
+
+  it('--color-action-bg-fixed is #000000 (non-adaptive: same literal value regardless of theme)', () => {
+    expect(readBaseRootToken('--color-action-bg-fixed').toLowerCase()).toBe('#000000')
+  })
 })

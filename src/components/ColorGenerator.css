@@ -127,7 +127,11 @@
 }
 
 /* design-spec components/action-button: shared by Generate (grain-1) and
-   Regenerate. */
+   Regenerate. Black-CTA spec (grain-1, 2026-08-26): fixed 46px height, 16px
+   Inter, 0/21px padding, pure-black background - see the --control-height-
+   action / --font-action / --text-action-md / --content-padding-action-x /
+   --color-action-bg-fixed tokens in src/index.css and
+   design-spec/components/action-button/base.md. */
 .color-generator__generate,
 .color-generator__regenerate {
   align-self: flex-start;
@@ -135,14 +139,14 @@
   align-items: center;
   justify-content: center;
   min-width: var(--touch-target-min);
-  min-height: var(--touch-target-min);
-  padding: var(--content-padding-sm) var(--content-padding-md);
+  height: var(--control-height-action);
+  padding: 0 var(--content-padding-action-x);
   border: none;
   border-radius: var(--radius-control);
-  background: var(--color-action-bg);
+  background: var(--color-action-bg-fixed);
   color: var(--color-text-on-action);
-  font-family: var(--font-text);
-  font-size: var(--text-body-md);
+  font-family: var(--font-action);
+  font-size: var(--text-action-md);
   font-weight: var(--weight-text-medium);
   line-height: var(--leading-text);
   letter-spacing: var(--tracking-text);

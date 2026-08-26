@@ -40,6 +40,14 @@
   --weight-text-medium: 500;
   --weight-text-semibold: 600;
 
+  /* Design tokens — typography: Action (primary CTA button label - Generate/
+     Regenerate). Deliberately a separate family from Text above: the attached
+     spec calls for Inter specifically (not the Pretendard-first stack used
+     everywhere else), at a size (16px) that doesn't match any --text-body-*
+     step. Recorded in design-spec/token-groups/typography/base.md. */
+  --font-action: Inter, sans-serif;
+  --text-action-md: 16px;
+
   /* Design tokens — typography: Rounded (badges/tags)
      Toss look-and-feel: Pretendard first, same rationale as Display/Text. */
   --font-rounded: "Pretendard", ui-rounded, "SF Pro Rounded", var(--font-text);
@@ -80,6 +88,11 @@
   --content-padding-sm: 8px;
   --content-padding-md: 12px;
   --content-padding-lg: 2rem;
+  /* --content-padding-action-x (grain-1, 2026-08-26): Generate/Regenerate CTA
+     spec horizontal padding (21px), a pixel-precise value from the attached
+     mockup that doesn't land on the sm/md/lg content-padding steps above.
+     Recorded in design-spec/token-groups/spacing/base.md. */
+  --content-padding-action-x: 21px;
 
   /* Design tokens — spacing: 8px-multiple scale (app shell gap/padding source) */
   --space-1: 4px;
@@ -92,6 +105,12 @@
   --space-8: 48px;
   --space-9: 64px;
   --touch-target-min: 44px;
+  /* --control-height-action (grain-1, 2026-08-26): fixed height for the
+     Generate/Regenerate CTA (46px), distinct from --touch-target-min (44px,
+     the WCAG minimum floor applied broadly) - this is the exact control
+     height the attached spec calls for. Recorded in
+     design-spec/token-groups/sizing/base.md. */
+  --control-height-action: 46px;
 
   /* Design tokens — color: adaptive semantic tokens (light values are the
      default/fallback). Toss look-and-feel: the light-theme neutrals below
@@ -140,6 +159,15 @@
   --color-action-bg: #6e6e73;
   --color-action-bg-strong: color-mix(in srgb, var(--color-accent) 82%, black);
   --color-text-on-action: #ffffff;
+  /* --color-action-bg-fixed (grain-1, 2026-08-26): Generate/Regenerate CTA
+     spec calls for a fixed pure-black background in both themes - distinct
+     from the adaptive --color-action-bg (#6e6e73 light / #5c5c61 dark) above,
+     which stays reused as-is by ThemeToggle/PaletteSwatch/HarmonyExplorer/
+     ColorWheel. Declared once here (not re-declared per theme/OS-preference
+     block below) since it does not adapt. Verified 21:1 against
+     --color-text-on-action in contrast.test.ts. Recorded in
+     design-spec/token-groups/color/base.md. */
+  --color-action-bg-fixed: #000000;
   --color-state-error: var(--color-status-error);
   --color-state-error-bg: color-mix(in srgb, var(--color-status-error) 12%, transparent);
   /* grain-2 (spec C: HEX/CSS 변수 복사 피드백): same derivation pattern as
