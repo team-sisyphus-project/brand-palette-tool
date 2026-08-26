@@ -1,0 +1,92 @@
+/*
+ * grain-4: one row per checked combination - a live "Aa" preview swatch
+ * (actual foreground-on-background pairing) plus ratio/grade/recommendation
+ * text. Grade badge uses the existing success/error state tokens; AA (a
+ * WCAG pass, not a failure) intentionally stays neutral - see
+ * ContrastCheckerCard.tsx's doc comment.
+ */
+.contrast-checker-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contrast-checker-card__item {
+  display: flex;
+  align-items: center;
+  gap: var(--element-gap-md);
+}
+
+.contrast-checker-card__preview {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  font-family: var(--font-text);
+  font-size: var(--text-body-md);
+  font-weight: var(--weight-text-semibold);
+}
+
+.contrast-checker-card__details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--element-gap-xs);
+}
+
+.contrast-checker-card__label {
+  flex-basis: 100%;
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-primary);
+}
+
+.contrast-checker-card__ratio {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  font-weight: var(--weight-mono-regular);
+  line-height: var(--leading-mono);
+  letter-spacing: var(--tracking-mono);
+  color: var(--color-text-secondary);
+}
+
+.contrast-checker-card__grade {
+  padding: 0 var(--content-padding-sm);
+  font-family: var(--font-rounded);
+  font-size: var(--text-rounded-sm);
+  font-weight: var(--weight-rounded-medium);
+  line-height: var(--leading-rounded);
+  letter-spacing: var(--tracking-rounded);
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-muted);
+  border-radius: var(--radius-pill);
+}
+
+.contrast-checker-card__grade[data-grade='AAA'] {
+  color: var(--color-state-success);
+  background-color: var(--color-state-success-bg);
+}
+
+.contrast-checker-card__grade[data-grade='Fail'] {
+  color: var(--color-state-error);
+  background-color: var(--color-state-error-bg);
+}
+
+.contrast-checker-card__recommendation {
+  flex-basis: 100%;
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-secondary);
+}

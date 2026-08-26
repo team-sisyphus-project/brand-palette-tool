@@ -1,0 +1,43 @@
+/* grain-4: role list rows, token set matches Shades.css's label/hex pattern. */
+.semantic-roles-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.semantic-roles-card__item {
+  display: flex;
+  align-items: center;
+  gap: var(--element-gap-xs);
+}
+
+.semantic-roles-card__swatch {
+  flex: none;
+  width: var(--space-4);
+  height: var(--space-4);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+}
+
+.semantic-roles-card__label {
+  flex: 1;
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-primary);
+}
+
+.semantic-roles-card__hex {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  font-weight: var(--weight-mono-regular);
+  line-height: var(--leading-mono);
+  letter-spacing: var(--tracking-mono);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+}
