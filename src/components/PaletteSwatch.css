@@ -25,12 +25,19 @@
  * `--radius-card` - `--radius-card` still backs HarmonyExplorer's swatch
  * (out of scope here) and bumping it in place would have rounded that too.
  * See design-spec/token-groups/radius/base.md.
+ *
+ * Toss look-and-feel grain: adds `--shadow-subtle` (defined in index.css
+ * since the very first design-spec grain but never actually painted
+ * anywhere) so the main color tile reads as a soft elevated card, matching
+ * Toss's flat-color-plus-soft-shadow tile treatment instead of a flat bordered
+ * square.
  */
 .palette-swatch__color {
   width: 100%;
   aspect-ratio: 1;
   border: var(--border-width-default) solid var(--color-border-default);
   border-radius: var(--radius-container);
+  box-shadow: var(--shadow-subtle);
 }
 
 /*
