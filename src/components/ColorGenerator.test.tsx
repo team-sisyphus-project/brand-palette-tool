@@ -1,8 +1,15 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { generatePalette, generateShades, getHarmonyColors, hexToRgb, rgbToHsl } from '../lib/palette'
 import { ColorGenerator } from './ColorGenerator'
+
+// RecentPalettes (grain-2) persists to localStorage on every Regenerate/mode
+// change/manual edit and reads it back on mount - clear between tests so one
+// test's saved entries never leak into another's RecentPalettes list.
+beforeEach(() => {
+  window.localStorage.clear()
+})
 
 /** Pulls the `#rrggbb` hex code out of an aria-label like "Toggle lock for #3366ff color". */
 function extractHex(label: string): string {
@@ -769,6 +776,37 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
   })
 })
 
+// grain-2 (spec C M-1): wiring-level check that PaletteExportActions renders
+// alongside the palette. Clipboard-copy behavior itself (exact text copied,
+// success/failure feedback, CSS syntax validity) is covered in
+// PaletteExportActions.test.tsx, which owns navigator.clipboard mocking.
+// grain-1 note: this originally drove "a palette exists" by typing into the
+// brand field without clicking Generate (pre-Generate-gate auto-render). The
+// Generate gate (see the class doc comment) supersedes that - a palette (and
+// so PaletteExportActions) only ever appears after Generate is clicked, and
+// the brand field is unmounted afterward (grain-2), so "hides them without
+// one" is now only reachable pre-Generate rather than by clearing the field
+// again post-Generate. Split into two tests that verify the same intent
+// (no buttons without a palette; buttons appear once one exists) through the
+// reachable flow.
+describe('grain-2: palette export actions wiring', () => {
+  it('does not show Copy HEX / Copy CSS Variables buttons before Generate is clicked', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    expect(screen.queryByRole('button', { name: 'Copy HEX' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copy CSS Variables' })).not.toBeInTheDocument()
+  })
+
+  it('shows Copy HEX / Copy CSS Variables buttons once Generate reveals a palette', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    expect(screen.getByRole('button', { name: 'Copy HEX' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy CSS Variables' })).toBeInTheDocument()
+  })
+})
+
 describe('grain-2: generation mode selection (M-3)', () => {
   const MODE_LABELS = ['Complementary', 'Analogous', 'Triadic', 'Split Complementary', 'Monochromatic']
 
@@ -1228,5 +1266,200 @@ describe('grain-3: custom Color Study base color via Palette chip click', () => 
 
     const expectedAccent = getHarmonyColors(hslOfHex('#3366ff'), 'complementary')[0]
     expect(within(getColorStudySection()).getByText(expectedAccent.hex)).toBeInTheDocument()
+  })
+})
+
+// grain-2 (spec C "최근 생성 팔레트 로컬 저장 관리", M-3): RecentPalettes renders
+// whatever recentPalettes.ts has saved and, on selection, restores that exact
+// entry back onto the screen - bypassing regeneration entirely rather than
+// re-deriving a palette from the restored brand input. RecentPalettes itself
+// renders unconditionally (independent of `showResult`), so it stays visible
+// through the pre-generate intake form too. Selecting an entry also reveals
+// the result view immediately (handleSelectRecent marks `hasGenerated`, the
+// same way clicking Generate does) - and since the brand input is unmounted
+// once a result is showing (grain-2's "generated result view" supersedes
+// "brand input stays visible/editable after Generate"), these tests verify a
+// restore through the still-visible result surface (ModeSelector, the
+// palette itself, and lock state) rather than the now-hidden input's value.
+describe('grain-2: recent palettes list + restore', () => {
+  function getRecentList(): HTMLElement {
+    return screen.getByRole('list', { name: 'Recent palettes list' })
+  }
+
+  it('shows no recent-palettes section before anything has been saved', () => {
+    render(<ColorGenerator />)
+    expect(screen.queryByRole('region', { name: 'Recent palettes' })).not.toBeInTheDocument()
+  })
+
+  it('adds an entry to the recent-palettes list after Regenerate is clicked', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    const items = within(getRecentList()).getAllByRole('listitem')
+    expect(items).toHaveLength(1)
+  })
+
+  it('adds an entry to the recent-palettes list after switching generation mode', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+    fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
+
+    const items = within(getRecentList()).getAllByRole('listitem')
+    expect(items).toHaveLength(1)
+  })
+
+  it('adds an entry to the recent-palettes list after a manual per-slot color edit', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+    const originalHex = findLockButtonHex(
+      screen.getByRole('list', { name: 'Generated 5-color palette' }),
+      false,
+    )
+    fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
+
+    const items = within(getRecentList()).getAllByRole('listitem')
+    expect(items).toHaveLength(1)
+  })
+
+  it('selecting a recent entry restores the exact original palette on screen, even after switching mode away from it', () => {
+    render(<ColorGenerator />)
+
+    // Build and save a distinctive palette: Analogous mode, one extra locked slot.
+    generate('#3366ff')
+    fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const derivedHexBeforeLock = findLockButtonHex(list, false)
+    fireEvent.click(screen.getByRole('button', { name: `Toggle lock for ${derivedHexBeforeLock} color` }))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    const savedHexes = getHexes(list)
+    const savedLockStates = within(list)
+      .getAllByRole('button', { name: /Toggle lock for/ })
+      .map((button) => button.getAttribute('aria-pressed'))
+    // Keep a handle to this exact entry's button - it's a keyed list item, so
+    // the same DOM node is reused (just reordered) as later actions prepend
+    // more entries ahead of it.
+    const recentButtonForSavedEntry = within(getRecentList()).getAllByRole('button')[0]
+
+    // Wander away: a different mode (which saves its own new recent entry
+    // ahead of the one captured above). The brand input is unmounted once a
+    // result is showing (grain-2), so switching mode is the only still-
+    // reachable way to change the palette away from the saved one.
+    fireEvent.click(screen.getByRole('button', { name: 'Triadic' }))
+    expect(getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))).not.toEqual(savedHexes)
+
+    // Restore via the captured recent-palettes entry.
+    fireEvent.click(recentButtonForSavedEntry)
+
+    expect(screen.getByRole('button', { name: 'Analogous' })).toHaveAttribute('aria-pressed', 'true')
+    const restoredList = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(getHexes(restoredList)).toEqual(savedHexes)
+    expect(
+      within(restoredList)
+        .getAllByRole('button', { name: /Toggle lock for/ })
+        .map((button) => button.getAttribute('aria-pressed')),
+    ).toEqual(savedLockStates)
+  })
+
+  it('selecting a recent entry does not trigger regeneration (restored palette matches on repeated selection)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    const savedHexes = getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))
+
+    const recentButton = within(getRecentList()).getByRole('button')
+    fireEvent.click(recentButton)
+    fireEvent.click(recentButton)
+    fireEvent.click(recentButton)
+
+    expect(getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))).toEqual(savedHexes)
+  })
+})
+
+// grain-3 (spec C M-3, "새로고침 후에도 최근 팔레트를 안정적으로 다시 불러와
+// 적용할 수 있는지 검증"): no browser-level e2e runner exists in this stack,
+// so a page refresh is simulated the same way theme.test.ts proves
+// persistence across a fresh hook instance - here, unmounting the whole
+// ColorGenerator tree and mounting a brand new one against the *same* jsdom
+// localStorage (never cleared between the two renders within a test). A real
+// refresh destroys all in-memory React state and re-runs the app's initial
+// mount logic against whatever is already on disk; unmount() + a second
+// render() reproduces exactly that boundary.
+describe('grain-3: recent palettes survive a simulated refresh (M-3)', () => {
+  function getRecentList(): HTMLElement {
+    return screen.getByRole('list', { name: 'Recent palettes list' })
+  }
+
+  it('rehydrates the saved recent-palette list on a fresh mount after unmounting (simulated refresh)', () => {
+    const { unmount } = render(<ColorGenerator />)
+    generate('#3366ff')
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    expect(within(getRecentList()).getAllByRole('listitem')).toHaveLength(1)
+
+    // Simulate a page refresh: destroy this instance's React state entirely
+    // and mount a brand new tree. localStorage is untouched (no clear()).
+    unmount()
+    render(<ColorGenerator />)
+
+    // The new instance's initial recentPalettes state comes only from
+    // loadRecentPalettes() on mount - no interaction needed for it to appear
+    // (RecentPalettes renders unconditionally, independent of the
+    // Generate-gated result view).
+    expect(within(getRecentList()).getAllByRole('listitem')).toHaveLength(1)
+  })
+
+  it('accumulates entries saved before and after a simulated refresh into a single persisted list', () => {
+    const { unmount } = render(<ColorGenerator />)
+    generate('#3366ff')
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    unmount()
+    render(<ColorGenerator />)
+    generate('#ff0000')
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    // Both the pre-refresh and post-refresh saves persisted into the same
+    // underlying storage, newest first.
+    expect(within(getRecentList()).getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('selecting a rehydrated recent entry after a simulated refresh restores the identical palette state', () => {
+    const { unmount } = render(<ColorGenerator />)
+
+    // Build and save a distinctive palette: Analogous mode, an extra locked slot.
+    generate('#3366ff')
+    fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
+    const originalList = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const derivedHexBeforeLock = findLockButtonHex(originalList, false)
+    fireEvent.click(screen.getByRole('button', { name: `Toggle lock for ${derivedHexBeforeLock} color` }))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    const savedHexes = getHexes(originalList)
+    const savedLockStates = within(originalList)
+      .getAllByRole('button', { name: /Toggle lock for/ })
+      .map((button) => button.getAttribute('aria-pressed'))
+
+    // Simulate a full page refresh: unmount and mount a fresh instance
+    // against the same localStorage, with no in-memory state carried over.
+    unmount()
+    render(<ColorGenerator />)
+
+    // The fresh instance starts from its own default, pre-generate state.
+    expect(getInput().value).toBe('#E84C40')
+
+    // Two saves happened before the refresh (the Analogous mode change, then
+    // Regenerate) - the newest (index 0) is the one matching savedHexes.
+    // Selecting it reveals the result view immediately (handleSelectRecent
+    // marks hasGenerated), the same way Generate does.
+    const recentButton = within(getRecentList()).getAllByRole('button')[0]
+    fireEvent.click(recentButton)
+
+    expect(screen.getByRole('button', { name: 'Analogous' })).toHaveAttribute('aria-pressed', 'true')
+    const restoredList = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(getHexes(restoredList)).toEqual(savedHexes)
+    expect(
+      within(restoredList)
+        .getAllByRole('button', { name: /Toggle lock for/ })
+        .map((button) => button.getAttribute('aria-pressed')),
+    ).toEqual(savedLockStates)
   })
 })

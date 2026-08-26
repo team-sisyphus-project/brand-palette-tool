@@ -16,12 +16,15 @@ import {
   type PaletteColor,
 } from '../lib/palette'
 import type { Theme } from '../lib/theme'
+import { loadRecentPalettes, saveRecentPalette, type RecentPaletteEntry } from '../lib/recentPalettes'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
 import { ColorStudy } from './ColorStudy'
 import { ModeSelector } from './ModeSelector'
 import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
+import { PaletteExportActions } from './PaletteExportActions'
+import { RecentPalettes } from './RecentPalettes'
 import { ThemeToggle } from './ThemeToggle'
 import { VibeKeywords } from './VibeKeywords'
 import './ColorGenerator.css'
@@ -88,6 +91,11 @@ export interface ColorGeneratorProps {
  * color picker. Editing a slot applies updateSlotColor() and auto-locks
  * that slot (see context/decisions/) so a manual edit is never silently
  * overwritten by the next Regenerate click.
+ *
+ * Right below the palette, a PaletteExportActions renders whenever `palette`
+ * exists: "Copy HEX" / "Copy CSS Variables" buttons that copy grain-1's
+ * paletteToHexList()/paletteToCssVariablesText() output to the clipboard
+ * (spec C M-1), with a transient success/failure message.
  *
  * A ModeSelector lets the user pick one of 5 standard color-wheel harmony
  * modes (Complementary/Analogous/Triadic/Split Complementary/Monochromatic,
@@ -165,6 +173,25 @@ export interface ColorGeneratorProps {
  * validation (`extraColorErrors`, reusing `parseColorInput`) and the
  * `extraColors` state shape (still a fixed 4-slot array) are unchanged from
  * grain-1.
+ *
+ * grain-2 (recent palettes): every Regenerate click, mode change, and manual per-slot color edit also
+ * calls recentPalettes.ts's saveRecentPalette() with the resulting colors/
+ * mode/locks (spec C "최근 생성 팔레트 로컬 저장 관리", M-3) -
+ * (assumption — needs confirmation) on *those* actions specifically, not on
+ * every input keystroke, since an in-progress edit that hasn't been acted on
+ * yet isn't a "saved" palette worth keeping in the recent list.
+ *
+ * A RecentPalettes list (grain-2) renders alongside the controls (always
+ * visible, independent of `showResult`), sourced from loadRecentPalettes()
+ * on mount and refreshed from every saveRecentPalette() call's return value
+ * thereafter, so it always reflects what is actually persisted. Selecting an
+ * entry (handleSelectRecent) writes that entry's inputValue/mode/locks
+ * verbatim into state, marks `hasGenerated` so the result view is revealed
+ * immediately, and writes its saved `colors` straight into `regenerated` -
+ * the same short-circuit Regenerate/mode-change/manual-edit use to bypass
+ * `basePalette` - so the exact original palette reappears on screen instead
+ * of being recomputed from the restored brand input (spec C M-3's "다시
+ * 불러올 수 있음").
  */
 export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_THEME }: ColorGeneratorProps) {
   const [inputValue, setInputValue] = useState('#E84C40')
@@ -183,6 +210,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
   const [hasGenerated, setHasGenerated] = useState(false)
   // grain-3: which palette slot Color Study currently uses as its base color.
   const [baseColorIndex, setBaseColorIndex] = useState(BRAND_SLOT_INDEX)
+  const [recentPalettes, setRecentPalettes] = useState<RecentPaletteEntry[]>(() => loadRecentPalettes())
 
   const trimmed = inputValue.trim()
   const basePalette = useMemo(
@@ -237,21 +265,45 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
     const fresh = generatePalette(trimmed, nextMode)
     if (!fresh) return
     // Keep locked slots as-is; only unlocked slots adopt the new mode's colors.
-    setRegenerated(fresh.map((color, index) => (locks[index] && palette[index] ? palette[index] : color)))
+    const merged = fresh.map((color, index) => (locks[index] && palette[index] ? palette[index] : color))
+    setRegenerated(merged)
+    setRecentPalettes(saveRecentPalette({ brandInput: trimmed, mode: nextMode, colors: merged, locks }))
   }
 
   const handleRegenerate = () => {
     if (!palette) return
     const next = regeneratePalette(palette, trimmed, locks, undefined, mode)
-    if (next) setRegenerated(next)
+    if (!next) return
+    setRegenerated(next)
+    setRecentPalettes(saveRecentPalette({ brandInput: trimmed, mode, colors: next, locks }))
   }
 
   const handleSlotColorChange = (index: number, hex: string) => {
     if (!palette) return
     const next = updateSlotColor(palette, index, hex)
     if (next === palette) return // invalid hex from updateSlotColor's contract; no-op
+    const nextLocks = locks.map((locked, slot) => (slot === index ? true : locked))
     setRegenerated(next)
-    setLocks((prev) => prev.map((locked, slot) => (slot === index ? true : locked)))
+    setLocks(nextLocks)
+    setRecentPalettes(saveRecentPalette({ brandInput: trimmed, mode, colors: next, locks: nextLocks }))
+  }
+
+  /**
+   * Restores a saved recent-palette entry exactly as it was captured:
+   * brand input text, generation mode, per-slot locks, and the saved colors
+   * themselves - written into `regenerated` so it bypasses `basePalette`'s
+   * regeneration entirely rather than re-deriving from the restored input.
+   * Also marks `hasGenerated` so the result view (gated by grain-1's
+   * Generate click) is revealed immediately, the same way clicking Generate
+   * does - restoring a saved palette is itself a way of "generating" a
+   * result onto the screen.
+   */
+  const handleSelectRecent = (entry: RecentPaletteEntry) => {
+    setInputValue(entry.brandInput)
+    setMode(entry.mode)
+    setLocks(entry.locks)
+    setRegenerated(entry.colors)
+    setHasGenerated(true)
   }
 
   const previewClassName = showResult
@@ -310,6 +362,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
             </button>
           </>
         )}
+        <RecentPalettes entries={recentPalettes} onSelect={handleSelectRecent} />
       </section>
       <section className={previewClassName}>
         <div className="color-generator__theme-toggle-row">
@@ -330,6 +383,12 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
               onToggleLock={handleToggleLock}
               onColorChange={handleSlotColorChange}
               onSelectBase={setBaseColorIndex}
+            />
+            <PaletteExportActions
+              palette={palette}
+              mode={mode}
+              moodTags={moodTags}
+              aestheticMatch={aestheticMatch}
             />
             <MoodTag tags={moodTags} />
             <AestheticMatch match={aestheticMatch} />

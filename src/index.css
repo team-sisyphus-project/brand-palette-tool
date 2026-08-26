@@ -131,6 +131,13 @@
   --color-text-on-action: #ffffff;
   --color-state-error: var(--color-status-error);
   --color-state-error-bg: color-mix(in srgb, var(--color-status-error) 12%, transparent);
+  /* grain-2 (spec C: HEX/CSS 변수 복사 피드백): same derivation pattern as
+     --color-state-error/-bg above, mirrored onto --color-status-success -
+     no new raw color, just the missing "success feedback" semantic layer
+     that --color-state-error already has for the error case. Recorded in
+     the design spec's color Token Group. */
+  --color-state-success: var(--color-status-success);
+  --color-state-success-bg: color-mix(in srgb, var(--color-status-success) 12%, transparent);
 }
 
 /* Manual theme toggle: explicit opt-in to light, always wins over OS preference. */
