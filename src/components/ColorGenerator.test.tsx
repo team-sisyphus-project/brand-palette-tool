@@ -819,3 +819,88 @@ describe('grain-2: recent palettes list + restore', () => {
     expect(getHexes(screen.getByRole('list', { name: 'Generated 5-color palette' }))).toEqual(savedHexes)
   })
 })
+
+// grain-3 (spec C M-3, "새로고침 후에도 최근 팔레트를 안정적으로 다시 불러와
+// 적용할 수 있는지 검증"): no browser-level e2e runner exists in this stack,
+// so a page refresh is simulated the same way theme.test.ts proves
+// persistence across a fresh hook instance - here, unmounting the whole
+// ColorGenerator tree and mounting a brand new one against the *same* jsdom
+// localStorage (never cleared between the two renders within a test). A real
+// refresh destroys all in-memory React state and re-runs the app's initial
+// mount logic against whatever is already on disk; unmount() + a second
+// render() reproduces exactly that boundary.
+describe('grain-3: recent palettes survive a simulated refresh (M-3)', () => {
+  function getRecentList(): HTMLElement {
+    return screen.getByRole('list', { name: 'Recent palettes list' })
+  }
+
+  it('rehydrates the saved recent-palette list on a fresh mount after unmounting (simulated refresh)', () => {
+    const { unmount } = render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    expect(within(getRecentList()).getAllByRole('listitem')).toHaveLength(1)
+
+    // Simulate a page refresh: destroy this instance's React state entirely
+    // and mount a brand new tree. localStorage is untouched (no clear()).
+    unmount()
+    render(<ColorGenerator />)
+
+    // The new instance's initial recentPalettes state comes only from
+    // loadRecentPalettes() on mount - no interaction needed for it to appear.
+    expect(within(getRecentList()).getAllByRole('listitem')).toHaveLength(1)
+  })
+
+  it('accumulates entries saved before and after a simulated refresh into a single persisted list', () => {
+    const { unmount } = render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    unmount()
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#ff0000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    // Both the pre-refresh and post-refresh saves persisted into the same
+    // underlying storage, newest first.
+    expect(within(getRecentList()).getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('selecting a rehydrated recent entry after a simulated refresh restores the identical palette state', () => {
+    const { unmount } = render(<ColorGenerator />)
+
+    // Build and save a distinctive palette: Analogous mode, an extra locked slot.
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Analogous' }))
+    const originalList = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const derivedHexBeforeLock = findLockButtonHex(originalList, false)
+    fireEvent.click(screen.getByRole('button', { name: `Toggle lock for ${derivedHexBeforeLock} color` }))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    const savedHexes = getHexes(originalList)
+    const savedLockStates = within(originalList)
+      .getAllByRole('button', { name: /Toggle lock for/ })
+      .map((button) => button.getAttribute('aria-pressed'))
+
+    // Simulate a full page refresh: unmount and mount a fresh instance
+    // against the same localStorage, with no in-memory state carried over.
+    unmount()
+    render(<ColorGenerator />)
+
+    // The fresh instance starts from its own default state, not the saved one.
+    expect(getInput().value).toBe('#E84C40')
+
+    // Two saves happened before the refresh (the Analogous mode change, then
+    // Regenerate) - the newest (index 0) is the one matching savedHexes.
+    const recentButton = within(getRecentList()).getAllByRole('button')[0]
+    fireEvent.click(recentButton)
+
+    expect(getInput().value).toBe('#3366ff')
+    expect(screen.getByRole('button', { name: 'Analogous' })).toHaveAttribute('aria-pressed', 'true')
+    const restoredList = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(getHexes(restoredList)).toEqual(savedHexes)
+    expect(
+      within(restoredList)
+        .getAllByRole('button', { name: /Toggle lock for/ })
+        .map((button) => button.getAttribute('aria-pressed')),
+    ).toEqual(savedLockStates)
+  })
+})
