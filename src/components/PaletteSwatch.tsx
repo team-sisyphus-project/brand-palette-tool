@@ -1,4 +1,5 @@
 import { useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent } from 'react'
+import { Lock, Unlock } from 'lucide-react'
 import { hexToRgb, type PaletteColor } from '../lib/palette'
 import './PaletteSwatch.css'
 
@@ -55,6 +56,17 @@ export interface PaletteSwatchProps {
  * per design-spec/token-groups/radius/base.md. `onToggleLock`'s contract
  * (and its own `stopPropagation` so it never also fires `onSelectBase`) is
  * unchanged - only where the button sits in the markup moved.
+ *
+ * grain-3 (lock icon + always-visible-when-locked + bottom-center):
+ * the emoji glyphs (🔒/🔓) are replaced with `lucide-react`'s `Lock`/`Unlock`
+ * components (decorative, `aria-hidden` - the button's own `aria-label`
+ * still carries the accessible name) per
+ * design-spec/components/palette-swatch/base.md. The overlay moves from the
+ * preview's top-right corner to bottom-center (PaletteSwatch.css). Locked
+ * slots (`aria-pressed="true"`) now stay at `opacity: 1` unconditionally
+ * instead of only on hover/focus, so a locked color reads as locked without
+ * requiring a hover; unlocked slots keep the grain-2 hover/focus-only
+ * reveal.
  *
  * grain-3 (inline hex click-to-edit): the HEX label below the swatch is now a
  * button (`isEditingHex === false`) that swaps to a text input on click. The
@@ -195,7 +207,11 @@ export function PaletteSwatch({
           aria-label={`Toggle lock for ${color.hex} color`}
           onClick={handleLockClick}
         >
-          {isLocked ? '🔒' : '🔓'}
+          {isLocked ? (
+            <Lock size={16} aria-hidden="true" />
+          ) : (
+            <Unlock size={16} aria-hidden="true" />
+          )}
         </button>
       </div>
       {isEditingHex ? (
