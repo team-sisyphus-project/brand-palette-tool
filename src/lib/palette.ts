@@ -688,6 +688,84 @@ export function getMoodTags(hsl: HSL): string[] {
 }
 
 /**
+ * Hue-temperature band used by `getVibeKeywords`'s vocabulary lookup below.
+ * Reuses `hueMoodWord`'s own band boundaries (`WARM_HUE_MAX`/`COOL_HUE_MIN`/
+ * `COOL_HUE_MAX`) so the two hue-based lookups stay in agreement, but is kept
+ * as its own function (rather than refactoring `hueMoodWord` to share it) so
+ * `getMoodTags`'s existing output is untouched.
+ */
+function hueVibeBand(h: number): 'warm' | 'neutral' | 'cool' {
+  const hue = normalizeHue(h)
+  if (hue >= COOL_HUE_MIN && hue < COOL_HUE_MAX) return 'cool'
+  if (hue >= WARM_HUE_MAX && hue < COOL_HUE_MIN) return 'neutral'
+  return 'warm'
+}
+
+/**
+ * Plain-English, non-expert-friendly vibe vocabulary for `getVibeKeywords`
+ * (2026-08-26 grain: "Rich vibe-keyword generation logic"). Every entry is
+ * "(assumption — needs confirmation)", same status as `getMoodTags`'s bands
+ * and `AESTHETIC_ARCHETYPES` above - these are reasonable emotional-adjective
+ * choices, not a cited vocabulary study.
+ *
+ * Deliberately a *separate* word bank from `getMoodTags`'s single-word-per-
+ * axis output (`hueMoodWord`/`SATURATION_LIGHTNESS_MOOD`): `getMoodTags`
+ * exists for the compact 1-2 word `MoodTag` pill display, while this bank
+ * feeds the richer "keyword:" line (spec: 5+ comma-joined adjectives for
+ * users with no color-theory background) - two words per band, one band per
+ * axis (hue temperature / saturation / lightness), so a normal HSL input
+ * contributes 2+2+2 = 6 candidate words.
+ *
+ * Every word across all three banks is unique (no word appears twice) by
+ * construction, which is what lets `getVibeKeywords` guarantee 5+ *unique*
+ * adjectives without ever needing to pad or repeat. (Some individual words -
+ * e.g. "warm", "vibrant" - deliberately echo `getMoodTags`'s vocabulary,
+ * since those are the natural plain-English words for that band; the
+ * uniqueness guarantee only requires the 3 banks below to be disjoint from
+ * *each other*, not from `getMoodTags`.)
+ */
+const HUE_VIBE_WORDS: Record<'warm' | 'neutral' | 'cool', [string, string]> = {
+  warm: ['warm', 'cozy'], // (assumption — needs confirmation)
+  neutral: ['balanced', 'natural'], // (assumption — needs confirmation)
+  cool: ['cool', 'calm'], // (assumption — needs confirmation)
+}
+
+const SATURATION_VIBE_WORDS: Record<Band, [string, string]> = {
+  high: ['vibrant', 'bold'], // (assumption — needs confirmation)
+  mid: ['fresh', 'friendly'], // (assumption — needs confirmation)
+  low: ['soft', 'subtle'], // (assumption — needs confirmation)
+}
+
+const LIGHTNESS_VIBE_WORDS: Record<Band, [string, string]> = {
+  high: ['bright', 'cheerful'], // (assumption — needs confirmation)
+  mid: ['comfortable', 'steady'], // (assumption — needs confirmation)
+  low: ['deep', 'sophisticated'], // (assumption — needs confirmation)
+}
+
+/**
+ * Pure function: the same HSL input always yields the same 6 unique,
+ * plain-English emotional adjectives (no AI, no randomness) describing a
+ * palette's vibe for users with no color-theory background. Extends the
+ * hue/saturation/lightness lookup-table pattern `getMoodTags` established -
+ * same three axes (`hueVibeBand`, `saturationBand`, `lightnessBand`), a
+ * richer word bank per axis - so the same H/S/L thresholds classify a color
+ * identically for both the compact mood pill and this longer keyword line.
+ *
+ * Always returns at least 5 (in practice exactly 6, since the 3 word banks
+ * are disjoint by construction) unique adjectives, ready to be joined with
+ * `', '` for the "keyword:" line - "5+ clear, emotional keywords on one line"
+ * per spec.
+ */
+export function getVibeKeywords(hsl: HSL): string[] {
+  const words = [
+    ...HUE_VIBE_WORDS[hueVibeBand(hsl.h)],
+    ...SATURATION_VIBE_WORDS[saturationBand(hsl.s)],
+    ...LIGHTNESS_VIBE_WORDS[lightnessBand(hsl.l)],
+  ]
+  return Array.from(new Set(words))
+}
+
+/**
  * One aesthetic archetype's display name and center HSL for `matchAesthetic`
  * (spec A "Aesthetic name matching", M-5).
  */

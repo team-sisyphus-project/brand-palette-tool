@@ -12,6 +12,7 @@ import {
   generateShades,
   getHarmonyColors,
   getMoodTags,
+  getVibeKeywords,
   hexToRgb,
   hslToRgb,
   matchAesthetic,
@@ -808,6 +809,66 @@ describe('getMoodTags', () => {
 
   it('treats the cool hue band boundary (300deg) as warm, not cool', () => {
     expect(getMoodTags({ h: 300, s: 45, l: 50 })[0]).toBe('Warm')
+  })
+})
+
+describe('getVibeKeywords', () => {
+  it('is a pure function: the same HSL input always yields the same keywords', () => {
+    const hsl: HSL = { h: 200, s: 55, l: 40 }
+    expect(getVibeKeywords(hsl)).toEqual(getVibeKeywords(hsl))
+    expect(getVibeKeywords({ ...hsl })).toEqual(getVibeKeywords({ ...hsl }))
+  })
+
+  it('always returns 5+ unique, non-empty, plain-English adjectives across the H/S/L band grid', () => {
+    const hues = [0, 30, 60, 90, 150, 180, 240, 299, 300, 330, 359]
+    const levels = [0, 15, 30, 45, 60, 75, 90, 100]
+
+    for (const h of hues) {
+      for (const s of levels) {
+        for (const l of levels) {
+          const keywords = getVibeKeywords({ h, s, l })
+          expect(keywords.length).toBeGreaterThanOrEqual(5)
+          expect(new Set(keywords).size).toBe(keywords.length) // no duplicate keywords
+          for (const word of keywords) {
+            expect(word.length).toBeGreaterThan(0)
+            expect(word).toMatch(/^[a-z]+$/) // plain-English, lowercase, no Korean/AI-punctuation
+          }
+        }
+      }
+    }
+  })
+
+  it('maps a warm, vivid, bright HSL to warm + high-saturation + high-lightness vocabulary', () => {
+    expect(getVibeKeywords({ h: 30, s: 70, l: 80 })).toEqual([
+      'warm',
+      'cozy',
+      'vibrant',
+      'bold',
+      'bright',
+      'cheerful',
+    ])
+  })
+
+  it('maps a cool, muted, dark HSL to cool + low-saturation + low-lightness vocabulary', () => {
+    expect(getVibeKeywords({ h: 240, s: 10, l: 20 })).toEqual([
+      'cool',
+      'calm',
+      'soft',
+      'subtle',
+      'deep',
+      'sophisticated',
+    ])
+  })
+
+  it('maps a neutral-hue, mid-saturation, mid-lightness HSL to balanced + mid vocabulary', () => {
+    expect(getVibeKeywords({ h: 120, s: 45, l: 50 })).toEqual([
+      'balanced',
+      'natural',
+      'fresh',
+      'friendly',
+      'comfortable',
+      'steady',
+    ])
   })
 })
 
