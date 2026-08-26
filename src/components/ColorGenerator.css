@@ -42,6 +42,19 @@
 }
 
 /*
+ * grain-1: ThemeToggle's anchor row inside the preview/color panel - right
+ * aligned so the toggle sits at that panel's top-right corner, above the
+ * palette chips (and above Regenerate once a result exists). Rendered
+ * unconditionally, so it also occupies the top-right corner of the (empty)
+ * pre-generate preview panel.
+ */
+.color-generator__theme-toggle-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+/*
  * grain-2: once a palette has been generated, the preview panel
  * (color-generator__preview--result) centers its contents - the Regenerate
  * button now rendered directly above the color chips, the chips themselves,

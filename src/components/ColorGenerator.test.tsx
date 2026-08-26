@@ -73,6 +73,65 @@ function mockDeterministicRandom() {
   })
 }
 
+// grain-1 (theme toggle placement): App no longer renders ThemeToggle in its
+// header — ColorGenerator now owns rendering it, anchored inside the
+// color/preview panel (`panel-preview` / `.color-generator__preview`),
+// top-right, above whatever else that panel renders. It must be present in
+// both the pre-generate (empty preview) and post-generate (result) states,
+// and `theme`/`onToggleTheme` must be threaded straight through to the
+// underlying ThemeToggle.
+describe('grain-1: theme toggle placement (color panel top-right)', () => {
+  function getPreviewSection(): HTMLElement {
+    // panel-preview is always present; grab it by its stable class rather
+    // than via the (sometimes absent, pre-generate) palette list.
+    return document.querySelector('.color-generator__preview') as HTMLElement
+  }
+
+  it('renders the toggle inside the color/preview panel before Generate, not the controls panel', () => {
+    render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
+
+    const toggle = screen.getByRole('switch')
+    expect(getPreviewSection()).toContainElement(toggle)
+
+    const controlsPanel = getInput().closest('section')!
+    expect(within(controlsPanel).queryByRole('switch')).not.toBeInTheDocument()
+  })
+
+  it('keeps the toggle inside the color/preview panel after Generate, positioned above the color chips', () => {
+    render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
+    generate('#3366ff')
+
+    const preview = getPreviewSection()
+    const toggle = screen.getByRole('switch')
+    expect(preview).toContainElement(toggle)
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    // DOCUMENT_POSITION_FOLLOWING (4) means `list` comes after `toggle`.
+    expect(toggle.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('right-aligns the toggle row so the toggle anchors to the top-right corner of the color panel', () => {
+    render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
+
+    const toggle = screen.getByRole('switch')
+    const row = toggle.closest('.color-generator__theme-toggle-row')
+    expect(row).toBeInTheDocument()
+    // The row is the first child of the preview panel in both pre/post-generate states.
+    expect(getPreviewSection().firstElementChild).toBe(row)
+  })
+
+  it('reflects the theme prop and calls onToggleTheme when clicked', () => {
+    const onToggleTheme = vi.fn()
+    render(<ColorGenerator theme="dark" onToggleTheme={onToggleTheme} />)
+
+    const toggle = screen.getByRole('switch', { name: 'Switch to light theme' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(toggle)
+    expect(onToggleTheme).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('grain-1: intake form fields (pre-generate)', () => {
   it('renders the brand field, 4 optional additional Hex fields, and 1 mood-keyword field, with no result section', () => {
     render(<ColorGenerator />)

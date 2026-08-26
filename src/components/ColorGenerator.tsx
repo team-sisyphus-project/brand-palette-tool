@@ -14,12 +14,14 @@ import {
   type Locks,
   type PaletteColor,
 } from '../lib/palette'
+import type { Theme } from '../lib/theme'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
 import { ColorStudy } from './ColorStudy'
 import { ModeSelector } from './ModeSelector'
 import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
+import { ThemeToggle } from './ThemeToggle'
 import './ColorGenerator.css'
 
 const INVALID_COLOR_MESSAGE =
@@ -33,6 +35,20 @@ const ADDITIONAL_COLOR_COUNT = 4
 
 /** Placeholder shared by the optional additional Hex fields (grain-1). */
 const ADDITIONAL_COLOR_PLACEHOLDER = '#3366ff or 51, 102, 255 (optional)'
+
+/** No-op fallback so ColorGenerator stays mountable without a theme wired up (e.g. in tests). */
+const NOOP_TOGGLE_THEME = () => {}
+
+export interface ColorGeneratorProps {
+  /**
+   * Currently resolved theme, owned by App's `useTheme()`. Optional (defaults
+   * to 'light') so existing call sites/tests that don't care about theming
+   * can keep mounting `<ColorGenerator />` bare.
+   */
+  theme?: Theme
+  /** Called when the user activates the color panel's theme toggle. */
+  onToggleTheme?: () => void
+}
 
 /**
  * Feature-level container for spec A's color generator.
@@ -120,8 +136,16 @@ const ADDITIONAL_COLOR_PLACEHOLDER = '#3366ff or 51, 102, 255 (optional)'
  * passed down to `ColorStudy`, which uses `palette[baseColorIndex]` (falling
  * back to the brand slot) as the base color for both the harmony explorer
  * and the new Shades ramp - see ColorStudy.tsx.
+ *
+ * grain-1 (theme toggle placement): a ThemeToggle is now rendered inside
+ * `panel-preview` itself - in a dedicated top row, right-aligned, above
+ * everything else in that panel (Regenerate/palette chips when a result
+ * exists). It renders unconditionally (both before and after Generate),
+ * since `panel-preview`'s children below it are the only part gated by
+ * `showResult`. `theme`/`onToggleTheme` are owned by App's `useTheme()` and
+ * threaded down as props - ColorGenerator holds no theme state of its own.
  */
-export function ColorGenerator() {
+export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_THEME }: ColorGeneratorProps) {
   const [inputValue, setInputValue] = useState('#E84C40')
   const [extraColors, setExtraColors] = useState<string[]>(() =>
     Array.from({ length: ADDITIONAL_COLOR_COUNT }, () => ''),
@@ -244,6 +268,9 @@ export function ColorGenerator() {
         )}
       </section>
       <section className={previewClassName}>
+        <div className="color-generator__theme-toggle-row">
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        </div>
         {showResult && palette && (
           <>
             <button

@@ -97,6 +97,13 @@
      that need a background/border/action color stay in sync with the active theme. */
   --color-bg-surface: var(--color-system-bg-tertiary);
   --color-bg-muted: var(--color-system-bg-secondary);
+  /* Page-level (body) background — distinct from --color-bg-muted so a
+     future muted-surface tweak can't silently change the page background.
+     Defaults to the secondary system background (pre-existing behavior);
+     explicitly overridden to pure white in the light theme below
+     (grain-1, see context/decisions/). Dark/OS-preference values are
+     untouched — they keep tracking --color-system-bg-secondary. */
+  --color-bg-page: var(--color-system-bg-secondary);
   --color-bg-hover: color-mix(in srgb, var(--color-system-bg-tertiary) 92%, var(--color-text-primary) 8%);
   --color-border-default: var(--border-subtle);
   --color-border-hover: color-mix(in srgb, var(--border-subtle) 100%, var(--color-text-primary) 20%);
@@ -135,6 +142,9 @@
   --color-action-bg: #6e6e73;
   --material-thick-bg: rgba(255, 255, 255, 0.72);
   --material-thin-bg: rgba(255, 255, 255, 0.55);
+  /* grain-1: light-mode page background is pure white, independent of
+     --color-bg-muted (which stays --color-system-bg-secondary, #f2f2f7). */
+  --color-bg-page: #ffffff;
 }
 
 /* Manual theme toggle: explicit opt-in to dark, always wins over OS preference. */
@@ -205,7 +215,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--color-system-bg-secondary);
+  background: var(--color-bg-page);
   color: var(--color-text-primary);
   font-family: var(--font-text);
 }
