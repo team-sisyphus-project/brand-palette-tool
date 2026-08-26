@@ -1,0 +1,69 @@
+/*
+ * grain-5: 3 stacked slide mocks (title/body/chart), fully palette-driven
+ * via inline styles from `getColorRoles`/`getBestTextColor`/
+ * `getChartColorSeries` - this file only owns structural layout tokens
+ * (spacing/radius/typography/border-width), never a color value. Matches
+ * the `--radius-control` convention grain-4 already established for
+ * elements nested inside a card (the outer `--radius-card` belongs to
+ * CardShell). `aspect-ratio` is an implementation setting, not a design
+ * token (see policy/coding.md) - it just keeps each slide reading as a
+ * 16:9 deck slide instead of a design value.
+ */
+.presentation-preview-card__slides {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.presentation-preview-card__slide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width-default) solid;
+  border-radius: var(--radius-control);
+}
+
+.presentation-preview-card__kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  font-weight: var(--weight-mono-medium);
+  line-height: var(--leading-mono);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+}
+
+.presentation-preview-card__title {
+  font-family: var(--font-display);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-display-semibold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+}
+
+.presentation-preview-card__bullets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap-xs);
+  margin: 0;
+  padding-inline-start: var(--space-4);
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-text-regular);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+}
+
+.presentation-preview-card__chart {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.presentation-preview-card__bar {
+  flex: 1;
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
+}
