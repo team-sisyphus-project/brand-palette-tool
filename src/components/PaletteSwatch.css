@@ -66,14 +66,31 @@
  * policy/coding.md - same treatment as `.palette-swatch__color-picker`
  * above); `cursor: text` and the hover/focus-visible rules below are the
  * "this is editable" affordance the assignment asks for, without changing
- * the token values already carrying this text's color/typography.
+ * the token values already carrying this text's color.
+ *
+ * grain-4 (2026-08-26): switched from the Mono type role
+ * (`--font-mono`/`--text-mono-md`/`--weight-mono-regular`) to the Display
+ * role, reusing the exact family/weight tokens `.app__intro h1` already
+ * reads at (`--font-display`/`--weight-display-bold`, see App.css) so the
+ * HEX label carries the same visual weight as the page title instead of a
+ * small code-like mono string. Size steps up to `--text-display-xs`
+ * (20px) - the smallest rung already on the existing display scale
+ * (20/22/28/34/48, see index.css) - rather than matching h1's own
+ * `--text-display-lg` (34px): the swatch sits in a 5-up grid
+ * (`Palette.css`'s `repeat(5, 1fr)`) with `panel-generator` allowed to
+ * shrink to 360px, and 34px risks the "#RRGGBB" string overflowing a
+ * ~60px-wide column at that floor, whereas 20px comfortably fits while
+ * still landing far above the previous 13px. `color`/contrast
+ * (`--color-text-secondary`, `:hover`/`:focus-visible` swap to
+ * `--color-text-primary`) are untouched, per the grain's boundary.
+ * Recorded in design-spec/components/palette-swatch/base.md.
  */
 .palette-swatch__hex {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-md);
-  font-weight: var(--weight-mono-regular);
-  line-height: var(--leading-mono);
-  letter-spacing: var(--tracking-mono);
+  font-family: var(--font-display);
+  font-size: var(--text-display-xs);
+  font-weight: var(--weight-display-bold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
   color: var(--color-text-secondary);
   text-transform: uppercase;
   background: none;
@@ -100,13 +117,17 @@
  * grain-3: the input that replaces `.palette-swatch__hex` while editing.
  * Sized/typeset to match the button it replaces (same font tokens, no layout
  * jump) rather than looking like a generic form field.
+ *
+ * grain-4 (2026-08-26): follows `.palette-swatch__hex`'s switch to the
+ * Display type role (see that rule's comment) so editing doesn't jump size
+ * or typeface mid-interaction.
  */
 .palette-swatch__hex-input {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-md);
-  font-weight: var(--weight-mono-regular);
-  line-height: var(--leading-mono);
-  letter-spacing: var(--tracking-mono);
+  font-family: var(--font-display);
+  font-size: var(--text-display-xs);
+  font-weight: var(--weight-display-bold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
   color: var(--color-text-primary);
   text-transform: uppercase;
   background: var(--color-bg-surface);
