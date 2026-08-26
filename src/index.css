@@ -12,6 +12,11 @@
      --text-display-lg app title. Continues the same scale progression
      (20/22/28/34 -> 48) rather than introducing a second scale. Recorded in
      design-spec/token-groups/typography/base.md. */
+  /* --text-display-2xl (grain-1, 2026-08-26): pre-generate homepage hero
+     title, one step above --text-display-xl. Continues the same scale
+     progression (20/22/28/34/48 -> 110) rather than introducing a second
+     scale. Recorded in design-spec/token-groups/typography/base.md. */
+  --text-display-2xl: 110px;
   --text-display-xl: 48px;
   --text-display-lg: 34px;
   --text-display-md: 28px;

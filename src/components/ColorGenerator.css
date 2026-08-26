@@ -1,10 +1,78 @@
 .color-generator__controls,
-.color-generator__preview {
+.color-generator__preview,
+.color-generator__intake-form {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: var(--element-gap-md);
   width: 100%;
+}
+
+/*
+ * grain-1 (2026-08-26, pre-generate two-column layout): the row combining
+ * the relocated title/description (`.color-generator__intro`, left) with the
+ * intake form (`.color-generator__intake-form`, right) - see the class doc
+ * comment in ColorGenerator.tsx. `flex: 1 1 0` on both columns (below) shares
+ * the row evenly; `width: 100%` (from the shared rule above, for the form
+ * column) doubles as the stacked column's full-width sizing once
+ * `flex-direction` switches to `column` under 768px.
+ */
+.color-generator__intake {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+.color-generator__intro,
+.color-generator__intake-form {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.color-generator__intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+/* grain-1 (2026-08-26): reuses App's former `.app__intro h1`/`p` values
+   verbatim, aside from the title's font-size - see --text-display-2xl in
+   src/index.css and design-spec/token-groups/typography/base.md. */
+.color-generator__intro-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-display-2xl);
+  font-weight: var(--weight-display-bold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-text-primary);
+}
+
+.color-generator__intro-description {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-text-regular);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-secondary);
+}
+
+/*
+ * grain-1 (2026-08-26): below 768px the intake row stacks to a single
+ * column - title -> description (both inside `.color-generator__intro`) ->
+ * form fields -> Generate button (`.color-generator__intake-form`), per DOM
+ * order. Independent of `app-shell`'s own 1024px/768px breakpoints for
+ * `panel-generator`/`panel-preview` (post-generate, untouched).
+ */
+@media (max-width: 768px) {
+  .color-generator__intake {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
 }
 
 /* grain-1: the 4 optional additional Hex fields stack the same as the other

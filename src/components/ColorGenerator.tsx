@@ -223,6 +223,21 @@ export interface ColorGeneratorProps {
  * harmony mode selector above - it is explicitly flagged as an assumption
  * needing human confirmation. src/lib/recentPalettes.ts itself is untouched
  * (out of this grain's boundary) and keeps its own unit test coverage.
+ *
+ * grain-1 (2026-08-26, pre-generate two-column layout): when `showResult` is
+ * false, `panel-generator` now renders a `.color-generator__intake` row
+ * combining the page title/description (formerly App.tsx's standalone
+ * `.app__intro`, now `.color-generator__intro` - reused verbatim, just
+ * relocated and enlarged to `--text-display-2xl`) as its left column with the
+ * intake form (brand field, add-color button, additional Hex fields, mood
+ * field, Generate button - unchanged) as its right column, wrapped in a
+ * `.color-generator__intake-form` **section** (not a div) so pre-existing
+ * intake-field-order tests, which resolve `.closest('section')` from a field,
+ * keep binding to that inner section instead of the outer `panel-generator`
+ * one. Below 768px, `.color-generator__intake` stacks to a single column
+ * (title -> description -> form -> Generate), independent of `app-shell`'s
+ * own 1024px/768px panel-generator/panel-preview breakpoints (post-generate,
+ * untouched - see class doc comment above and context/decisions/).
  */
 export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_THEME }: ColorGeneratorProps) {
   const [inputValue, setInputValue] = useState('#E84C40')
@@ -353,51 +368,69 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
             keywords={paletteKeywords}
           />
         ) : (
-          <>
-            <ColorInput
-              id="brand-color-input"
-              label="Brand main color"
-              placeholder="#3366ff or 51, 102, 255"
-              value={inputValue}
-              onChange={handleInputChange}
-              error={isInvalid ? INVALID_COLOR_MESSAGE : null}
-            />
-            {revealedExtraColorCount > 0 && (
-              <div className="color-generator__extra-colors">
-                {extraColors.slice(0, revealedExtraColorCount).map((value, index) => (
-                  <ColorInput
-                    key={index}
-                    id={`additional-color-input-${index + 1}`}
-                    label={`Additional color ${index + 1}`}
-                    placeholder={ADDITIONAL_COLOR_PLACEHOLDER}
-                    value={value}
-                    onChange={(next) => handleExtraColorChange(index, next)}
-                    error={extraColorErrors[index]}
-                  />
-                ))}
-              </div>
-            )}
-            {revealedExtraColorCount < ADDITIONAL_COLOR_COUNT && (
-              <button
-                type="button"
-                className="color-generator__add-color"
-                aria-label="Add another color"
-                onClick={handleAddExtraColor}
-              >
-                +
+          <div className="color-generator__intake">
+            <div className="color-generator__intro">
+              <h1 className="color-generator__intro-title">Color Palette Generator</h1>
+              <p className="color-generator__intro-description">
+                Enter a brand main color to instantly generate a 5-color palette.
+              </p>
+            </div>
+            {/*
+             * grain-1 (2026-08-26): a nested <section> (not a <div>) so the
+             * pre-existing "intake form field order" tests, which walk up
+             * from an input via `.closest('section')`, bind to this inner
+             * section rather than the outer `panel-generator` one - keeping
+             * their direct-children assertions (brand field, add-color
+             * button, mood field, Generate, in that order) valid even though
+             * the outer panel now also contains the `.color-generator__intro`
+             * column as a sibling. See context/decisions/.
+             */}
+            <section className="color-generator__intake-form">
+              <ColorInput
+                id="brand-color-input"
+                label="Brand main color"
+                placeholder="#3366ff or 51, 102, 255"
+                value={inputValue}
+                onChange={handleInputChange}
+                error={isInvalid ? INVALID_COLOR_MESSAGE : null}
+              />
+              {revealedExtraColorCount > 0 && (
+                <div className="color-generator__extra-colors">
+                  {extraColors.slice(0, revealedExtraColorCount).map((value, index) => (
+                    <ColorInput
+                      key={index}
+                      id={`additional-color-input-${index + 1}`}
+                      label={`Additional color ${index + 1}`}
+                      placeholder={ADDITIONAL_COLOR_PLACEHOLDER}
+                      value={value}
+                      onChange={(next) => handleExtraColorChange(index, next)}
+                      error={extraColorErrors[index]}
+                    />
+                  ))}
+                </div>
+              )}
+              {revealedExtraColorCount < ADDITIONAL_COLOR_COUNT && (
+                <button
+                  type="button"
+                  className="color-generator__add-color"
+                  aria-label="Add another color"
+                  onClick={handleAddExtraColor}
+                >
+                  +
+                </button>
+              )}
+              <ColorInput
+                id="mood-keyword-input"
+                label="Mood keyword"
+                placeholder="e.g. calm, bold, playful"
+                value={moodKeyword}
+                onChange={setMoodKeyword}
+              />
+              <button type="button" className="color-generator__generate" onClick={handleGenerate}>
+                Generate
               </button>
-            )}
-            <ColorInput
-              id="mood-keyword-input"
-              label="Mood keyword"
-              placeholder="e.g. calm, bold, playful"
-              value={moodKeyword}
-              onChange={setMoodKeyword}
-            />
-            <button type="button" className="color-generator__generate" onClick={handleGenerate}>
-              Generate
-            </button>
-          </>
+            </section>
+          </div>
         )}
       </section>
       <section className={previewClassName}>
