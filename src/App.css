@@ -35,10 +35,20 @@
  * at 768px and below. Breakpoint numbers are implementation config values
  * (policy/coding.md: 값을 바꿔도 사용자가 "간격의 크기"만 다르게 인지할 뿐 새로운
  * 디자인 축이 아니므로 breakpoint 자체는 토큰화하지 않는다), not design tokens.
+ *
+ * grain-2 (full-width masonry layout shell): `ColorGenerator` now returns
+ * `ColorStudy` as a third top-level element alongside `panel-generator`/
+ * `panel-preview` (see ColorGenerator.tsx), so it also lands inside this
+ * flex row as a plain flex item. `flex-wrap: wrap` + the `.color-study`
+ * item forcing `flex: 1 1 100%` (its own basis, not a fixed width) makes it
+ * always break onto a new, full-width row below the two-column layout
+ * instead of being squeezed to the right of `panel-preview`'s 480px
+ * min-width - it is no longer capped by either column's width.
  */
 .app-shell {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   gap: var(--space-5);
   padding: var(--space-6);
 }
@@ -53,6 +63,10 @@
   flex: 6;
   min-width: 480px;
   padding: var(--space-5);
+}
+
+.app-shell > .color-study {
+  flex: 1 1 100%;
 }
 
 @media (max-width: 1024px) {

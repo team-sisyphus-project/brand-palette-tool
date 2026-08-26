@@ -58,6 +58,22 @@ const DEFAULT_HARMONY: HarmonyType = 'complementary'
  * (`generateShades`) per color currently in play: the base color itself,
  * plus every accent color of the selected harmony (Extension: Shades, see
  * design-spec/components/color-study/shades.md).
+ *
+ * grain-2 (full-width masonry layout shell): this section is no longer
+ * mounted inside ColorGenerator's `panel-preview` column - it now renders as
+ * an independent, full-width sibling of the `panel-generator`/`panel-preview`
+ * pair (see ColorGenerator.tsx), so its width is no longer capped by the
+ * preview column (`flex: 6; min-width: 480px`). Internally, `ColorWheel`,
+ * `HarmonyExplorer`, and `Shades` are each wrapped in a `.color-study__tile`
+ * card (rounded corners + subtle border, `--radius-card`/
+ * `--color-border-default`) and laid out through `.color-study__grid`, a
+ * CSS-multi-column ("masonry") container that reflows to 4 columns on
+ * desktop, 2 at <=1024px, and 1 at <=768px (see ColorStudy.css). CSS columns
+ * were chosen over CSS Grid because these tiles vary in height and columns
+ * fill top-to-bottom without needing a manually-computed `grid-row: span N`
+ * per tile - see context/decisions/. This grain only builds the shell and
+ * wraps the 3 pre-existing widgets; the 10 analysis cards the full spec
+ * calls for are later grains' scope.
  */
 export function ColorStudy({ colors, baseColorIndex }: ColorStudyProps) {
   const [harmony, setHarmony] = useState<HarmonyType>(DEFAULT_HARMONY)
@@ -80,13 +96,21 @@ export function ColorStudy({ colors, baseColorIndex }: ColorStudyProps) {
       <h2 id="color-study-heading" className="color-study__heading">
         Color Study
       </h2>
-      <ColorWheel colors={colors} />
-      {baseColor && (
-        <>
-          <HarmonyExplorer base={baseColor.hsl} harmony={harmony} onChange={setHarmony} />
-          <Shades groups={shadeGroups} />
-        </>
-      )}
+      <div className="color-study__grid">
+        <div className="color-study__tile">
+          <ColorWheel colors={colors} />
+        </div>
+        {baseColor && (
+          <>
+            <div className="color-study__tile">
+              <HarmonyExplorer base={baseColor.hsl} harmony={harmony} onChange={setHarmony} />
+            </div>
+            <div className="color-study__tile">
+              <Shades groups={shadeGroups} />
+            </div>
+          </>
+        )}
+      </div>
     </section>
   )
 }

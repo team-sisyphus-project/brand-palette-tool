@@ -1314,3 +1314,24 @@ describe('grain-3: custom Color Study base color via Palette chip click', () => 
 // saved entry, so that whole scenario is unreachable. src/lib/recentPalettes.ts
 // itself is untouched and keeps its own unit test coverage in
 // recentPalettes.test.ts.
+
+// grain-2 (2026-08-26, full-width masonry layout shell - card's M-1): Color
+// Study is no longer nested inside the preview column - it is a top-level
+// sibling of panel-generator/panel-preview, so it must render outside
+// `.color-generator__preview` (== `panel-preview`) entirely.
+describe('grain-2: Color Study renders outside the preview panel (full-width shell)', () => {
+  it('is not a descendant of panel-preview once a result exists', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const colorStudy = screen.getByRole('region', { name: 'Color Study' })
+    const preview = document.querySelector('.color-generator__preview') as HTMLElement
+    expect(preview).not.toBeNull()
+    expect(preview).not.toContainElement(colorStudy)
+  })
+
+  it('does not render before a result exists (still gated on showResult)', () => {
+    render(<ColorGenerator />)
+    expect(screen.queryByRole('region', { name: 'Color Study' })).not.toBeInTheDocument()
+  })
+})

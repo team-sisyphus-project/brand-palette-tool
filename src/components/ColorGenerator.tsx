@@ -152,6 +152,17 @@ export interface ColorGeneratorProps {
  * separated (top divider) from the group above it. Composition-only change;
  * ColorWheel's own rendering/geometry is untouched (see ColorStudy.tsx).
  *
+ * grain-2 (2026-08-26, full-width masonry layout shell): `ColorStudy` no
+ * longer renders as the last child inside `panel-preview` - it is now a
+ * top-level sibling of the `panel-generator`/`panel-preview` section pair,
+ * returned directly from this component's fragment (same `showResult &&
+ * palette` gating as before, just hoisted out of the preview panel). Since
+ * both panels and this new sibling are still children of App's `.app-shell`
+ * flex row, App.css gives `.app-shell` `flex-wrap: wrap` and this section
+ * `flex: 1 1 100%` so it always breaks onto its own full-width row below the
+ * two-column layout instead of squeezing into the 480px-minimum preview
+ * column - see ColorStudy.css for the section's own internal masonry grid.
+ *
  * grain-2 (generated result view): once `showResult` is true, the intake
  * form (brand field, 4 additional Hex fields, mood-keyword field, Generate
  * button) is unmounted entirely from `panel-generator`. This **supersedes**
@@ -428,10 +439,10 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
             />
             <AestheticMatch match={aestheticMatch} />
             <VibeKeywords keywords={vibeKeywords} />
-            <ColorStudy colors={palette} baseColorIndex={baseColorIndex} />
           </>
         )}
       </section>
+      {showResult && palette && <ColorStudy colors={palette} baseColorIndex={baseColorIndex} />}
     </>
   )
 }
