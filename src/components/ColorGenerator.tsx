@@ -6,6 +6,7 @@ import {
   createInitialLocks,
   generatePalette,
   getMoodTags,
+  getVibeKeywords,
   matchAesthetic,
   parseColorInput,
   regeneratePalette,
@@ -22,6 +23,7 @@ import { ModeSelector } from './ModeSelector'
 import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
 import { ThemeToggle } from './ThemeToggle'
+import { VibeKeywords } from './VibeKeywords'
 import './ColorGenerator.css'
 
 const INVALID_COLOR_MESSAGE =
@@ -107,6 +109,14 @@ export interface ColorGeneratorProps {
  * null, so no aesthetic name is ever forced onto the screen without a close
  * enough candidate.
  *
+ * grain-2 (vibe keyword line): a VibeKeywords also renders alongside
+ * MoodTag/AestheticMatch, fed by getVibeKeywords(averageHsl(palette)) - a
+ * richer set of 5+ unique, plain-English adjectives (vs. MoodTag's compact
+ * 1-2 word pill) rendered as a single "keyword: a, b, c, ..." line for users
+ * with no color-theory background. It recomputes on every palette change the
+ * same way moodTags/aestheticMatch do, since all three derive from the same
+ * `palette` memo dependency.
+ *
  * Below AestheticMatch, a ColorStudy section renders whenever `palette`
  * exists: a read-only SVG dial (ColorWheel) mapping each of the 5 palette
  * colors' hue onto a 360° circle (M-6), so the geometric harmony the current
@@ -171,6 +181,10 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
   const moodTags = useMemo(() => (palette ? getMoodTags(averageHsl(palette)) : []), [palette])
   const aestheticMatch = useMemo(
     () => (palette ? matchAesthetic(averageHsl(palette)) : null),
+    [palette],
+  )
+  const vibeKeywords = useMemo(
+    () => (palette ? getVibeKeywords(averageHsl(palette)) : []),
     [palette],
   )
   const extraColorErrors = useMemo(
@@ -289,6 +303,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
             />
             <MoodTag tags={moodTags} />
             <AestheticMatch match={aestheticMatch} />
+            <VibeKeywords keywords={vibeKeywords} />
             <ColorStudy colors={palette} baseColorIndex={baseColorIndex} />
           </>
         )}

@@ -1,0 +1,22 @@
+/*
+ * grain-2: reuses the same rounded typography family MoodTag.css and
+ * AestheticMatch.css already reference (--font-rounded/--text-rounded-md/
+ * --weight-rounded-medium/--leading-rounded/--tracking-rounded) so the vibe
+ * keyword line reads as part of the same sibling group - see
+ * design-spec/token-groups/typography/base.md (grain-2 entry) for the
+ * registration of these tokens.
+ */
+.vibe-keywords {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-rounded);
+  font-size: var(--text-rounded-md);
+  font-weight: var(--weight-rounded-medium);
+  line-height: var(--leading-rounded);
+  letter-spacing: var(--tracking-rounded);
+  color: var(--color-text-primary);
+}
+
+.vibe-keywords__label {
+  color: var(--color-text-secondary);
+}

@@ -900,6 +900,80 @@ describe('grain-1: aesthetic name matching (M-5)', () => {
   })
 })
 
+// grain-2: rich vibe-keyword "keyword:" line (5+ comma-joined adjectives,
+// spec A "provide intuitive vibe keywords"). VibeKeywords only renders
+// whatever getVibeKeywords(averageHsl(palette)) returns, so here we verify at
+// the ColorGenerator wiring level whether "5+ keywords are always shown
+// whenever a palette exists" and "the same input yields the same keywords
+// (determinism)". The detailed H/S/L band -> word mapping is covered by
+// palette.test.ts's getVibeKeywords unit tests.
+describe('grain-2: vibe keyword line', () => {
+  function getVibeKeywordsLine(): HTMLElement {
+    return screen.getByRole('status', { name: 'Palette vibe keywords' })
+  }
+
+  it('the vibe keyword line is not rendered when there is no palette', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '' } })
+    expect(screen.queryByRole('status', { name: 'Palette vibe keywords' })).not.toBeInTheDocument()
+  })
+
+  it('the vibe keyword line is not rendered before Generate is clicked, even with a valid brand color', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    expect(screen.queryByRole('status', { name: 'Palette vibe keywords' })).not.toBeInTheDocument()
+  })
+
+  it('clicking Generate with a valid color immediately shows a "keyword:" line with 5+ comma-separated keywords', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const line = getVibeKeywordsLine()
+    expect(line).toHaveTextContent(/^keyword:/)
+    const keywords = line.textContent!.replace(/^keyword:\s*/, '').split(', ')
+    expect(keywords.length).toBeGreaterThanOrEqual(5)
+    expect(new Set(keywords).size).toBe(keywords.length) // all unique
+  })
+
+  it('shows the same vibe keywords for a fresh mount given the same brand input (determinism)', () => {
+    const { unmount } = render(<ColorGenerator />)
+    generate('#3366ff')
+    const firstLine = getVibeKeywordsLine().textContent
+    unmount()
+
+    render(<ColorGenerator />)
+    generate('#3366ff')
+    const secondLine = getVibeKeywordsLine().textContent
+
+    expect(secondLine).toEqual(firstLine)
+  })
+
+  it('recomputing the palette by switching generation modes always shows 5+ vibe keywords', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    for (const label of ['Analogous', 'Triadic', 'Split Complementary', 'Monochromatic', 'Complementary']) {
+      fireEvent.click(screen.getByRole('button', { name: label }))
+      const keywords = getVibeKeywordsLine()
+        .textContent!.replace(/^keyword:\s*/, '')
+        .split(', ')
+      expect(keywords.length).toBeGreaterThanOrEqual(5)
+    }
+  })
+
+  it('the vibe keyword line keeps showing 5+ keywords after regeneration', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    const keywords = getVibeKeywordsLine()
+      .textContent!.replace(/^keyword:\s*/, '')
+      .split(', ')
+    expect(keywords.length).toBeGreaterThanOrEqual(5)
+  })
+})
+
 // grain-2: once a palette exists, the whole intake form (brand field, 4
 // additional Hex fields, mood-keyword field, Generate button) is unmounted
 // from the DOM, the preview panel gains a center-aligned modifier class, and
