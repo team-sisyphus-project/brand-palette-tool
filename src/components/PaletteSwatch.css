@@ -148,18 +148,28 @@
 
 /*
  * grain-2: was an always-visible row below the swatch; now an overlay inside
- * `.palette-swatch__preview` (top-right corner of the color square), hidden
- * by default and revealed only on hover (of the whole preview, so moving the
- * pointer anywhere over the square reveals it, not just the icon's own small
- * hit area) or keyboard focus (`:focus-visible`, so it's still reachable and
- * visible via Tab). Left absent-but-clickable (no `pointer-events: none`)
- * while hidden so the same click target already tested via the accessible
- * name keeps working with or without a prior hover.
+ * `.palette-swatch__preview`, hidden by default and revealed only on hover
+ * (of the whole preview, so moving the pointer anywhere over the square
+ * reveals it, not just the icon's own small hit area) or keyboard focus
+ * (`:focus-visible`, so it's still reachable and visible via Tab). Left
+ * absent-but-clickable (no `pointer-events: none`) while hidden so the same
+ * click target already tested via the accessible name keeps working with or
+ * without a prior hover.
+ *
+ * grain-3: repositioned from the top-right corner to bottom-center
+ * (`bottom` + `left: 50%` / `translateX(-50%)`) per
+ * design-spec/components/palette-swatch/base.md, and the icon glyphs moved
+ * from emoji to `lucide-react`'s `Lock`/`Unlock` (see PaletteSwatch.tsx) -
+ * this rule only carries position/box/color, unchanged by that swap. When
+ * locked (`[aria-pressed='true']` below), the icon now stays at `opacity: 1`
+ * unconditionally instead of only on hover/focus, so a locked slot is
+ * always legible as locked.
  */
 .palette-swatch__lock {
   position: absolute;
-  top: var(--content-padding-sm);
-  right: var(--content-padding-sm);
+  bottom: var(--content-padding-sm);
+  left: 50%;
+  transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -193,4 +203,5 @@
   border-color: var(--color-action-bg);
   color: var(--color-action-bg);
   font-weight: var(--weight-text-medium);
+  opacity: 1;
 }
