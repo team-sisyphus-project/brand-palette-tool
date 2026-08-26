@@ -1,0 +1,29 @@
+/*
+ * grain-4: shared tile shell for every Color Study analysis card. Reuses the
+ * exact token set `ColorStudy.css`'s `.color-study__tile` already
+ * established for M-3 (rounded corners + subtle border) - no new radius,
+ * border, spacing, or color token is introduced (see CardShell.tsx's doc
+ * comment and this grain's decision record).
+ */
+.color-study-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap-md);
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-5);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-surface);
+  break-inside: avoid;
+}
+
+.color-study-card__heading {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--text-body-md);
+  font-weight: var(--weight-text-semibold);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-primary);
+}
