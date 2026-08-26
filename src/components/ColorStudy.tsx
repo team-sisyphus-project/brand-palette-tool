@@ -1,5 +1,15 @@
 import { useState } from 'react'
 import { BRAND_SLOT_INDEX, getHarmonyColors, type HarmonyType, type PaletteColor } from '../lib/palette'
+import { ChartColorsCard } from './colorStudy/ChartColorsCard'
+import { ContrastCheckerCard } from './colorStudy/ContrastCheckerCard'
+import { DesignTokenCard } from './colorStudy/DesignTokenCard'
+import { DistributionCard } from './colorStudy/DistributionCard'
+import { GradientCard } from './colorStudy/GradientCard'
+import { PairingGuideCard } from './colorStudy/PairingGuideCard'
+import { PresentationPreviewCard } from './colorStudy/PresentationPreviewCard'
+import { SemanticRolesCard } from './colorStudy/SemanticRolesCard'
+import { UsageGuideCard } from './colorStudy/UsageGuideCard'
+import { WebsitePreviewCard } from './colorStudy/WebsitePreviewCard'
 import { ColorWheel } from './ColorWheel'
 import { HarmonyExplorer } from './HarmonyExplorer'
 import { Shades, type ShadesGroup } from './Shades'
@@ -74,6 +84,22 @@ const DEFAULT_HARMONY: HarmonyType = 'complementary'
  * per tile - see context/decisions/. This grain only builds the shell and
  * wraps the 3 pre-existing widgets; the 10 analysis cards the full spec
  * calls for are later grains' scope.
+ *
+ * grain-7 (integration & polish): the 10 analysis cards built in grains 4-6
+ * (SemanticRolesCard/DistributionCard/ContrastCheckerCard/UsageGuideCard/
+ * WebsitePreviewCard/PresentationPreviewCard/DesignTokenCard/
+ * PairingGuideCard/GradientCard/ChartColorsCard) are now mounted as direct
+ * children of `.color-study__grid`, each fed `palette={colors}` so every
+ * card recomputes from the same live palette prop the wheel/harmony/shades
+ * tiles already react to (M-5: no local snapshotting, no memoization -
+ * a palette/lock change flows straight through on the next render). They
+ * are *not* additionally wrapped in `.color-study__tile` - each card's own
+ * `CardShell` already renders the identical rounded-border tile shell
+ * (`--radius-card` / `--color-border-default` / `--color-bg-surface`), so a
+ * second wrapper would double the border/background per card. The one gap
+ * CardShell's shell was missing for masonry stacking (`margin-bottom`
+ * between cards stacked in the same CSS column) is fixed in
+ * `colorStudy/CardShell.css`, not here - see context/decisions/.
  */
 export function ColorStudy({ colors, baseColorIndex }: ColorStudyProps) {
   const [harmony, setHarmony] = useState<HarmonyType>(DEFAULT_HARMONY)
@@ -110,6 +136,16 @@ export function ColorStudy({ colors, baseColorIndex }: ColorStudyProps) {
             </div>
           </>
         )}
+        <SemanticRolesCard palette={colors} />
+        <DistributionCard palette={colors} />
+        <ContrastCheckerCard palette={colors} />
+        <UsageGuideCard palette={colors} />
+        <WebsitePreviewCard palette={colors} />
+        <PresentationPreviewCard palette={colors} />
+        <DesignTokenCard palette={colors} />
+        <PairingGuideCard palette={colors} />
+        <GradientCard palette={colors} />
+        <ChartColorsCard palette={colors} />
       </div>
     </section>
   )

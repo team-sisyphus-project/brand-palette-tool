@@ -4,6 +4,14 @@
  * established for M-3 (rounded corners + subtle border) - no new radius,
  * border, spacing, or color token is introduced (see CardShell.tsx's doc
  * comment and this grain's decision record).
+ *
+ * grain-7 (integration & polish): these cards mount as direct
+ * `.color-study__grid` children (no `.color-study__tile` wrapper - see
+ * ColorStudy.tsx's grain-7 doc comment), so this shell now also owns the
+ * `margin-bottom` `.color-study__tile` uses to space tiles stacked within
+ * the same CSS column. Without it, consecutive cards in one column touched
+ * with no gap between them - a visual seam this grain's Boundary calls out
+ * fixing.
  */
 .color-study-card {
   display: flex;
@@ -11,6 +19,7 @@
   gap: var(--element-gap-md);
   width: 100%;
   box-sizing: border-box;
+  margin-bottom: var(--space-5);
   padding: var(--space-5);
   border: var(--border-width-default) solid var(--color-border-default);
   border-radius: var(--radius-card);

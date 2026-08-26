@@ -359,7 +359,10 @@ describe('ColorGenerator', () => {
 
     const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     expect(within(list).getAllByRole('listitem')).toHaveLength(5)
-    expect(screen.getByText('#e84c40')).toBeInTheDocument()
+    // grain-7: scoped to the palette list - the Color Study analysis cards
+    // now also render this hex (e.g. as a semantic role), so an unscoped
+    // query is ambiguous.
+    expect(within(list).getByText('#e84c40')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -375,15 +378,17 @@ describe('ColorGenerator', () => {
   it('includes the exact brand HEX among the 5 rendered swatches', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
-    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(within(list).getByText('#3366ff')).toBeInTheDocument()
   })
 
   it('renders a 5-color palette after Generate is clicked with a valid RGB string', () => {
     render(<ColorGenerator />)
     generate('51, 102, 255')
 
-    expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
-    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(list).toBeInTheDocument()
+    expect(within(list).getByText('#3366ff')).toBeInTheDocument()
   })
 
   it('shows a validation error and no palette for an invalid value', () => {
@@ -453,7 +458,7 @@ describe('ColorGenerator', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
-    expect(screen.getByText(lockedHex)).toBeInTheDocument()
+    expect(within(list).getByText(lockedHex)).toBeInTheDocument()
     expect(within(list).getAllByRole('listitem')).toHaveLength(5)
   })
 
@@ -470,8 +475,9 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     generate('  #3366FF  ')
 
-    expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
-    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(list).toBeInTheDocument()
+    expect(within(list).getByText('#3366ff')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -479,16 +485,18 @@ describe('ColorGenerator', () => {
     render(<ColorGenerator />)
     generate('#36f')
 
-    expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
-    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(list).toBeInTheDocument()
+    expect(within(list).getByText('#3366ff')).toBeInTheDocument()
   })
 
   it('renders a palette for whitespace-padded rgb input after Generate', () => {
     render(<ColorGenerator />)
     generate('  51 , 102 , 255  ')
 
-    expect(screen.getByRole('list', { name: 'Generated 5-color palette' })).toBeInTheDocument()
-    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(list).toBeInTheDocument()
+    expect(within(list).getByText('#3366ff')).toBeInTheDocument()
   })
 
   it('renders the brand slot locked by default even for uppercase/whitespace/shorthand input variants', () => {
@@ -583,13 +591,14 @@ describe('M-2: lock/regenerate integration', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     fireEvent.click(screen.getByRole('button', { name: 'Toggle lock for #3366ff color' }))
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
     // The brand slot always reflects the current brand input regardless of
     // its own lock state (regeneratePalette's contract) - unlocking it does
     // not make it drift to some other derived color.
-    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    expect(within(list).getByText('#3366ff')).toBeInTheDocument()
   })
 
   it('locking multiple derived slots at once keeps only those slots unchanged across repeated regenerations while the rest keep changing', () => {
@@ -648,7 +657,7 @@ describe('M-2: lock/regenerate integration', () => {
     fireEvent.click(regenerateButton)
 
     // Locked slot survives; every rendered hex is still a valid, NaN-free code.
-    expect(screen.getByText(lockedHex)).toBeInTheDocument()
+    expect(within(list).getByText(lockedHex)).toBeInTheDocument()
     within(list)
       .getAllByRole('listitem')
       .forEach((item) => {
@@ -671,7 +680,7 @@ describe('M-2: lock/regenerate integration', () => {
     fireEvent.click(regenerateButton)
     fireEvent.click(regenerateButton)
 
-    expect(screen.getByText(lockedHex)).toBeInTheDocument()
+    expect(within(list).getByText(lockedHex)).toBeInTheDocument()
     within(list)
       .getAllByRole('listitem')
       .forEach((item) => {
@@ -694,7 +703,7 @@ describe('M-2: lock/regenerate integration', () => {
     expect(derivedLock).toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.click(regenerateButton)
-    expect(screen.getByText(targetHex)).toBeInTheDocument()
+    expect(within(list).getByText(targetHex)).toBeInTheDocument()
 
     fireEvent.click(derivedLock)
     expect(derivedLock).toHaveAttribute('aria-pressed', 'false')
@@ -730,7 +739,7 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
     fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
 
     expect(screen.queryByText(originalHex)).not.toBeInTheDocument()
-    const updatedHexText = screen.getByText('#00ff00')
+    const updatedHexText = within(list).getByText('#00ff00')
     expect(updatedHexText).toBeInTheDocument()
 
     const swatch = updatedHexText.closest('.palette-swatch') as HTMLElement
@@ -755,10 +764,11 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
     render(<ColorGenerator />)
     generate('#3366ff')
 
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
     fireEvent.change(getColorPicker('#3366ff'), { target: { value: '#123456' } })
 
     expect(screen.queryByText('#3366ff')).not.toBeInTheDocument()
-    expect(screen.getByText('#123456')).toBeInTheDocument()
+    expect(within(list).getByText('#123456')).toBeInTheDocument()
   })
 
   it('changing the brand slot color via the color picker keeps its lock state (aria-pressed) unchanged', () => {
@@ -782,7 +792,7 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
     fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
-    expect(screen.getByText('#00ff00')).toBeInTheDocument()
+    expect(within(list).getByText('#00ff00')).toBeInTheDocument()
   })
 })
 
@@ -1130,7 +1140,7 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
 
     fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
 
-    expect(screen.getByText('#3366ff')).toBeInTheDocument()
+    expect(within(list).getByText('#3366ff')).toBeInTheDocument()
     expect(within(list).getAllByRole('listitem')).toHaveLength(5)
   })
 })

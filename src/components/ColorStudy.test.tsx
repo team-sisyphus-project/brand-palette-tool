@@ -236,3 +236,98 @@ describe('ColorStudy.css: grain-2 full-width container + 4-col masonry + rounded
     expect(rule).toMatch(/border:\s*var\(--border-width-default\)\s*solid\s*var\(--color-border-default\)\s*;/)
   })
 })
+
+// grain-7 (integration & polish): all 10 analysis cards wired into the
+// masonry grid, each reacting to the same `colors`/`baseColorIndex` props
+// the wheel/harmony/shades tiles already use (M-4, M-5).
+describe('ColorStudy: grain-7 analysis card wiring', () => {
+  const colors = [
+    makeColor('#ff0000', 0),
+    makeColor('#00ff00', 90),
+    makeColor('#0000ff', 180),
+    makeColor('#ffff00', 270),
+    makeColor('#00ffff', 45),
+  ]
+
+  const CARD_HEADINGS = [
+    'Color Roles',
+    'Color Distribution',
+    'Contrast Checker',
+    'Usage Guide',
+    'Website Preview',
+    'Presentation Preview',
+    'Design Tokens',
+    'Pairing Guide',
+    'Gradient Suggestions',
+    'Chart Colors',
+  ]
+
+  it('M-4: renders all 10 analysis cards as headed regions inside the grid', () => {
+    render(<ColorStudy colors={colors} />)
+
+    const grid = screen.getByRole('region', { name: 'Color Study' }).querySelector('.color-study__grid')
+    expect(grid).not.toBeNull()
+
+    for (const heading of CARD_HEADINGS) {
+      const region = screen.getByRole('region', { name: heading })
+      expect(grid?.contains(region)).toBe(true)
+      expect(within(region).getByRole('heading', { level: 3, name: heading })).toBeInTheDocument()
+    }
+  })
+
+  it('does not double-wrap analysis cards in an extra .color-study__tile shell', () => {
+    const { container } = render(<ColorStudy colors={colors} />)
+
+    // The 3 pre-existing widget tiles are the only `.color-study__tile`
+    // children - analysis cards carry their own `.color-study-card` shell.
+    expect(container.querySelectorAll('.color-study__grid > .color-study__tile')).toHaveLength(3)
+    expect(container.querySelectorAll('.color-study__grid > .color-study-card')).toHaveLength(
+      CARD_HEADINGS.length,
+    )
+  })
+
+  it('M-5: every analysis card recomputes when the palette changes', () => {
+    const { rerender } = render(<ColorStudy colors={colors} baseColorIndex={0} />)
+
+    expect(within(screen.getByRole('region', { name: 'Color Roles' })).getByText('#ff0000')).toBeInTheDocument()
+
+    const updatedColors = [
+      makeColor('#123456', 210),
+      colors[1],
+      colors[2],
+      colors[3],
+      colors[4],
+    ]
+    rerender(<ColorStudy colors={updatedColors} baseColorIndex={0} />)
+
+    const rolesRegion = screen.getByRole('region', { name: 'Color Roles' })
+    expect(within(rolesRegion).queryByText('#ff0000')).not.toBeInTheDocument()
+    expect(within(rolesRegion).getByText('#123456')).toBeInTheDocument()
+  })
+
+  it('M-5: analysis cards no-op (render nothing) until a palette exists', () => {
+    render(<ColorStudy colors={[]} />)
+
+    for (const heading of CARD_HEADINGS) {
+      expect(screen.queryByRole('region', { name: heading })).not.toBeInTheDocument()
+    }
+  })
+})
+
+describe('CardShell.css: grain-7 masonry column spacing (source-level)', () => {
+  const cssPath = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    'colorStudy',
+    'CardShell.css',
+  )
+  const css = readFileSync(cssPath, 'utf-8')
+
+  it('gives .color-study-card the same margin-bottom .color-study__tile uses for column stacking', () => {
+    const index = css.indexOf('.color-study-card {')
+    expect(index).toBeGreaterThan(-1)
+    const braceStart = css.indexOf('{', index)
+    const braceEnd = css.indexOf('}', braceStart)
+    const rule = css.slice(braceStart + 1, braceEnd)
+    expect(rule).toMatch(/margin-bottom:\s*var\(--space-5\)\s*;/)
+  })
+})
