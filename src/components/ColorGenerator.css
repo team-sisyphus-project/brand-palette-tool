@@ -112,3 +112,20 @@
 .color-generator__preview--result .color-generator__regenerate {
   align-self: center;
 }
+
+/*
+ * grain-4 (2026-08-26): PaletteExportActions now renders directly below
+ * PaletteDescription inside panel-generator (`.color-generator__controls`)
+ * instead of below the palette chips inside the preview panel. The controls
+ * panel's shared `gap: var(--element-gap-md)` (16px, used between the
+ * pre-generate form's stacked fields) already spaces it from
+ * PaletteDescription; this adds a little extra breathing room on top of that
+ * so the export toolbar doesn't read as cramped against
+ * PaletteDescription.css's own generous --space-6 (32px) internal rhythm -
+ * reuses the existing --space-2 (8px) scale step rather than introducing a
+ * new spacing value. Scoped to this parent/child pair only, so it does not
+ * affect the pre-generate form's field spacing.
+ */
+.color-generator__controls .palette-export {
+  margin-top: var(--space-2);
+}
