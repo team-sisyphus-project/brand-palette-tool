@@ -59,14 +59,16 @@
 }
 
 /*
- * grain-1 (2026-08-26): the title column grows to fill whatever space the
- * (fixed-width) form column below doesn't need, rather than a rigid 50/50
- * `flex: 1 1 0` split - at the shell's full 1920px width cap that split
- * would stretch the intake form's inputs to ~900px wide, far past the
- * attached mockup's comfortable, fixed-feeling input width.
+ * grain-1 (2026-08-26, exact-screenshot match): true 50/50 split per the
+ * attached screenshot - both the title column and the form column
+ * (`.color-generator__intake-form` below) take an equal `flex: 1 1 0`
+ * share of `.color-generator__intake`'s row, superseding the prior
+ * `flex: 1 1 auto` (intro) / `flex: 0 1 420px` (form) asymmetric split.
+ * `min-width: 0` lets this column shrink below its content's natural width
+ * once the row can no longer fit both columns at their equal share.
  */
 .color-generator__intro {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -75,14 +77,13 @@
 }
 
 /*
- * grain-1 (2026-08-26): fixed basis (not a proportional share) so the form
- * column - and the inputs stretching to `width: 100%` inside it - stays a
- * comfortable, mockup-matching width instead of ballooning at wide
- * viewports. `flex-shrink: 1` still lets it narrow (down to `min-width: 0`)
- * once the row can no longer fit both columns, same as the intro column.
+ * grain-1 (2026-08-26, exact-screenshot match): equal `flex: 1 1 0` share
+ * matching `.color-generator__intro` above, so the two columns split the
+ * row exactly 50/50 as shown in the attached screenshot (superseding the
+ * prior fixed `420px` basis - see that rule's history above).
  */
 .color-generator__intake-form {
-  flex: 0 1 420px;
+  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -108,9 +109,20 @@
   color: var(--color-text-primary);
 }
 
-/* grain-1 (2026-08-26): reuses App's former `.app__intro h1`/`p` values
-   verbatim, aside from the title's font-size - see --text-display-2xl in
-   src/index.css and design-spec/token-groups/typography/base.md. */
+/*
+ * grain-1 (2026-08-26): reuses App's former `.app__intro h1`/`p` values
+ * verbatim, aside from the title's font-size - see --text-display-2xl in
+ * src/index.css and design-spec/token-groups/typography/base.md.
+ *
+ * grain-1 (2026-08-26, exact-screenshot match): `--text-display-2xl` is
+ * lowered from `110px` to `72px` so the title's 3 explicit lines
+ * (ColorGenerator.tsx) each fit on one visual line at the intake row's new
+ * true 50/50 column width (roughly 580-620px at the 1440px page cap) without
+ * wrapping again - the prior 110px was sized for the old near-full-width
+ * intro column and would force the longest line ("palette around") to wrap
+ * a second time inside a ~600px column. See index.css for the token
+ * comment.
+ */
 .color-generator__intro-title {
   margin: 0;
   font-family: var(--font-display);
@@ -146,11 +158,14 @@
 
   /*
    * grain-1 (2026-08-26): once the row becomes a column, flex-basis applies
-   * to height rather than width - reset the form column's 420px basis
-   * (sized for the wide-viewport row split above) back to `auto` so it
-   * simply takes its natural stacked height instead of a width-sized value
-   * misapplied to the vertical axis.
+   * to height rather than width - reset both columns' `flex: 1 1 0` basis
+   * (sized for the wide-viewport 50/50 row split above) back to `auto` so
+   * each simply takes its natural stacked height instead of a width-sized
+   * `0` basis misapplied to the vertical axis (which, with no explicit
+   * container height to distribute, would otherwise collapse toward its
+   * content-size floor rather than reading as a natural block).
    */
+  .color-generator__intro,
   .color-generator__intake-form {
     flex-basis: auto;
   }

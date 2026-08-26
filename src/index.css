@@ -15,8 +15,15 @@
   /* --text-display-2xl (grain-1, 2026-08-26): pre-generate homepage hero
      title, one step above --text-display-xl. Continues the same scale
      progression (20/22/28/34/48 -> 110) rather than introducing a second
-     scale. Recorded in design-spec/token-groups/typography/base.md. */
-  --text-display-2xl: 110px;
+     scale. Recorded in design-spec/token-groups/typography/base.md.
+     grain-1 (2026-08-26, exact-screenshot match): lowered 110px -> 72px -
+     the intake row's title column is now a true 50/50 split (see
+     ColorGenerator.css), so the title's 3 explicit line breaks need to each
+     fit within roughly a 580-620px column (at the new 1440px page cap)
+     without wrapping a second time; 110px was sized for the prior
+     near-full-width intro column. Value change recorded in
+     design-spec/token-groups/typography/base.md. */
+  --text-display-2xl: 72px;
   --text-display-xl: 48px;
   --text-display-lg: 34px;
   --text-display-md: 28px;
@@ -114,8 +121,16 @@
   /* grain-2 (2026-08-26): app-shell's outer width cap for wide-screen
      support. Shares the spacing Token Group's space-allocation axis with
      the content-padding and space tokens above (see design-spec grain-2
-     decision). */
-  --content-max-width: 1920px;
+     decision).
+     grain-1 (2026-08-26, exact-screenshot match): lowered 1920px -> 1440px
+     per the attached screenshot's page-width request. This is a layout
+     container width (implementation config per the sizing Token Group's
+     own "flex/min-width/width axis" boundary note in
+     design-spec/token-groups/sizing/base.md), not a scanned design-token
+     axis (color/typography/spacing/radius/shadow/border/opacity) - so it is
+     not registered as a new Design Spec Token, consistent with the
+     existing 2026-08-26 audit's treatment of this same value. */
+  --content-max-width: 1440px;
 
   /* Design tokens — color: adaptive semantic tokens (light values are the
      default/fallback). Toss look-and-feel: the light-theme neutrals below
