@@ -1,0 +1,66 @@
+.palette-export {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--element-gap-xs);
+}
+
+.palette-export__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--element-gap-xs);
+}
+
+/* Secondary action button: same pattern as ThemeToggle.css's .theme-toggle -
+   these are secondary palette actions, not the primary Regenerate action. */
+.palette-export__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: var(--content-padding-sm) var(--content-padding-md);
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-surface);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.palette-export__button:hover {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-border-hover);
+}
+
+.palette-export__button:focus-visible {
+  outline: none;
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+}
+
+/* Feedback message: same shape as ColorInput.css's .color-input__error, with
+   an added success variant using the new --color-state-success/-bg pair. */
+.palette-export__feedback {
+  margin: 0;
+  padding: var(--element-gap-xs) var(--content-padding-sm);
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  border-radius: var(--radius-control);
+}
+
+.palette-export__feedback--success {
+  color: var(--color-state-success);
+  background-color: var(--color-state-success-bg);
+}
+
+.palette-export__feedback--error {
+  color: var(--color-state-error);
+  background-color: var(--color-state-error-bg);
+}
