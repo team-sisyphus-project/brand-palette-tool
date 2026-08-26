@@ -18,6 +18,7 @@ import { ColorWheel } from './ColorWheel'
 import { ModeSelector } from './ModeSelector'
 import { MoodTag } from './MoodTag'
 import { Palette } from './Palette'
+import { PaletteExportActions } from './PaletteExportActions'
 import './ColorGenerator.css'
 
 const INVALID_COLOR_MESSAGE =
@@ -44,6 +45,11 @@ const DEFAULT_MODE: GenerationMode = GENERATION_MODES[0]
  * color picker. Editing a slot applies updateSlotColor() and auto-locks
  * that slot (see context/decisions/) so a manual edit is never silently
  * overwritten by the next Regenerate click.
+ *
+ * Right below the palette, a PaletteExportActions renders whenever `palette`
+ * exists: "Copy HEX" / "Copy CSS Variables" buttons that copy grain-1's
+ * paletteToHexList()/paletteToCssVariablesText() output to the clipboard
+ * (spec C M-1), with a transient success/failure message.
  *
  * A ModeSelector lets the user pick one of 5 standard color-wheel harmony
  * modes (Complementary/Analogous/Triadic/Split Complementary/Monochromatic,
@@ -151,6 +157,7 @@ export function ColorGenerator() {
               onToggleLock={handleToggleLock}
               onColorChange={handleSlotColorChange}
             />
+            <PaletteExportActions palette={palette} />
             <MoodTag tags={moodTags} />
             <AestheticMatch match={aestheticMatch} />
             <ColorWheel colors={palette} />

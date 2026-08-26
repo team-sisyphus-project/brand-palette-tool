@@ -509,6 +509,24 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
   })
 })
 
+// grain-2 (spec C M-1): wiring-level check that PaletteExportActions renders
+// alongside the palette. Clipboard-copy behavior itself (exact text copied,
+// success/failure feedback, CSS syntax validity) is covered in
+// PaletteExportActions.test.tsx, which owns navigator.clipboard mocking.
+describe('grain-2: palette export actions wiring', () => {
+  it('shows Copy HEX / Copy CSS Variables buttons once a palette exists, and hides them without one', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+
+    expect(screen.getByRole('button', { name: 'Copy HEX' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy CSS Variables' })).toBeInTheDocument()
+
+    fireEvent.change(getInput(), { target: { value: '' } })
+    expect(screen.queryByRole('button', { name: 'Copy HEX' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copy CSS Variables' })).not.toBeInTheDocument()
+  })
+})
+
 describe('grain-2: generation mode selection (M-3)', () => {
   const MODE_LABELS = ['Complementary', 'Analogous', 'Triadic', 'Split Complementary', 'Monochromatic']
 
