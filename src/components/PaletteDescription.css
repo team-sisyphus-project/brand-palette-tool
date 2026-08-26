@@ -1,0 +1,76 @@
+/*
+ * grain-3: left-panel Palette Description section - large typography +
+ * generous whitespace + a minimal, non-chip keyword list, per the card's
+ * "Apple landing page" visual brief. Every value below reuses tokens already
+ * registered/used elsewhere in this codebase (design-spec has no
+ * PaletteDescription-specific entries yet - see policy/coding.md "정의가
+ * 없을 때": follows the existing pattern instead of inventing new tokens):
+ * --font-display/--text-display-lg/--weight-display-bold/etc. are the exact
+ * set App.css's `.app__intro h1` already uses for the page's own large
+ * title; --space-* is the same 8px-multiple scale App.css's `.app-shell`
+ * uses for panel-level whitespace.
+ */
+.palette-description {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-5);
+  width: 100%;
+}
+
+.palette-description__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-display-lg);
+  font-weight: var(--weight-display-bold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-text-primary);
+}
+
+.palette-description__lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap-md);
+}
+
+.palette-description__line {
+  font-family: var(--font-text);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-text-regular);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-secondary);
+}
+
+/*
+ * Card brief: keywords relocate here as a "clean text list", not the
+ * pill/chip shape MoodTag.css uses - plain inline words separated by a
+ * middle-dot, no background/border.
+ */
+.palette-description__keywords {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.palette-description__keyword {
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-secondary);
+}
+
+.palette-description__keyword:not(:last-child)::after {
+  content: '·';
+  margin: 0 var(--element-gap-xs);
+  color: var(--color-text-tertiary);
+}
