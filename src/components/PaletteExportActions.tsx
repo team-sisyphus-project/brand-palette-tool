@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PaletteColor } from '../lib/palette'
 import {
+  paletteJsonFilename,
   paletteToCssVariablesText,
   paletteToHexList,
+  paletteToJsonText,
   validateCssVariablesText,
 } from '../lib/paletteExport'
+import { paletteToPngBlob, palettePngFilename } from '../lib/paletteImage'
 import './PaletteExportActions.css'
 
 export interface PaletteExportActionsProps {
@@ -18,6 +21,26 @@ const FEEDBACK_TIMEOUT_MS = 2000
 interface CopyFeedback {
   kind: 'success' | 'error'
   message: string
+}
+
+/**
+ * Triggers a browser file download for `blob` named `filename`, via a
+ * throwaway `<a download>` element and an object URL - the standard
+ * client-side "save this Blob as a file" pattern. The object URL is
+ * revoked immediately after the click so it does not leak.
+ */
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  try {
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  } finally {
+    URL.revokeObjectURL(url)
+  }
 }
 
 /**
@@ -42,6 +65,19 @@ interface CopyFeedback {
  * ever fails it is a bug in `paletteToCssVariablesText` itself (grain-1's
  * own tests already guarantee it never does), so this never surfaces a
  * user-facing message for it - it only avoids ever copying malformed text.
+ *
+ * Spec C "파일 내보내기 (PNG, JSON...)" (M-2): two more buttons ("Download
+ * PNG" / "Download JSON") that build a `Blob` via grain-1's
+ * `paletteToJsonText` / grain-2's `paletteToPngBlob` and hand it to the
+ * browser through a throwaway `<a download>` + `URL.createObjectURL(...)`
+ * object URL (`triggerBlobDownload` below) - the standard client-side file
+ * download pattern, no server round-trip. Same division of labor as the
+ * copy buttons: this component only calls the lib builders and wires the
+ * result to the DOM/Blob APIs, it never computes color/role data itself.
+ * Reuses the existing `.palette-export__button` pattern (see above) rather
+ * than introducing a new button style, since these are the same class of
+ * secondary palette action as the copy buttons - no new design decision
+ * needed here.
  */
 export function PaletteExportActions({ palette }: PaletteExportActionsProps) {
   const [feedback, setFeedback] = useState<CopyFeedback | null>(null)
@@ -78,6 +114,32 @@ export function PaletteExportActions({ palette }: PaletteExportActionsProps) {
     copyText(text, 'CSS variables copied!')
   }
 
+  const showFeedback = (feedbackToShow: CopyFeedback) => {
+    setFeedback(feedbackToShow)
+    if (clearTimeoutRef.current !== null) window.clearTimeout(clearTimeoutRef.current)
+    clearTimeoutRef.current = window.setTimeout(() => setFeedback(null), FEEDBACK_TIMEOUT_MS)
+  }
+
+  const handleDownloadJson = () => {
+    try {
+      const blob = new Blob([paletteToJsonText(palette)], { type: 'application/json' })
+      triggerBlobDownload(blob, paletteJsonFilename(palette))
+      showFeedback({ kind: 'success', message: 'JSON downloaded!' })
+    } catch {
+      showFeedback({ kind: 'error', message: 'Download failed. Please try again.' })
+    }
+  }
+
+  const handleDownloadPng = async () => {
+    try {
+      const blob = await paletteToPngBlob(palette)
+      triggerBlobDownload(blob, palettePngFilename(palette))
+      showFeedback({ kind: 'success', message: 'PNG downloaded!' })
+    } catch {
+      showFeedback({ kind: 'error', message: 'Download failed. Please try again.' })
+    }
+  }
+
   return (
     <div className="palette-export">
       <div className="palette-export__actions">
@@ -86,6 +148,12 @@ export function PaletteExportActions({ palette }: PaletteExportActionsProps) {
         </button>
         <button type="button" className="palette-export__button" onClick={handleCopyCssVariables}>
           Copy CSS Variables
+        </button>
+        <button type="button" className="palette-export__button" onClick={handleDownloadPng}>
+          Download PNG
+        </button>
+        <button type="button" className="palette-export__button" onClick={handleDownloadJson}>
+          Download JSON
         </button>
       </div>
       {feedback && (
