@@ -300,9 +300,13 @@
 /*
  * grain-1: ThemeToggle's anchor row inside the preview/color panel - right
  * aligned so the toggle sits at that panel's top-right corner, above the
- * palette chips (and above Regenerate once a result exists). Rendered
- * unconditionally, so it also occupies the top-right corner of the (empty)
- * pre-generate preview panel.
+ * palette chips. Rendered unconditionally, so it also occupies the
+ * top-right corner of the (empty) pre-generate preview panel.
+ *
+ * grain-1 (2026-08-27, M-11): once a result exists, Regenerate no longer
+ * renders between this row and the palette chips (moved below the chips
+ * instead - see ColorGenerator.tsx) - the toggle row is now directly
+ * followed by the chips with nothing in between.
  */
 .color-generator__theme-toggle-row {
   display: flex;
@@ -312,13 +316,19 @@
 
 /*
  * grain-2: once a palette has been generated, the preview panel
- * (color-generator__preview--result) centers its contents - the Regenerate
- * button now rendered directly above the color chips, the chips themselves,
- * mood tags, aesthetic match, and color wheel. Reuses the existing
- * align-items/text-align layout primitives (no new spacing/color token
- * needed - see context/decisions/). `.color-generator__regenerate` keeps the
- * shared action-button align-self: flex-start above for its (now unused)
- * generator-panel context, so it is re-centered here for its new home.
+ * (color-generator__preview--result) centers its contents - the color chips,
+ * Regenerate button, mood tags, aesthetic match, and color wheel. Reuses the
+ * existing align-items/text-align layout primitives (no new spacing/color
+ * token needed - see context/decisions/). `.color-generator__regenerate`
+ * keeps the shared action-button align-self: flex-start above for its (now
+ * unused) generator-panel context, so it is re-centered here for its new
+ * home.
+ *
+ * grain-1 (2026-08-27, M-11/M-12): Regenerate's position relative to the
+ * color chips (above vs. below) is a JSX ordering concern, not a CSS one -
+ * this centering rule keeps applying unchanged regardless of which side of
+ * the chips Regenerate renders on (see ColorGenerator.tsx's class doc
+ * comment for the current order).
  */
 .color-generator__preview--result {
   align-items: center;

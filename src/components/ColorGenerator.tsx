@@ -174,9 +174,11 @@ export interface ColorGeneratorProps {
  * gone, the only ways to change the palette after Generate are Regenerate,
  * lock/unlock, and per-swatch color-picker edits (see context/decisions/ for
  * which pre-existing tests this superseded and why). Regenerate moves into
- * `panel-preview`, rendered directly above the color chips, and the whole
- * preview panel is center-aligned via the `color-generator__preview--result`
- * modifier class.
+ * `panel-preview`, and the whole preview panel is center-aligned via the
+ * `color-generator__preview--result` modifier class. (Regenerate's position
+ * relative to the color chips - originally rendered directly above them -
+ * was later moved below them; see the grain-1 (M-11/M-12) note further
+ * down.)
  *
  * grain-3 (Palette Description panel): once `showResult` is true,
  * `panel-generator` now renders a PaletteDescription instead of the removed
@@ -223,6 +225,23 @@ export interface ColorGeneratorProps {
  * everything else in that panel (Regenerate/palette chips when a result
  * exists). `theme`/`onToggleTheme` are owned by App's `useTheme()` and
  * threaded down as props - ColorGenerator holds no theme state of its own.
+ *
+ * grain-1 (2026-08-27, M-11/M-12 result-panel reorder): within
+ * `panel-preview--result`, the child order is now ThemeToggle row -> Palette
+ * (color chips) -> Regenerate -> AestheticMatch, superseding the prior
+ * ThemeToggle -> Regenerate -> Palette -> AestheticMatch order from the
+ * "generated result view" grain below. The ThemeToggle row's own markup/CSS
+ * (`.color-generator__theme-toggle-row`, right-aligned) is unchanged - moving
+ * Regenerate out from between it and Palette means the toggle now sits
+ * directly above the color chips with nothing in between (M-11). Regenerate
+ * itself is unchanged markup/CSS-wise
+ * (`.color-generator__regenerate`, horizontally centered via the existing
+ * `.color-generator__preview--result .color-generator__regenerate
+ * { align-self: center }` rule already in ColorGenerator.css) - only its
+ * position relative to Palette moved, from directly above to directly below
+ * (M-12). No new CSS was needed for either move since both the right-align
+ * and center-align rules already existed; this is a pure JSX reorder. See
+ * design-spec/components/result-preview-panel/base.md.
  *
  * grain-4 (2026-08-27, M-9 pre-generate toggle relocation): the prior
  * behavior above - rendering the toggle row unconditionally in
@@ -584,13 +603,6 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
         )}
         {showResult && palette && (
           <>
-            <button
-              type="button"
-              className="color-generator__regenerate"
-              onClick={handleRegenerate}
-            >
-              Regenerate
-            </button>
             <Palette
               colors={palette}
               locks={locks}
@@ -598,6 +610,13 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
               onColorChange={handleSlotColorChange}
               onSelectBase={setBaseColorIndex}
             />
+            <button
+              type="button"
+              className="color-generator__regenerate"
+              onClick={handleRegenerate}
+            >
+              Regenerate
+            </button>
             <AestheticMatch match={aestheticMatch} />
           </>
         )}

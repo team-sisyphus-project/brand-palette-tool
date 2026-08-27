@@ -1314,10 +1314,14 @@ describe('grain-4: vibe keywords surface only through the left Palette Descripti
 // grain-2: once a palette exists, the whole intake form (brand field, 4
 // additional Hex fields, mood-keyword field, Generate button) is unmounted
 // from the DOM, the preview panel gains a center-aligned modifier class, and
-// Regenerate is rendered inside that preview panel directly above the color
-// chips (previously it lived in the controls panel next to the now-removed
-// ModeSelector - see ColorGenerator.tsx's class doc comment).
-describe('grain-2: generated result view (center + hide form + Regenerate above chips)', () => {
+// Regenerate is rendered inside that preview panel (previously it lived in
+// the controls panel next to the now-removed ModeSelector - see
+// ColorGenerator.tsx's class doc comment). grain-1 (2026-08-27, M-11/M-12)
+// later moved Regenerate from directly above the color chips to directly
+// below them - see the dedicated describe block further down for that
+// ordering coverage; this suite's own position assertion is updated to match
+// (see context/decisions/).
+describe('grain-2: generated result view (center + hide form)', () => {
   function getPreviewPanel(): HTMLElement {
     return screen.getByRole('list', { name: 'Generated 5-color palette' }).closest('section')!
   }
@@ -1376,7 +1380,12 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     expect(preview).not.toHaveClass('color-generator__preview--result')
   })
 
-  it('Regenerate renders inside the preview panel, immediately before the color chips', () => {
+  // grain-1 (2026-08-27, M-12): superseded - Regenerate used to render
+  // immediately *before* the color chips; it now renders immediately *after*
+  // them (below, center-aligned - see the dedicated M-11/M-12 describe block
+  // further down). Updated per spec A's "결과 화면 레이아웃" delta rather than
+  // left asserting the old order - see context/decisions/.
+  it('Regenerate renders inside the preview panel, immediately after the color chips', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
@@ -1390,7 +1399,7 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     )
 
     expect(regenerateIndex).toBeGreaterThanOrEqual(0)
-    expect(paletteIndex).toBeGreaterThan(regenerateIndex)
+    expect(regenerateIndex).toBeGreaterThan(paletteIndex)
   })
 
   it('Regenerate no longer renders in the controls panel', () => {
@@ -1400,7 +1409,7 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     expect(within(getControlsPanel()).queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument()
   })
 
-  it('Regenerate still works after moving above the color chips (locked slot survives)', () => {
+  it('Regenerate still works after moving below the color chips (locked slot survives)', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
@@ -1412,6 +1421,69 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
 
     expect(within(list).getByText('#3366ff')).toBeInTheDocument()
     expect(within(list).getAllByRole('listitem')).toHaveLength(5)
+  })
+})
+
+// grain-1 (2026-08-27, M-11/M-12 result-panel reorder): per spec A's "결과
+// 화면 레이아웃" delta, the theme toggle moves to directly above the color
+// chips (right-aligned) and Regenerate moves to directly below the color
+// chips (horizontally centered) - see ColorGenerator.tsx/.css's class doc
+// comments and design-spec/components/result-preview-panel/base.md.
+describe('grain-1: result panel reorder - toggle above chips, Regenerate below chips (M-11/M-12)', () => {
+  function getPreviewPanel(): HTMLElement {
+    return screen.getByRole('list', { name: 'Generated 5-color palette' }).closest('section')!
+  }
+
+  it('M-11: nothing renders between the theme toggle row and the color chips', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const preview = getPreviewPanel()
+    const children = Array.from(preview.children)
+    const toggle = screen.getByRole('switch')
+    const toggleRowIndex = children.findIndex((child) => child.contains(toggle))
+    const paletteIndex = children.findIndex((child) =>
+      child.matches('[role="list"][aria-label="Generated 5-color palette"]'),
+    )
+
+    expect(toggleRowIndex).toBe(0)
+    expect(paletteIndex).toBe(toggleRowIndex + 1)
+  })
+
+  it('M-11: the theme toggle row stays right-aligned above the color chips', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const toggle = screen.getByRole('switch')
+    const row = toggle.closest('.color-generator__theme-toggle-row')
+    expect(row).toBeInTheDocument()
+    expect(row).toHaveClass('color-generator__theme-toggle-row')
+  })
+
+  it('M-12: Regenerate renders immediately after the color chips, with nothing in between', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const preview = getPreviewPanel()
+    const children = Array.from(preview.children)
+    const paletteIndex = children.findIndex((child) =>
+      child.matches('[role="list"][aria-label="Generated 5-color palette"]'),
+    )
+    const regenerateIndex = children.findIndex(
+      (child) => child.tagName === 'BUTTON' && child.textContent === 'Regenerate',
+    )
+
+    expect(regenerateIndex).toBe(paletteIndex + 1)
+  })
+
+  it('M-12: Regenerate is horizontally centered via the result panel modifier class', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const preview = getPreviewPanel()
+    expect(preview).toHaveClass('color-generator__preview--result')
+    const regenerateButton = screen.getByRole('button', { name: 'Regenerate' })
+    expect(regenerateButton).toHaveClass('color-generator__regenerate')
   })
 })
 
