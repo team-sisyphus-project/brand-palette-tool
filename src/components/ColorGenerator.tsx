@@ -214,13 +214,25 @@ export interface ColorGeneratorProps {
  * back to the brand slot) as the base color for both the harmony explorer
  * and the new Shades ramp - see ColorStudy.tsx.
  *
- * grain-1 (theme toggle placement): a ThemeToggle is now rendered inside
- * `panel-preview` itself - in a dedicated top row, right-aligned, above
- * everything else in that panel (Regenerate/palette chips when a result
- * exists). It renders unconditionally (both before and after Generate),
- * since `panel-preview`'s children below it are the only part gated by
- * `showResult`. `theme`/`onToggleTheme` are owned by App's `useTheme()` and
- * threaded down as props - ColorGenerator holds no theme state of its own.
+ * grain-1 (theme toggle placement - superseded 2026-08-27, see below): a
+ * ThemeToggle was rendered inside `panel-preview` itself - in a dedicated
+ * top row, right-aligned, above everything else in that panel. `theme`/
+ * `onToggleTheme` are owned by App's `useTheme()` and threaded down as props
+ * - ColorGenerator holds no theme state of its own (this part is unchanged).
+ *
+ * grain-1 (2026-08-27, theme toggle relocated into the intake form): per the
+ * spec's revised first-screen layout, the ThemeToggle no longer renders
+ * inside `panel-preview` at all - it is now the first child of
+ * `.color-generator__intake-form`, directly above the brand
+ * `ColorInput` (`brand-color-input`). It keeps the same right-aligned
+ * `.color-generator__theme-toggle-row` wrapper (styling only re-targeted to
+ * the form column's width in ColorGenerator.css), and is still fed the same
+ * `theme`/`onToggleTheme` props. Because `.color-generator__intake-form`
+ * only mounts pre-generate (`!showResult`), the toggle - like the rest of
+ * the intake form - no longer renders once a palette exists; see
+ * context/decisions/ for why this trade-off was accepted rather than
+ * duplicating the toggle into the post-generate view (out of this grain's
+ * scope).
  *
  * grain-2 (progressive intake form): the pre-generate form no longer renders
  * all 4 additional-color fields up front. Only the brand `ColorInput` and
@@ -426,23 +438,20 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
           <div className="color-generator__intake">
             <div className="color-generator__intro">
               {/*
-               * grain-1 (2026-08-26, exact-screenshot match): explicit
-               * per-line breaks (not incidental CSS wrap) so the title
-               * always renders as exactly 3 lines at the intake row's 50%
-               * column width, matching the attached screenshot's 3-line
-               * title shape. Wording is unchanged from the existing copy
-               * ("Build a palette around your brand") - only where it
-               * breaks is new. See ColorGenerator.css's
-               * `.color-generator__intro-title` comment for the paired
-               * font-size token change that keeps each line from wrapping
-               * again on its own.
+               * grain-1 (2026-08-27, title copy + 110px revert): title copy
+               * changed to "Color Palette Generator", one explicit <br />
+               * per word so it always renders as exactly 3 lines
+               * (Color / Palette / Generator), independent of column width -
+               * see ColorGenerator.css's `.color-generator__intro-title`
+               * comment for the paired --text-display-2xl token revert
+               * (72px -> 110px) this pairs with.
                */}
               <h1 className="color-generator__intro-title">
-                Build a
+                Color
                 <br />
-                palette around
+                Palette
                 <br />
-                your brand
+                Generator
               </h1>
               <p className="color-generator__intro-description">
                 Add up to four brand colors, describe the mood or vibe you want, and generate a
@@ -475,6 +484,9 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
              * column as a sibling. See context/decisions/.
              */}
             <section className="color-generator__intake-form">
+              <div className="color-generator__theme-toggle-row">
+                <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+              </div>
               <ColorInput
                 id="brand-color-input"
                 label="Brand main color"
@@ -523,9 +535,6 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
         )}
       </section>
       <section className={previewClassName}>
-        <div className="color-generator__theme-toggle-row">
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-        </div>
         {showResult && palette && (
           <>
             <button

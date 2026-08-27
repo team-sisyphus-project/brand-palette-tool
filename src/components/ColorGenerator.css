@@ -21,8 +21,30 @@
 .color-generator__intake {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
-  gap: var(--space-6);
+  /*
+   * grain-1 (2026-08-27, intake-form border/height balance): was
+   * `flex-start` - switched to `stretch` so `.color-generator__intake-form`
+   * (below) grows to the same height as its `.color-generator__intro`
+   * sibling (the taller column, per the title + 3 body paragraphs + Color
+   * Study blurb) instead of shrink-wrapping to its own shorter form-field
+   * content. This is what lets the form's new border box (see
+   * `.color-generator__intake-form` below) visually balance against the
+   * title column's rendered height, per the card's "테두리 상자의 전체
+   * 높이가 좌측 타이틀 텍스트의 렌더링 높이와 가급적 일치" instruction.
+   */
+  align-items: stretch;
+  /*
+   * grain-1 (2026-08-27, wide column gap): was `var(--space-6)` (32px) -
+   * the card now asks for a 120px gap between the two columns, well past
+   * the spacing scale's largest registered rung (--space-9, 64px; see
+   * design-spec token-groups/spacing/base.md). Hardcoded literal per the
+   * card's exact pixel spec rather than added as a new --space-* token:
+   * this grain's file Boundary covers only App.css/ColorGenerator.css, so
+   * there is no in-scope place to declare a new custom property (that
+   * lives in src/index.css). See the design-spec audit entry for this
+   * date for the full decision record.
+   */
+  gap: 120px;
   width: 100%;
 }
 
@@ -82,9 +104,46 @@
  * row exactly 50/50 as shown in the attached screenshot (superseding the
  * prior fixed `420px` basis - see that rule's history above).
  */
+/*
+ * grain-1 (2026-08-27, intake-form border box): the card asks for a
+ * rectangular border around this column, sized/aligned to balance against
+ * the title column's rendered height (see `.color-generator__intake`'s
+ * `align-items: stretch` above, which is what supplies that height to
+ * stretch into). `border-color` in the original card text
+ * (`var(--border-color)`) isn't a registered Token in this project - the
+ * design-spec's border Token Group (token-groups/border/base.md) only
+ * declares `border-width-default`/`border-width-focus`, and the matching
+ * color Token this project already uses for structural borders everywhere
+ * else (`.color-generator__add-color`, ColorInput, ThemeToggle, etc.) is
+ * `--color-border-default`. Substituted rather than inventing a new
+ * `--border-color` Token - see the design spec's audit record for this date.
+ * `box-sizing: border-box`
+ * + `padding: var(--space-6)` (this file's existing row-gap token, reused
+ * rather than adding a new spacing value) keep the border+padding inside the
+ * `flex: 1 1 0` width/stretched-height box instead of expanding past it.
+ */
 .color-generator__intake-form {
   flex: 1 1 0;
   min-width: 0;
+  box-sizing: border-box;
+  padding: var(--space-6);
+  border: var(--border-width-default) solid var(--color-border-default);
+}
+
+/*
+ * grain-1 (2026-08-27): 'Brand main color' and 'Mood keyword' narrow to 60%
+ * of the intake-form column per the card. Scoped to `.color-input` wrappers
+ * that are *direct* children of `.color-generator__intake-form` - the 4
+ * optional additional-color fields render one level deeper, inside
+ * `.color-generator__extra-colors` (see ColorGenerator.tsx), so the `>`
+ * combinator alone already excludes them; the `:has()` id match narrows
+ * further to only the two named fields (rather than "every direct-child
+ * .color-input", which would also catch any future direct-child field added
+ * here) so this rule can't silently widen its own scope later.
+ */
+.color-generator__intake-form > .color-input:has(#brand-color-input),
+.color-generator__intake-form > .color-input:has(#mood-keyword-input) {
+  width: 60%;
 }
 
 /* grain-1 (2026-08-26): "Color Study" sub-section - one step down from the
@@ -122,6 +181,14 @@
  * intro column and would force the longest line ("palette around") to wrap
  * a second time inside a ~600px column. See index.css for the token
  * comment.
+ *
+ * grain-1 (2026-08-27, title copy + 110px revert): title copy is now
+ * "Color Palette Generator" (Color / Palette / Generator, one word per
+ * line via ColorGenerator.tsx's explicit `<br />`s) - each line is short
+ * enough that `--text-display-2xl` reverts to its original `110px` without
+ * re-wrapping inside the 50/50 column. This class is the token's only
+ * reuse point, so the revert is scoped to just this title. See index.css's
+ * token comment and design-spec/token-groups/typography/base.md.
  */
 .color-generator__intro-title {
   margin: 0;
@@ -250,11 +317,17 @@
 }
 
 /*
- * grain-1: ThemeToggle's anchor row inside the preview/color panel - right
- * aligned so the toggle sits at that panel's top-right corner, above the
- * palette chips (and above Regenerate once a result exists). Rendered
- * unconditionally, so it also occupies the top-right corner of the (empty)
- * pre-generate preview panel.
+ * grain-1 (2026-08-27, relocated into the intake form): ThemeToggle's anchor
+ * row used to live inside the preview/color panel (right-aligned, top
+ * corner). It now renders as the first child of
+ * `.color-generator__intake-form` instead, directly above the brand
+ * `ColorInput` field - see ColorGenerator.tsx's class doc comment and
+ * context/decisions/. Still right-aligned (`justify-content: flex-end`) so
+ * the toggle anchors to the form column's top-right corner rather than
+ * spanning/centering with the stacked form fields below it; `width: 100%`
+ * keeps it spanning the same column width those fields use (inherited from
+ * the shared `.color-generator__intake-form` flex-column rule above, which
+ * this class doesn't override).
  */
 .color-generator__theme-toggle-row {
   display: flex;

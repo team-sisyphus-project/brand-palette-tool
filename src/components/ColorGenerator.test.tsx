@@ -108,51 +108,58 @@ function mockDeterministicRandom() {
   })
 }
 
-// grain-1 (theme toggle placement): App no longer renders ThemeToggle in its
-// header — ColorGenerator now owns rendering it, anchored inside the
-// color/preview panel (`panel-preview` / `.color-generator__preview`),
-// top-right, above whatever else that panel renders. It must be present in
-// both the pre-generate (empty preview) and post-generate (result) states,
-// and `theme`/`onToggleTheme` must be threaded straight through to the
-// underlying ThemeToggle.
-describe('grain-1: theme toggle placement (color panel top-right)', () => {
+// grain-1 (2026-08-27, theme toggle relocated into the intake form):
+// supersedes the prior "color panel top-right" placement (ThemeToggle inside
+// `panel-preview` / `.color-generator__preview`, present in both pre- and
+// post-generate states) — see ColorGenerator.tsx's class doc comment and
+// context/decisions/. The toggle now renders as the first child of
+// `.color-generator__intake-form`, directly above the brand
+// `ColorInput` (`brand-color-input`). Since that form only mounts
+// pre-generate, the toggle is no longer reachable post-generate; that
+// trade-off is intentional (see the decision record) and verified below
+// alongside the new placement, rather than kept as a red/stale expectation.
+describe('grain-1: theme toggle placement (intake form, above brand field)', () => {
   function getPreviewSection(): HTMLElement {
     // panel-preview is always present; grab it by its stable class rather
     // than via the (sometimes absent, pre-generate) palette list.
     return document.querySelector('.color-generator__preview') as HTMLElement
   }
 
-  it('renders the toggle inside the color/preview panel before Generate, not the controls panel', () => {
+  it('renders the toggle inside the intake form, before Generate, not inside the preview panel', () => {
     render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
 
     const toggle = screen.getByRole('switch')
-    expect(getPreviewSection()).toContainElement(toggle)
-
-    const controlsPanel = getInput().closest('section')!
-    expect(within(controlsPanel).queryByRole('switch')).not.toBeInTheDocument()
+    const intakeForm = getInput().closest('section')!
+    expect(intakeForm).toContainElement(toggle)
+    expect(within(getPreviewSection()).queryByRole('switch')).not.toBeInTheDocument()
   })
 
-  it('keeps the toggle inside the color/preview panel after Generate, positioned above the color chips', () => {
+  it('positions the toggle as the intake form section\'s first child, ahead of the brand color field', () => {
+    render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
+
+    const toggle = screen.getByRole('switch')
+    const intakeForm = getInput().closest('section')!
+    const row = toggle.closest('.color-generator__theme-toggle-row')
+    expect(row).toBeInTheDocument()
+    expect(intakeForm.firstElementChild).toBe(row)
+
+    // DOCUMENT_POSITION_FOLLOWING (4) means the brand input comes after the toggle.
+    expect(toggle.compareDocumentPosition(getInput()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('never renders `.color-generator__theme-toggle-row` inside the preview panel', () => {
+    render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
+    expect(within(getPreviewSection()).queryByRole('switch')).not.toBeInTheDocument()
+
+    generate('#3366ff')
+    expect(getPreviewSection().querySelector('.color-generator__theme-toggle-row')).not.toBeInTheDocument()
+  })
+
+  it('unmounts along with the rest of the intake form once Generate reveals a palette', () => {
     render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
     generate('#3366ff')
 
-    const preview = getPreviewSection()
-    const toggle = screen.getByRole('switch')
-    expect(preview).toContainElement(toggle)
-
-    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
-    // DOCUMENT_POSITION_FOLLOWING (4) means `list` comes after `toggle`.
-    expect(toggle.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-
-  it('right-aligns the toggle row so the toggle anchors to the top-right corner of the color panel', () => {
-    render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
-
-    const toggle = screen.getByRole('switch')
-    const row = toggle.closest('.color-generator__theme-toggle-row')
-    expect(row).toBeInTheDocument()
-    // The row is the first child of the preview panel in both pre/post-generate states.
-    expect(getPreviewSection().firstElementChild).toBe(row)
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
   })
 
   it('reflects the theme prop and calls onToggleTheme when clicked', () => {
@@ -164,6 +171,50 @@ describe('grain-1: theme toggle placement (color panel top-right)', () => {
 
     fireEvent.click(toggle)
     expect(onToggleTheme).toHaveBeenCalledTimes(1)
+  })
+})
+
+// grain-1 (2026-08-27, title copy + 110px revert): the pre-generate hero
+// title's copy changed to "Color Palette Generator", split across exactly 3
+// lines (one word per line) via explicit `<br />`s - see ColorGenerator.tsx's
+// class doc comment. The paired `--text-display-2xl` 72px -> 110px token
+// revert is pinned directly against src/index.css/ColorGenerator.css source
+// in ColorGenerator.title.test.ts, mirroring pageBackground.test.ts's
+// convention (jsdom does not run Vitest's CSS pipeline, so a rendered
+// component's getComputedStyle would not reflect it - see
+// PaletteSwatch.test.tsx's doc comment for the same reasoning).
+describe('grain-1: intro title copy (pre-generate hero)', () => {
+  function getTitle(): HTMLElement {
+    return screen.getByRole('heading', { level: 1 })
+  }
+
+  it('renders "Color Palette Generator" as its full text content', () => {
+    render(<ColorGenerator />)
+    // JSX collapses the whitespace/newlines around each <br/> in the
+    // source, so the DOM text content is the 3 words concatenated with no
+    // separator - the per-line split (verified separately below) is what
+    // carries the "Color Palette Generator" reading, not inter-word spaces.
+    expect(getTitle()).toHaveTextContent('ColorPaletteGenerator')
+  })
+
+  it('splits the title into exactly 3 lines via <br /> - "Color" / "Palette" / "Generator"', () => {
+    render(<ColorGenerator />)
+    const title = getTitle()
+
+    // innerHTML gives us the literal <br/>-delimited structure; each segment
+    // (trimmed) is one rendered line.
+    const lines = title.innerHTML
+      .split(/<br\s*\/?>/i)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+
+    expect(lines).toEqual(['Color', 'Palette', 'Generator'])
+  })
+
+  it('no longer renders the old "Build a palette around your brand" copy', () => {
+    render(<ColorGenerator />)
+    expect(screen.queryByText(/Build a/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/your brand/)).not.toBeInTheDocument()
   })
 })
 

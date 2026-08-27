@@ -22,8 +22,15 @@
      fit within roughly a 580-620px column (at the new 1440px page cap)
      without wrapping a second time; 110px was sized for the prior
      near-full-width intro column. Value change recorded in
+     design-spec/token-groups/typography/base.md.
+     grain-1 (2026-08-27, title copy + 110px revert): raised 72px -> 110px
+     back to its original value. The title copy changed to "Color Palette
+     Generator" (one short word per line - see ColorGenerator.tsx), so the
+     72px-forcing wrap constraint no longer applies; this token's only reuse
+     point is `.color-generator__intro-title` (ColorGenerator.css), so the
+     revert is scoped to that title alone. Value change recorded in
      design-spec/token-groups/typography/base.md. */
-  --text-display-2xl: 72px;
+  --text-display-2xl: 110px;
   --text-display-xl: 48px;
   --text-display-lg: 34px;
   --text-display-md: 28px;
