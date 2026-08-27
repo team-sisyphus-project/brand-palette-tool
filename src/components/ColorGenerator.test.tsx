@@ -862,16 +862,107 @@ describe('grain-2: palette export actions wiring', () => {
   })
 })
 
-// grain-3: the "grain-2: generation mode selection (M-3)" describe block that
-// used to live here (5 generation-mode buttons via ModeSelector, selecting
-// each renders a distinct palette, switching modes keeps the brand slot/
-// locked slots unchanged) has been removed. ModeSelector itself is deleted
-// (see ColorGenerator.tsx's class doc comment, "(assumption — needs
-// confirmation)") - there is no remaining UI to switch generation modes, so
-// that whole scenario is unreachable. Coverage for `mode`-parameterized
-// palette generation itself (5 distinct modes producing 5 distinct palettes)
-// still lives in palette.test.ts's own generatePalette/deriveHslByMode unit
-// tests; this file only ever exercised that logic through UI wiring.
+// grain-1 (2026-08-27, restored): a prior grain-3 removed the "generation
+// mode selection (M-3)" describe block that used to live here, along with
+// ModeSelector itself. This grain restores both - see the describe block
+// below ("grain-1: generation mode selector (restored, M-3)") for the
+// restored UI-wiring coverage (5 mode buttons, selecting one renders a
+// different palette, brand/locked slots survive a mode switch unchanged).
+// Coverage for `mode`-parameterized palette generation itself (5 distinct
+// modes producing 5 distinct palettes) still lives separately in
+// palette.test.ts's own generatePalette/deriveHslByMode unit tests.
+describe('grain-1: generation mode selector (restored, M-3)', () => {
+  function getModeGroup(): HTMLElement {
+    return screen.getByRole('group', { name: 'Select generation mode' })
+  }
+
+  function getModeButton(name: string): HTMLElement {
+    return within(getModeGroup()).getByRole('button', { name })
+  }
+
+  it('is not rendered before Generate, even with a valid brand color', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
+  })
+
+  it('renders exactly 5 mode buttons once Generate reveals a palette, Complementary selected by default', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const group = getModeGroup()
+    const buttons = within(group).getAllByRole('button')
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      'Complementary',
+      'Analogous',
+      'Triadic',
+      'Split Complementary',
+      'Monochromatic',
+    ])
+    expect(getModeButton('Complementary')).toHaveAttribute('aria-pressed', 'true')
+    ;['Analogous', 'Triadic', 'Split Complementary', 'Monochromatic'].forEach((name) =>
+      expect(getModeButton(name)).toHaveAttribute('aria-pressed', 'false'),
+    )
+  })
+
+  it('selecting a different mode marks it pressed and renders a different palette than the previous mode', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const beforeHexes = getHexes(list)
+
+    fireEvent.click(getModeButton('Triadic'))
+
+    expect(getModeButton('Triadic')).toHaveAttribute('aria-pressed', 'true')
+    expect(getModeButton('Complementary')).toHaveAttribute('aria-pressed', 'false')
+    expect(getHexes(list)).not.toEqual(beforeHexes)
+  })
+
+  it('switching modes leaves the locked brand slot unchanged (M-2 semantics reused for mode switching)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(within(list).getByText('#3366ff')).toBeInTheDocument()
+
+    fireEvent.click(getModeButton('Monochromatic'))
+
+    expect(within(list).getByText('#3366ff')).toBeInTheDocument()
+    const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('switching modes leaves an additional locked slot unchanged, but changes the remaining unlocked slots', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const beforeHexes = getHexes(list)
+    const lockedIndex = beforeHexes.findIndex((hex) => hex !== '#3366ff')
+    const lockedHex = beforeHexes[lockedIndex]
+    fireEvent.click(screen.getByRole('button', { name: `Toggle lock for ${lockedHex} color` }))
+
+    fireEvent.click(getModeButton('Analogous'))
+
+    const afterHexes = getHexes(list)
+    expect(afterHexes[lockedIndex]).toBe(lockedHex)
+    expect(afterHexes).not.toEqual(beforeHexes)
+  })
+
+  it('produces a numerically distinct palette for each of the 5 modes from the same brand color', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const seen = new Set<string>()
+    ;['Complementary', 'Analogous', 'Triadic', 'Split Complementary', 'Monochromatic'].forEach((name) => {
+      fireEvent.click(getModeButton(name))
+      seen.add(getHexes(list).join(','))
+    })
+    expect(seen.size).toBe(5)
+  })
+})
 
 // grain-1 (2026-08-26): the right-panel MoodTag chip list is removed
 // entirely (see ColorGenerator.tsx's class doc comment, "MoodTag chip
@@ -1090,12 +1181,16 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     expect(screen.queryByRole('button', { name: 'Add another color' })).not.toBeInTheDocument()
   })
 
-  it('after Generate, the left panel renders the Palette Description panel instead of a mode selector', () => {
+  // grain-1 (2026-08-27): ModeSelector is restored above PaletteDescription
+  // (see "grain-1: generation mode selector (restored, M-3)" above for full
+  // coverage) - this test now asserts both render together, not that the
+  // mode selector is absent.
+  it('after Generate, the left panel renders both the mode selector and the Palette Description panel', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
     expect(screen.getByRole('region', { name: 'Palette description' })).toBeInTheDocument()
-    expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Select generation mode' })).toBeInTheDocument()
   })
 
   it('after Generate, the preview panel carries the center-aligned result modifier class', () => {
@@ -1154,11 +1249,13 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
 // grain-3 (left-panel Palette Description panel): replaces the removed
 // ModeSelector/RecentPalettes markup in `panel-generator` (see
 // ColorGenerator.tsx's class doc comment for why both were removed
-// wholesale, not just relocated). PaletteDescription itself only renders
-// whatever name/description/keywords it is given - the wiring-level
-// guarantee this suite verifies is "a palette exists -> the left panel always
-// shows a name, at least one description line, and the keyword list, and
-// never shows the old ModeSelector/RecentPalettes elements".
+// wholesale, not just relocated). grain-1 (2026-08-27) later restored
+// ModeSelector (see "grain-1: generation mode selector (restored, M-3)"
+// above) - PaletteDescription itself only renders whatever name/description/
+// keywords it is given, and the wiring-level guarantee this suite verifies
+// is unchanged: "a palette exists -> the left panel always shows a name, at
+// least one description line, and the keyword list, and never shows
+// RecentPalettes".
 describe('grain-3: Palette Description panel (left panel)', () => {
   function getControlsPanel(): HTMLElement {
     return document.querySelector('.panel-generator') as HTMLElement
@@ -1227,7 +1324,12 @@ describe('grain-3: Palette Description panel (left panel)', () => {
     expect(leftKeywords.slice(vibeKeywords.length)).toEqual(expectedExtra)
   })
 
-  it('the left panel never renders the removed ModeSelector or RecentPalettes elements, before or after Generate', () => {
+  // grain-1 (2026-08-27): ModeSelector is restored (see "grain-1: generation
+  // mode selector (restored, M-3)" above) - it renders post-generate only,
+  // same gating as PaletteDescription itself. RecentPalettes stays removed
+  // (out of this grain's scope) and is never rendered, before or after
+  // Generate.
+  it('the left panel renders the restored mode selector only after Generate, and never renders RecentPalettes', () => {
     render(<ColorGenerator />)
     expect(within(getControlsPanel()).queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
     expect(within(getControlsPanel()).queryByRole('region', { name: 'Recent palettes' })).not.toBeInTheDocument()
@@ -1235,7 +1337,7 @@ describe('grain-3: Palette Description panel (left panel)', () => {
 
     generate('#3366ff')
 
-    expect(within(getControlsPanel()).queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
+    expect(within(getControlsPanel()).getByRole('group', { name: 'Select generation mode' })).toBeInTheDocument()
     expect(within(getControlsPanel()).queryByRole('region', { name: 'Recent palettes' })).not.toBeInTheDocument()
     expect(within(getControlsPanel()).queryByRole('list', { name: 'Recent palettes list' })).not.toBeInTheDocument()
   })

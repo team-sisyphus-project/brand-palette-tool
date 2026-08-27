@@ -21,6 +21,7 @@ import type { Theme } from '../lib/theme'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
 import { ColorStudy } from './ColorStudy'
+import { ModeSelector } from './ModeSelector'
 import { Palette } from './Palette'
 import { PaletteDescription } from './PaletteDescription'
 import { PaletteExportActions } from './PaletteExportActions'
@@ -97,17 +98,20 @@ export interface ColorGeneratorProps {
  * "Copy HEX" button was removed from that toolbar - see
  * PaletteExportActions.tsx's class doc comment.)
  *
- * grain-3 (Harmony mode selector removal - assumption — needs confirmation):
- * the left panel's ModeSelector (5 standard color-wheel harmony mode buttons -
- * Complementary/Analogous/Triadic/Split Complementary/Monochromatic, see
- * GenerationMode) has been removed entirely per the card's "Harmony
- * 선택기 버튼들을 완전히 제거" instruction, in favor of the new
- * PaletteDescription panel below. Generation now always uses `mode`, fixed at
- * `DEFAULT_MODE` (Complementary) - there is no remaining UI affordance to
- * change it. This is a genuine capability loss versus the prior M-3 behavior
- * (5 selectable harmony modes), not just a markup relocation, so it is
- * explicitly flagged as an assumption needing human confirmation rather than
- * silently dropped.
+ * grain-1 (2026-08-27, mode selector restored): a prior grain-3 removed the
+ * left panel's ModeSelector wholesale (flagged then as an unconfirmed
+ * capability loss - see context/decisions/). This grain restores it: a
+ * `ModeSelector` renders in the post-generate left panel, directly above
+ * `PaletteDescription`, with 5 buttons (Complementary/Analogous/Triadic/
+ * Split Complementary/Monochromatic, see `GenerationMode`). `mode` is once
+ * again stateful (`useState<GenerationMode>`, default `DEFAULT_MODE` =
+ * Complementary) instead of a fixed constant. Selecting a mode calls
+ * `handleSelectMode`, which recomputes the derived slots for the new mode via
+ * `generatePalette(trimmed, nextMode)` (src/lib/palette.ts, unchanged) and
+ * merges the result against the current palette per `locks` - locked slots
+ * (brand included) keep their exact existing color, only unlocked/derived
+ * slots take the new mode's values (M-2 semantics reused for mode switching,
+ * not just Regenerate).
  *
  * getMoodTags(averageHsl(palette)) still derives the current palette's 1-2
  * deterministic mood adjectives from a fixed lookup table - no AI judgment
@@ -293,11 +297,9 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
   // (progressive disclosure - see the class doc comment above).
   const [revealedExtraColorCount, setRevealedExtraColorCount] = useState(0)
   const [locks, setLocks] = useState<Locks>(() => createInitialLocks())
-  // grain-3: no remaining UI lets the user change the generation mode (the
-  // ModeSelector that used to drive this is removed - see the class doc
-  // comment's "(assumption — needs confirmation)" note above), so `mode` is
-  // now a fixed constant rather than state.
-  const mode: GenerationMode = DEFAULT_MODE
+  // grain-1 (2026-08-27): stateful again now that ModeSelector is restored -
+  // see the class doc comment above.
+  const [mode, setMode] = useState<GenerationMode>(DEFAULT_MODE)
   const [regenerated, setRegenerated] = useState<PaletteColor[] | null>(null)
   // grain-1: the palette/result section only renders once Generate has been
   // clicked with a valid brand color - see the class doc comment above.
@@ -389,6 +391,21 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
     setRegenerated(next)
   }
 
+  /**
+   * grain-1 (2026-08-27): switching generation modes recomputes only the
+   * unlocked/derived slots - locked slots (brand included) keep their exact
+   * current color, mirroring `handleRegenerate`'s lock-respecting merge but
+   * driven by `generatePalette`'s deterministic per-mode rules instead of
+   * jittered regeneration. See ModeSelector.tsx's class doc comment.
+   */
+  const handleSelectMode = (nextMode: GenerationMode) => {
+    setMode(nextMode)
+    if (!palette) return
+    const derived = generatePalette(trimmed, nextMode)
+    if (!derived) return
+    setRegenerated(palette.map((color, slot) => (locks[slot] ? color : derived[slot])))
+  }
+
   const handleSlotColorChange = (index: number, hex: string) => {
     if (!palette) return
     const next = updateSlotColor(palette, index, hex)
@@ -410,6 +427,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
       <section className={controlsClassName}>
         {showResult && palette && paletteName ? (
           <>
+            <ModeSelector mode={mode} onChange={handleSelectMode} />
             <PaletteDescription
               name={paletteName}
               description={paletteDescriptionLines}
