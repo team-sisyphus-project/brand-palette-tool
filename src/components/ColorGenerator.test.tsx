@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   averageHsl,
@@ -1693,5 +1696,74 @@ describe('grain-2: Color Study renders outside the preview panel (full-width she
   it('does not render before a result exists (still gated on showResult)', () => {
     render(<ColorGenerator />)
     expect(screen.queryByRole('region', { name: 'Color Study' })).not.toBeInTheDocument()
+  })
+})
+
+// grain-2 (2026-08-27, M-13): source-level CSS assertions, mirroring the
+// pattern already used by ColorStudy.test.tsx's "source-level" suite (this
+// grain's style values are 비-UI-verified per spec A's Measure table, and
+// jsdom does not apply external stylesheet rules to computed style during
+// render() the way a browser would).
+describe('ColorGenerator.css: M-13 Regenerate-only action-button style (source-level)', () => {
+  const cssPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'ColorGenerator.css')
+  const css = readFileSync(cssPath, 'utf-8')
+  const indexCssPath = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'index.css',
+  )
+  const indexCss = readFileSync(indexCssPath, 'utf-8')
+
+  function extractRuleBody(source: string, selector: string): string {
+    const index = source.indexOf(selector)
+    if (index === -1) {
+      throw new Error(`extractRuleBody: selector "${selector}" not found`)
+    }
+    const braceStart = source.indexOf('{', index)
+    let depth = 0
+    for (let i = braceStart; i < source.length; i++) {
+      if (source[i] === '{') depth++
+      else if (source[i] === '}') {
+        depth--
+        if (depth === 0) return source.slice(braceStart + 1, i)
+      }
+    }
+    throw new Error(`extractRuleBody: unbalanced braces for selector "${selector}"`)
+  }
+
+  it('M-13: --text-action-lg is tokenized at 24px in src/index.css', () => {
+    expect(indexCss).toMatch(/--text-action-lg:\s*24px\s*;/)
+  })
+
+  it('M-13: Regenerate has its own selector, separate from Generate', () => {
+    // Selector split (boundary: "ColorGenerator.css 액션버튼 셀렉터 분리") - each
+    // button now owns a standalone rule, rather than a combined
+    // `.color-generator__generate, .color-generator__regenerate { ... }` block.
+    expect(css).toMatch(/\.color-generator__generate\s*\{/)
+    expect(css).toMatch(/\.color-generator__regenerate\s*\{/)
+  })
+
+  it('M-13: Regenerate renders padding 32px, font-size 24px, Pretendard font-family, and 16px border-radius', () => {
+    const rule = extractRuleBody(css, '.color-generator__regenerate {')
+    expect(rule).toMatch(/padding:\s*var\(--content-padding-lg\)\s*;/)
+    expect(rule).toMatch(/font-size:\s*var\(--text-action-lg\)\s*;/)
+    expect(rule).toMatch(/font-family:\s*var\(--font-text\)\s*;/)
+    expect(rule).toMatch(/border-radius:\s*var\(--radius-card\)\s*;/)
+
+    expect(indexCss).toMatch(/--content-padding-lg:\s*2rem\s*;/)
+    expect(indexCss).toMatch(/--text-action-lg:\s*24px\s*;/)
+    expect(indexCss).toMatch(
+      /--font-text:\s*"Pretendard",[^;]*;/,
+    )
+    expect(indexCss).toMatch(/--radius-card:\s*16px\s*;/)
+  })
+
+  it('M-13: Generate is untouched - still the pre-existing fixed 46px/16px/Inter/12px-radius style', () => {
+    const rule = extractRuleBody(css, '.color-generator__generate {')
+    expect(rule).toMatch(/height:\s*var\(--control-height-action\)\s*;/)
+    expect(rule).toMatch(/padding:\s*0 var\(--content-padding-action-x\)\s*;/)
+    expect(rule).toMatch(/font-size:\s*var\(--text-action-md\)\s*;/)
+    expect(rule).toMatch(/font-family:\s*var\(--font-action\)\s*;/)
+    expect(rule).toMatch(/border-radius:\s*var\(--radius-control\)\s*;/)
   })
 })

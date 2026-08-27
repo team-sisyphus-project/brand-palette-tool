@@ -270,14 +270,17 @@
   border-color: var(--color-border-focus);
 }
 
-/* design-spec components/action-button: shared by Generate (grain-1) and
-   Regenerate. Black-CTA spec (grain-1, 2026-08-26): fixed 46px height, 16px
-   Inter, 0/21px padding, pure-black background - see the --control-height-
-   action / --font-action / --text-action-md / --content-padding-action-x /
-   --color-action-bg-fixed tokens in src/index.css and
-   design-spec/components/action-button/base.md. */
-.color-generator__generate,
-.color-generator__regenerate {
+/* design-spec components/action-button (base): Generate's own rule, unchanged
+   by grain-2's M-13 Regenerate-only style. Black-CTA spec (grain-1,
+   2026-08-26): fixed 46px height, 16px Inter, 0/21px padding, pure-black
+   background - see the --control-height-action / --font-action /
+   --text-action-md / --content-padding-action-x / --color-action-bg-fixed
+   tokens in src/index.css and design-spec/components/action-button/base.md.
+   grain-2 (2026-08-27, M-13): selector split out of the former combined
+   `.color-generator__generate, .color-generator__regenerate` rule so
+   Regenerate's diverging style (below) cannot drift this one - see that
+   rule's own comment and design-spec/components/action-button/regenerate.md. */
+.color-generator__generate {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
@@ -291,6 +294,50 @@
   color: var(--color-text-on-action);
   font-family: var(--font-action);
   font-size: var(--text-action-md);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  cursor: pointer;
+}
+
+/*
+ * design-spec components/action-button (variant: regenerate) - grain-2
+ * (2026-08-27, M-13): spec A's "결과 화면 레이아웃" delta gives Regenerate its
+ * own padding/font-size/font-family/border-radius, diverging from Generate's
+ * shared action-button style above (Generate is explicitly out of this
+ * grain's scope and stays byte-for-byte unchanged). Declares its own full
+ * rule (rather than layering overrides on the shared selector) per this
+ * grain's "액션버튼 셀렉터 분리" boundary.
+ *   - padding: 32px all sides -> reuses the existing (previously-unused)
+ *     --content-padding-lg (2rem/32px) token, no new spacing value.
+ *   - font-size: 24px -> no existing step matches (Action family only has
+ *     --text-action-md/16px; --space-5/24px is the wrong axis - spacing, not
+ *     type), so a new --text-action-lg token was added to the Action
+ *     typography scale (src/index.css).
+ *   - font-family: Pretendard -> reuses --font-text (the existing
+ *     Pretendard-first stack), not Generate's Inter-based --font-action.
+ *   - border-radius: 16px -> reuses the existing, widely-used --radius-card
+ *     token, not Generate's --radius-control (12px).
+ * `height: auto` replaces the shared rule's fixed --control-height-action
+ * (46px): a fixed height would clip the new 32px vertical padding instead of
+ * letting the box grow with it. Recorded in
+ * design-spec/components/action-button/regenerate.md and
+ * design-spec/token-groups/typography/base.md.
+ */
+.color-generator__regenerate {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  height: auto;
+  padding: var(--content-padding-lg);
+  border: none;
+  border-radius: var(--radius-card);
+  background: var(--color-action-bg-fixed);
+  color: var(--color-text-on-action);
+  font-family: var(--font-text);
+  font-size: var(--text-action-lg);
   font-weight: var(--weight-text-medium);
   line-height: var(--leading-text);
   letter-spacing: var(--tracking-text);

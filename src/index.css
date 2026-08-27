@@ -62,6 +62,15 @@
      step. Recorded in design-spec/token-groups/typography/base.md. */
   --font-action: Inter, sans-serif;
   --text-action-md: 16px;
+  /* --text-action-lg (grain-2, 2026-08-27, M-13): Regenerate-only CTA label
+     size (24px) - spec A's "결과 화면 레이아웃" delta calls for a larger,
+     more prominent Regenerate button, diverging from Generate's shared
+     --text-action-md (16px). 24px doesn't land on the Action family's only
+     other step (md/16px) or on --space-5 (24px, a spacing token, wrong
+     axis), so this is a new step on the same {role}-{property}-{scale}
+     Action typography scale rather than a reused value. Recorded in
+     design-spec/token-groups/typography/base.md. */
+  --text-action-lg: 24px;
 
   /* Design tokens — typography: Rounded (badges/tags)
      Toss look-and-feel: Pretendard first, same rationale as Display/Text. */
