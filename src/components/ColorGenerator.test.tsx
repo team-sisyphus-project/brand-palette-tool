@@ -797,6 +797,83 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
   })
 })
 
+// grain-2 (verify M-1/M-2/M-3): the individual behaviors "a picker edit
+// auto-locks and survives Regenerate" and "a mode switch respects locks" are
+// each covered above in isolation, but never chained together, and no
+// existing test proves Regenerate itself keeps operating within whichever
+// mode is *currently selected* rather than silently reverting to the
+// default mode. This block closes both gaps.
+describe('grain-2 (verify): M-2 locks survive mode switches combined with picker edits, and Regenerate respects the selected mode', () => {
+  function getModeGroup(): HTMLElement {
+    return screen.getByRole('group', { name: 'Select generation mode' })
+  }
+
+  function getModeButton(name: string): HTMLElement {
+    return within(getModeGroup()).getByRole('button', { name })
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('a slot locked via a color-picker edit survives a subsequent mode switch, not just Regenerate (M-2)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const originalHex = findLockButtonHex(list, false)
+    fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
+    expect(within(list).getByText('#00ff00')).toBeInTheDocument()
+
+    fireEvent.click(getModeButton('Triadic'))
+
+    expect(within(list).getByText('#00ff00')).toBeInTheDocument()
+    const editedLock = screen.getByRole('button', { name: 'Toggle lock for #00ff00 color' })
+    expect(editedLock).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('a picker-edited slot survives both a mode switch and a Regenerate that follows it (M-2)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const originalHex = findLockButtonHex(list, false)
+    fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
+
+    fireEvent.click(getModeButton('Analogous'))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    expect(within(list).getByText('#00ff00')).toBeInTheDocument()
+  })
+
+  it('Regenerate reflects the currently selected mode rather than always the default mode (M-2 x M-3)', () => {
+    mockDeterministicRandom()
+    const complementaryRun = render(<ColorGenerator />)
+    generate('#3366ff')
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    const complementaryRegenHexes = getHexes(
+      screen.getByRole('list', { name: 'Generated 5-color palette' }),
+    )
+    complementaryRun.unmount()
+    vi.restoreAllMocks()
+
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    generate('#3366ff')
+    fireEvent.click(getModeButton('Triadic'))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    const triadicRegenHexes = getHexes(
+      screen.getByRole('list', { name: 'Generated 5-color palette' }),
+    )
+
+    // Same deterministic random sequence, same brand color and locks in both
+    // runs - the only difference is which mode was selected before
+    // Regenerate was clicked. If the unlocked slots differ, Regenerate is
+    // actually driven by the live `mode` state, not a stale default.
+    expect(triadicRegenHexes).not.toEqual(complementaryRegenHexes)
+  })
+})
+
 // grain-2 (spec C M-1): wiring-level check that PaletteExportActions renders
 // alongside the palette. Clipboard-copy behavior itself (exact text copied,
 // success/failure feedback, CSS syntax validity) is covered in
