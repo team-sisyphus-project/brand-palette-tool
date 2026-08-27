@@ -286,6 +286,13 @@ export interface ColorGeneratorProps {
  * spec's copy, including a new "Color Study" sub-section
  * (`.color-generator__intro-subtitle`) - see recording in
  * design-spec/token-groups/typography/base.md.
+ *
+ * grain-3 (2026-08-27, M-8 narrow input fields): the Brand main color and
+ * Mood keyword `ColorInput`s now pass `width="narrow"`, rendering each at
+ * 60% of `.color-generator__intake-form`'s width per spec A's "홈페이지
+ * 인테이크 레이아웃" delta. The 4 additional Hex color fields are untouched
+ * (stay full width) - out of this grain's scope. See ColorInput.tsx/.css
+ * for the width-variant mechanism and design-spec/components/color-input/.
  */
 export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_THEME }: ColorGeneratorProps) {
   const [inputValue, setInputValue] = useState('#E84C40')
@@ -499,6 +506,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
                 value={inputValue}
                 onChange={handleInputChange}
                 error={isInvalid ? INVALID_COLOR_MESSAGE : null}
+                width="narrow"
               />
               {revealedExtraColorCount > 0 && (
                 <div className="color-generator__extra-colors">
@@ -531,6 +539,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
                 placeholder="e.g. calm, bold, playful"
                 value={moodKeyword}
                 onChange={setMoodKeyword}
+                width="narrow"
               />
               <button type="button" className="color-generator__generate" onClick={handleGenerate}>
                 Generate
