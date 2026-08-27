@@ -258,11 +258,17 @@
 }
 
 /*
- * grain-1: ThemeToggle's anchor row inside the preview/color panel - right
- * aligned so the toggle sits at that panel's top-right corner, above the
- * palette chips (and above Regenerate once a result exists). Rendered
- * unconditionally, so it also occupies the top-right corner of the (empty)
- * pre-generate preview panel.
+ * grain-1 (2026-08-27, relocated into the intake form): ThemeToggle's anchor
+ * row used to live inside the preview/color panel (right-aligned, top
+ * corner). It now renders as the first child of
+ * `.color-generator__intake-form` instead, directly above the brand
+ * `ColorInput` field - see ColorGenerator.tsx's class doc comment and
+ * context/decisions/. Still right-aligned (`justify-content: flex-end`) so
+ * the toggle anchors to the form column's top-right corner rather than
+ * spanning/centering with the stacked form fields below it; `width: 100%`
+ * keeps it spanning the same column width those fields use (inherited from
+ * the shared `.color-generator__intake-form` flex-column rule above, which
+ * this class doesn't override).
  */
 .color-generator__theme-toggle-row {
   display: flex;
