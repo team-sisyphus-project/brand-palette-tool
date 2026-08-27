@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   averageHsl,
@@ -108,58 +111,87 @@ function mockDeterministicRandom() {
   })
 }
 
-// grain-1 (2026-08-27, theme toggle relocated into the intake form):
-// supersedes the prior "color panel top-right" placement (ThemeToggle inside
-// `panel-preview` / `.color-generator__preview`, present in both pre- and
-// post-generate states) — see ColorGenerator.tsx's class doc comment and
-// context/decisions/. The toggle now renders as the first child of
-// `.color-generator__intake-form`, directly above the brand
-// `ColorInput` (`brand-color-input`). Since that form only mounts
-// pre-generate, the toggle is no longer reachable post-generate; that
-// trade-off is intentional (see the decision record) and verified below
-// alongside the new placement, rather than kept as a red/stale expectation.
-describe('grain-1: theme toggle placement (intake form, above brand field)', () => {
+// grain-1 (theme toggle placement, superseded pre-generate by grain-4/M-9):
+// originally ColorGenerator rendered ThemeToggle unconditionally inside the
+// color/preview panel (`panel-preview` / `.color-generator__preview`),
+// top-right, in both the pre-generate (empty preview) and post-generate
+// (result) states. Per spec A's "홈페이지 인테이크 레이아웃" delta (M-9), the
+// pre-generate toggle has moved into `.color-generator__intake-form`,
+// directly above the brand main color field - see the grain-4 block below.
+// The post-generate placement (inside `panel-preview`, above the color
+// chips per the M-11/M-12 reorder) is unchanged and still covered here.
+describe('grain-1: theme toggle placement (color panel top-right, post-generate)', () => {
   function getPreviewSection(): HTMLElement {
-    // panel-preview is always present; grab it by its stable class rather
-    // than via the (sometimes absent, pre-generate) palette list.
     return document.querySelector('.color-generator__preview') as HTMLElement
   }
 
-  it('renders the toggle inside the intake form, before Generate, not inside the preview panel', () => {
+  it('renders the toggle inside the color/preview panel after Generate, positioned above the color chips', () => {
     render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
+    generate('#3366ff')
 
+    const preview = getPreviewSection()
     const toggle = screen.getByRole('switch')
-    const intakeForm = getInput().closest('section')!
-    expect(intakeForm).toContainElement(toggle)
-    expect(within(getPreviewSection()).queryByRole('switch')).not.toBeInTheDocument()
+    expect(preview).toContainElement(toggle)
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    // DOCUMENT_POSITION_FOLLOWING (4) means `list` comes after `toggle`.
+    expect(toggle.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('positions the toggle as the intake form section\'s first child, ahead of the brand color field', () => {
+  it('right-aligns the toggle row so the toggle anchors to the top-right corner of the color panel', () => {
     render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
+    generate('#3366ff')
 
     const toggle = screen.getByRole('switch')
-    const intakeForm = getInput().closest('section')!
     const row = toggle.closest('.color-generator__theme-toggle-row')
     expect(row).toBeInTheDocument()
-    expect(intakeForm.firstElementChild).toBe(row)
-
-    // DOCUMENT_POSITION_FOLLOWING (4) means the brand input comes after the toggle.
-    expect(toggle.compareDocumentPosition(getInput()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // The row is the first child of the preview panel post-generate.
+    expect(getPreviewSection().firstElementChild).toBe(row)
   })
 
-  it('never renders `.color-generator__theme-toggle-row` inside the preview panel', () => {
-    render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
-    expect(within(getPreviewSection()).queryByRole('switch')).not.toBeInTheDocument()
-
+  it('reflects the theme prop and calls onToggleTheme when clicked', () => {
+    const onToggleTheme = vi.fn()
+    render(<ColorGenerator theme="dark" onToggleTheme={onToggleTheme} />)
     generate('#3366ff')
-    expect(getPreviewSection().querySelector('.color-generator__theme-toggle-row')).not.toBeInTheDocument()
+
+    const toggle = screen.getByRole('switch', { name: 'Switch to light theme' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(toggle)
+    expect(onToggleTheme).toHaveBeenCalledTimes(1)
+  })
+})
+
+// grain-4 (2026-08-27, M-9): pre-generate, the theme toggle now renders
+// inside `.color-generator__intake-form`, directly above the brand main
+// color `ColorInput` - not inside `panel-preview` (which is now empty
+// pre-generate; see ColorGenerator.tsx/.css's grain-4 notes).
+describe('grain-4: theme toggle placement (pre-generate, above brand input)', () => {
+  it('renders the toggle inside the intake form, not the preview panel', () => {
+    render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
+
+    const toggle = screen.getByRole('switch')
+    const formSection = getInput().closest('section')!
+    expect(formSection).toContainElement(toggle)
+
+    const preview = document.querySelector('.color-generator__preview') as HTMLElement
+    expect(within(preview).queryByRole('switch')).not.toBeInTheDocument()
   })
 
-  it('unmounts along with the rest of the intake form once Generate reveals a palette', () => {
+  it('positions the toggle directly above the brand main color field', () => {
     render(<ColorGenerator theme="light" onToggleTheme={() => {}} />)
-    generate('#3366ff')
 
-    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    const toggle = screen.getByRole('switch')
+    const brandInput = getInput()
+    // DOCUMENT_POSITION_FOLLOWING (4) means `brandInput` comes after `toggle`.
+    expect(toggle.compareDocumentPosition(brandInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    const formSection = brandInput.closest('section')!
+    const children = Array.from(formSection.children)
+    const toggleRowIndex = children.findIndex((child) => child.contains(toggle))
+    const brandFieldIndex = children.findIndex((child) => child.contains(brandInput))
+    // No other field sits between the toggle row and the brand field.
+    expect(brandFieldIndex).toBe(toggleRowIndex + 1)
   })
 
   it('reflects the theme prop and calls onToggleTheme when clicked', () => {
@@ -848,6 +880,83 @@ describe('grain-2: editing palette colors directly via the color picker', () => 
   })
 })
 
+// grain-2 (verify M-1/M-2/M-3): the individual behaviors "a picker edit
+// auto-locks and survives Regenerate" and "a mode switch respects locks" are
+// each covered above in isolation, but never chained together, and no
+// existing test proves Regenerate itself keeps operating within whichever
+// mode is *currently selected* rather than silently reverting to the
+// default mode. This block closes both gaps.
+describe('grain-2 (verify): M-2 locks survive mode switches combined with picker edits, and Regenerate respects the selected mode', () => {
+  function getModeGroup(): HTMLElement {
+    return screen.getByRole('group', { name: 'Select generation mode' })
+  }
+
+  function getModeButton(name: string): HTMLElement {
+    return within(getModeGroup()).getByRole('button', { name })
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('a slot locked via a color-picker edit survives a subsequent mode switch, not just Regenerate (M-2)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const originalHex = findLockButtonHex(list, false)
+    fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
+    expect(within(list).getByText('#00ff00')).toBeInTheDocument()
+
+    fireEvent.click(getModeButton('Triadic'))
+
+    expect(within(list).getByText('#00ff00')).toBeInTheDocument()
+    const editedLock = screen.getByRole('button', { name: 'Toggle lock for #00ff00 color' })
+    expect(editedLock).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('a picker-edited slot survives both a mode switch and a Regenerate that follows it (M-2)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const originalHex = findLockButtonHex(list, false)
+    fireEvent.change(getColorPicker(originalHex), { target: { value: '#00ff00' } })
+
+    fireEvent.click(getModeButton('Analogous'))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    expect(within(list).getByText('#00ff00')).toBeInTheDocument()
+  })
+
+  it('Regenerate reflects the currently selected mode rather than always the default mode (M-2 x M-3)', () => {
+    mockDeterministicRandom()
+    const complementaryRun = render(<ColorGenerator />)
+    generate('#3366ff')
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    const complementaryRegenHexes = getHexes(
+      screen.getByRole('list', { name: 'Generated 5-color palette' }),
+    )
+    complementaryRun.unmount()
+    vi.restoreAllMocks()
+
+    mockDeterministicRandom()
+    render(<ColorGenerator />)
+    generate('#3366ff')
+    fireEvent.click(getModeButton('Triadic'))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    const triadicRegenHexes = getHexes(
+      screen.getByRole('list', { name: 'Generated 5-color palette' }),
+    )
+
+    // Same deterministic random sequence, same brand color and locks in both
+    // runs - the only difference is which mode was selected before
+    // Regenerate was clicked. If the unlocked slots differ, Regenerate is
+    // actually driven by the live `mode` state, not a stale default.
+    expect(triadicRegenHexes).not.toEqual(complementaryRegenHexes)
+  })
+})
+
 // grain-2 (spec C M-1): wiring-level check that PaletteExportActions renders
 // alongside the palette. Clipboard-copy behavior itself (exact text copied,
 // success/failure feedback, CSS syntax validity) is covered in
@@ -913,16 +1022,107 @@ describe('grain-2: palette export actions wiring', () => {
   })
 })
 
-// grain-3: the "grain-2: generation mode selection (M-3)" describe block that
-// used to live here (5 generation-mode buttons via ModeSelector, selecting
-// each renders a distinct palette, switching modes keeps the brand slot/
-// locked slots unchanged) has been removed. ModeSelector itself is deleted
-// (see ColorGenerator.tsx's class doc comment, "(assumption — needs
-// confirmation)") - there is no remaining UI to switch generation modes, so
-// that whole scenario is unreachable. Coverage for `mode`-parameterized
-// palette generation itself (5 distinct modes producing 5 distinct palettes)
-// still lives in palette.test.ts's own generatePalette/deriveHslByMode unit
-// tests; this file only ever exercised that logic through UI wiring.
+// grain-1 (2026-08-27, restored): a prior grain-3 removed the "generation
+// mode selection (M-3)" describe block that used to live here, along with
+// ModeSelector itself. This grain restores both - see the describe block
+// below ("grain-1: generation mode selector (restored, M-3)") for the
+// restored UI-wiring coverage (5 mode buttons, selecting one renders a
+// different palette, brand/locked slots survive a mode switch unchanged).
+// Coverage for `mode`-parameterized palette generation itself (5 distinct
+// modes producing 5 distinct palettes) still lives separately in
+// palette.test.ts's own generatePalette/deriveHslByMode unit tests.
+describe('grain-1: generation mode selector (restored, M-3)', () => {
+  function getModeGroup(): HTMLElement {
+    return screen.getByRole('group', { name: 'Select generation mode' })
+  }
+
+  function getModeButton(name: string): HTMLElement {
+    return within(getModeGroup()).getByRole('button', { name })
+  }
+
+  it('is not rendered before Generate, even with a valid brand color', () => {
+    render(<ColorGenerator />)
+    fireEvent.change(getInput(), { target: { value: '#3366ff' } })
+    expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
+  })
+
+  it('renders exactly 5 mode buttons once Generate reveals a palette, Complementary selected by default', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const group = getModeGroup()
+    const buttons = within(group).getAllByRole('button')
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      'Complementary',
+      'Analogous',
+      'Triadic',
+      'Split Complementary',
+      'Monochromatic',
+    ])
+    expect(getModeButton('Complementary')).toHaveAttribute('aria-pressed', 'true')
+    ;['Analogous', 'Triadic', 'Split Complementary', 'Monochromatic'].forEach((name) =>
+      expect(getModeButton(name)).toHaveAttribute('aria-pressed', 'false'),
+    )
+  })
+
+  it('selecting a different mode marks it pressed and renders a different palette than the previous mode', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const beforeHexes = getHexes(list)
+
+    fireEvent.click(getModeButton('Triadic'))
+
+    expect(getModeButton('Triadic')).toHaveAttribute('aria-pressed', 'true')
+    expect(getModeButton('Complementary')).toHaveAttribute('aria-pressed', 'false')
+    expect(getHexes(list)).not.toEqual(beforeHexes)
+  })
+
+  it('switching modes leaves the locked brand slot unchanged (M-2 semantics reused for mode switching)', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    expect(within(list).getByText('#3366ff')).toBeInTheDocument()
+
+    fireEvent.click(getModeButton('Monochromatic'))
+
+    expect(within(list).getByText('#3366ff')).toBeInTheDocument()
+    const brandLock = screen.getByRole('button', { name: 'Toggle lock for #3366ff color' })
+    expect(brandLock).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('switching modes leaves an additional locked slot unchanged, but changes the remaining unlocked slots', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const beforeHexes = getHexes(list)
+    const lockedIndex = beforeHexes.findIndex((hex) => hex !== '#3366ff')
+    const lockedHex = beforeHexes[lockedIndex]
+    fireEvent.click(screen.getByRole('button', { name: `Toggle lock for ${lockedHex} color` }))
+
+    fireEvent.click(getModeButton('Analogous'))
+
+    const afterHexes = getHexes(list)
+    expect(afterHexes[lockedIndex]).toBe(lockedHex)
+    expect(afterHexes).not.toEqual(beforeHexes)
+  })
+
+  it('produces a numerically distinct palette for each of the 5 modes from the same brand color', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const list = screen.getByRole('list', { name: 'Generated 5-color palette' })
+    const seen = new Set<string>()
+    ;['Complementary', 'Analogous', 'Triadic', 'Split Complementary', 'Monochromatic'].forEach((name) => {
+      fireEvent.click(getModeButton(name))
+      seen.add(getHexes(list).join(','))
+    })
+    expect(seen.size).toBe(5)
+  })
+})
 
 // grain-1 (2026-08-26): the right-panel MoodTag chip list is removed
 // entirely (see ColorGenerator.tsx's class doc comment, "MoodTag chip
@@ -989,6 +1189,32 @@ describe('grain-1: mood tag words relocated into the left keyword list', () => {
 
     expect(secondKeywords).toEqual(firstKeywords)
   })
+
+  // grain-2: M-4 scenario coverage across diverse brand hex fixtures - the
+  // test above only proves the wiring for one brand color (#3366ff); this
+  // proves "every generated palette shows mood tags" holds across brand
+  // colors spread across hue (warm/cool/neutral), saturation, and lightness,
+  // including ones that land outside every aesthetic archetype's threshold
+  // (#3366ff, #ff6600) and ones that land inside it (#33cc99, #996633) -
+  // mood tags must show up in the left panel in both cases, since M-4 (mood
+  // tags) and M-5 (aesthetic name) are independent gates.
+  it('shows at least one mood word in the left keyword list for every generated palette, across diverse brand hex fixtures', () => {
+    const brandHexes = ['#3366ff', '#ff6600', '#33cc99', '#996633', '#e0e0e0', '#1a1a2e']
+
+    for (const hex of brandHexes) {
+      const { unmount } = render(<ColorGenerator />)
+      generate(hex)
+
+      const hsl = averageHsl(generatePalette(hex, 'complementary')!)
+      const moodWords = getMoodTags(hsl).map((word) => word.toLowerCase())
+      expect(moodWords.length).toBeGreaterThanOrEqual(1)
+
+      const leftKeywords = getLeftKeywords()
+      moodWords.forEach((word) => expect(leftKeywords).toContain(word))
+
+      unmount()
+    }
+  })
 })
 
 // grain-1: aesthetic archetype matching based on palette average HSL (M-5).
@@ -1023,6 +1249,36 @@ describe('grain-1: aesthetic name matching (M-5)', () => {
   it('shows nothing when the average HSL is outside the threshold from every archetype', () => {
     render(<ColorGenerator />)
     generate('#1a3300')
+
+    expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
+  })
+
+  // grain-2: additional concrete hex fixtures for both threshold branches,
+  // beyond the single pair above - each (hex, expected name) pairing below
+  // was verified against this module's own generatePalette/averageHsl/
+  // matchAesthetic pipeline before being hard-coded here (a throwaway,
+  // never-committed calibration script), same approach as
+  // palette.test.ts's "M-4/M-5 scenarios" pipeline suite.
+  it('shows exactly one archetype name for further in-threshold brand hex fixtures spanning different archetypes', () => {
+    const inThresholdFixtures: Array<[string, string]> = [
+      ['#996633', 'Earth Tone'],
+      ['#1a1a2e', 'Luxury'],
+    ]
+
+    for (const [hex, expectedName] of inThresholdFixtures) {
+      const { unmount } = render(<ColorGenerator />)
+      generate(hex)
+
+      const match = screen.getByRole('status', { name: 'Palette aesthetic match' })
+      expect(match).toHaveTextContent(expectedName)
+
+      unmount()
+    }
+  })
+
+  it('shows nothing for a further out-of-threshold brand hex fixture', () => {
+    render(<ColorGenerator />)
+    generate('#ff6600')
 
     expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
   })
@@ -1105,10 +1361,14 @@ describe('grain-4: vibe keywords surface only through the left Palette Descripti
 // grain-2: once a palette exists, the whole intake form (brand field, 4
 // additional Hex fields, mood-keyword field, Generate button) is unmounted
 // from the DOM, the preview panel gains a center-aligned modifier class, and
-// Regenerate is rendered inside that preview panel directly above the color
-// chips (previously it lived in the controls panel next to the now-removed
-// ModeSelector - see ColorGenerator.tsx's class doc comment).
-describe('grain-2: generated result view (center + hide form + Regenerate above chips)', () => {
+// Regenerate is rendered inside that preview panel (previously it lived in
+// the controls panel next to the now-removed ModeSelector - see
+// ColorGenerator.tsx's class doc comment). grain-1 (2026-08-27, M-11/M-12)
+// later moved Regenerate from directly above the color chips to directly
+// below them - see the dedicated describe block further down for that
+// ordering coverage; this suite's own position assertion is updated to match
+// (see context/decisions/).
+describe('grain-2: generated result view (center + hide form)', () => {
   function getPreviewPanel(): HTMLElement {
     return screen.getByRole('list', { name: 'Generated 5-color palette' }).closest('section')!
   }
@@ -1141,12 +1401,16 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     expect(screen.queryByRole('button', { name: 'Add another color' })).not.toBeInTheDocument()
   })
 
-  it('after Generate, the left panel renders the Palette Description panel instead of a mode selector', () => {
+  // grain-1 (2026-08-27): ModeSelector is restored above PaletteDescription
+  // (see "grain-1: generation mode selector (restored, M-3)" above for full
+  // coverage) - this test now asserts both render together, not that the
+  // mode selector is absent.
+  it('after Generate, the left panel renders both the mode selector and the Palette Description panel', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
     expect(screen.getByRole('region', { name: 'Palette description' })).toBeInTheDocument()
-    expect(screen.queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Select generation mode' })).toBeInTheDocument()
   })
 
   it('after Generate, the preview panel carries the center-aligned result modifier class', () => {
@@ -1163,7 +1427,12 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     expect(preview).not.toHaveClass('color-generator__preview--result')
   })
 
-  it('Regenerate renders inside the preview panel, immediately before the color chips', () => {
+  // grain-1 (2026-08-27, M-12): superseded - Regenerate used to render
+  // immediately *before* the color chips; it now renders immediately *after*
+  // them (below, center-aligned - see the dedicated M-11/M-12 describe block
+  // further down). Updated per spec A's "결과 화면 레이아웃" delta rather than
+  // left asserting the old order - see context/decisions/.
+  it('Regenerate renders inside the preview panel, immediately after the color chips', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
@@ -1177,7 +1446,7 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     )
 
     expect(regenerateIndex).toBeGreaterThanOrEqual(0)
-    expect(paletteIndex).toBeGreaterThan(regenerateIndex)
+    expect(regenerateIndex).toBeGreaterThan(paletteIndex)
   })
 
   it('Regenerate no longer renders in the controls panel', () => {
@@ -1187,7 +1456,7 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
     expect(within(getControlsPanel()).queryByRole('button', { name: 'Regenerate' })).not.toBeInTheDocument()
   })
 
-  it('Regenerate still works after moving above the color chips (locked slot survives)', () => {
+  it('Regenerate still works after moving below the color chips (locked slot survives)', () => {
     render(<ColorGenerator />)
     generate('#3366ff')
 
@@ -1202,14 +1471,79 @@ describe('grain-2: generated result view (center + hide form + Regenerate above 
   })
 })
 
+// grain-1 (2026-08-27, M-11/M-12 result-panel reorder): per spec A's "결과
+// 화면 레이아웃" delta, the theme toggle moves to directly above the color
+// chips (right-aligned) and Regenerate moves to directly below the color
+// chips (horizontally centered) - see ColorGenerator.tsx/.css's class doc
+// comments and design-spec/components/result-preview-panel/base.md.
+describe('grain-1: result panel reorder - toggle above chips, Regenerate below chips (M-11/M-12)', () => {
+  function getPreviewPanel(): HTMLElement {
+    return screen.getByRole('list', { name: 'Generated 5-color palette' }).closest('section')!
+  }
+
+  it('M-11: nothing renders between the theme toggle row and the color chips', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const preview = getPreviewPanel()
+    const children = Array.from(preview.children)
+    const toggle = screen.getByRole('switch')
+    const toggleRowIndex = children.findIndex((child) => child.contains(toggle))
+    const paletteIndex = children.findIndex((child) =>
+      child.matches('[role="list"][aria-label="Generated 5-color palette"]'),
+    )
+
+    expect(toggleRowIndex).toBe(0)
+    expect(paletteIndex).toBe(toggleRowIndex + 1)
+  })
+
+  it('M-11: the theme toggle row stays right-aligned above the color chips', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const toggle = screen.getByRole('switch')
+    const row = toggle.closest('.color-generator__theme-toggle-row')
+    expect(row).toBeInTheDocument()
+    expect(row).toHaveClass('color-generator__theme-toggle-row')
+  })
+
+  it('M-12: Regenerate renders immediately after the color chips, with nothing in between', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const preview = getPreviewPanel()
+    const children = Array.from(preview.children)
+    const paletteIndex = children.findIndex((child) =>
+      child.matches('[role="list"][aria-label="Generated 5-color palette"]'),
+    )
+    const regenerateIndex = children.findIndex(
+      (child) => child.tagName === 'BUTTON' && child.textContent === 'Regenerate',
+    )
+
+    expect(regenerateIndex).toBe(paletteIndex + 1)
+  })
+
+  it('M-12: Regenerate is horizontally centered via the result panel modifier class', () => {
+    render(<ColorGenerator />)
+    generate('#3366ff')
+
+    const preview = getPreviewPanel()
+    expect(preview).toHaveClass('color-generator__preview--result')
+    const regenerateButton = screen.getByRole('button', { name: 'Regenerate' })
+    expect(regenerateButton).toHaveClass('color-generator__regenerate')
+  })
+})
+
 // grain-3 (left-panel Palette Description panel): replaces the removed
 // ModeSelector/RecentPalettes markup in `panel-generator` (see
 // ColorGenerator.tsx's class doc comment for why both were removed
-// wholesale, not just relocated). PaletteDescription itself only renders
-// whatever name/description/keywords it is given - the wiring-level
-// guarantee this suite verifies is "a palette exists -> the left panel always
-// shows a name, at least one description line, and the keyword list, and
-// never shows the old ModeSelector/RecentPalettes elements".
+// wholesale, not just relocated). grain-1 (2026-08-27) later restored
+// ModeSelector (see "grain-1: generation mode selector (restored, M-3)"
+// above) - PaletteDescription itself only renders whatever name/description/
+// keywords it is given, and the wiring-level guarantee this suite verifies
+// is unchanged: "a palette exists -> the left panel always shows a name, at
+// least one description line, and the keyword list, and never shows
+// RecentPalettes".
 describe('grain-3: Palette Description panel (left panel)', () => {
   function getControlsPanel(): HTMLElement {
     return document.querySelector('.panel-generator') as HTMLElement
@@ -1278,7 +1612,12 @@ describe('grain-3: Palette Description panel (left panel)', () => {
     expect(leftKeywords.slice(vibeKeywords.length)).toEqual(expectedExtra)
   })
 
-  it('the left panel never renders the removed ModeSelector or RecentPalettes elements, before or after Generate', () => {
+  // grain-1 (2026-08-27): ModeSelector is restored (see "grain-1: generation
+  // mode selector (restored, M-3)" above) - it renders post-generate only,
+  // same gating as PaletteDescription itself. RecentPalettes stays removed
+  // (out of this grain's scope) and is never rendered, before or after
+  // Generate.
+  it('the left panel renders the restored mode selector only after Generate, and never renders RecentPalettes', () => {
     render(<ColorGenerator />)
     expect(within(getControlsPanel()).queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
     expect(within(getControlsPanel()).queryByRole('region', { name: 'Recent palettes' })).not.toBeInTheDocument()
@@ -1286,7 +1625,7 @@ describe('grain-3: Palette Description panel (left panel)', () => {
 
     generate('#3366ff')
 
-    expect(within(getControlsPanel()).queryByRole('group', { name: 'Select generation mode' })).not.toBeInTheDocument()
+    expect(within(getControlsPanel()).getByRole('group', { name: 'Select generation mode' })).toBeInTheDocument()
     expect(within(getControlsPanel()).queryByRole('region', { name: 'Recent palettes' })).not.toBeInTheDocument()
     expect(within(getControlsPanel()).queryByRole('list', { name: 'Recent palettes list' })).not.toBeInTheDocument()
   })
@@ -1401,5 +1740,74 @@ describe('grain-2: Color Study renders outside the preview panel (full-width she
   it('does not render before a result exists (still gated on showResult)', () => {
     render(<ColorGenerator />)
     expect(screen.queryByRole('region', { name: 'Color Study' })).not.toBeInTheDocument()
+  })
+})
+
+// grain-2 (2026-08-27, M-13): source-level CSS assertions, mirroring the
+// pattern already used by ColorStudy.test.tsx's "source-level" suite (this
+// grain's style values are 비-UI-verified per spec A's Measure table, and
+// jsdom does not apply external stylesheet rules to computed style during
+// render() the way a browser would).
+describe('ColorGenerator.css: M-13 Regenerate-only action-button style (source-level)', () => {
+  const cssPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'ColorGenerator.css')
+  const css = readFileSync(cssPath, 'utf-8')
+  const indexCssPath = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'index.css',
+  )
+  const indexCss = readFileSync(indexCssPath, 'utf-8')
+
+  function extractRuleBody(source: string, selector: string): string {
+    const index = source.indexOf(selector)
+    if (index === -1) {
+      throw new Error(`extractRuleBody: selector "${selector}" not found`)
+    }
+    const braceStart = source.indexOf('{', index)
+    let depth = 0
+    for (let i = braceStart; i < source.length; i++) {
+      if (source[i] === '{') depth++
+      else if (source[i] === '}') {
+        depth--
+        if (depth === 0) return source.slice(braceStart + 1, i)
+      }
+    }
+    throw new Error(`extractRuleBody: unbalanced braces for selector "${selector}"`)
+  }
+
+  it('M-13: --text-action-lg is tokenized at 24px in src/index.css', () => {
+    expect(indexCss).toMatch(/--text-action-lg:\s*24px\s*;/)
+  })
+
+  it('M-13: Regenerate has its own selector, separate from Generate', () => {
+    // Selector split (boundary: "ColorGenerator.css 액션버튼 셀렉터 분리") - each
+    // button now owns a standalone rule, rather than a combined
+    // `.color-generator__generate, .color-generator__regenerate { ... }` block.
+    expect(css).toMatch(/\.color-generator__generate\s*\{/)
+    expect(css).toMatch(/\.color-generator__regenerate\s*\{/)
+  })
+
+  it('M-13: Regenerate renders padding 32px, font-size 24px, Pretendard font-family, and 16px border-radius', () => {
+    const rule = extractRuleBody(css, '.color-generator__regenerate {')
+    expect(rule).toMatch(/padding:\s*var\(--content-padding-lg\)\s*;/)
+    expect(rule).toMatch(/font-size:\s*var\(--text-action-lg\)\s*;/)
+    expect(rule).toMatch(/font-family:\s*var\(--font-text\)\s*;/)
+    expect(rule).toMatch(/border-radius:\s*var\(--radius-card\)\s*;/)
+
+    expect(indexCss).toMatch(/--content-padding-lg:\s*2rem\s*;/)
+    expect(indexCss).toMatch(/--text-action-lg:\s*24px\s*;/)
+    expect(indexCss).toMatch(
+      /--font-text:\s*"Pretendard",[^;]*;/,
+    )
+    expect(indexCss).toMatch(/--radius-card:\s*16px\s*;/)
+  })
+
+  it('M-13: Generate is untouched - still the pre-existing fixed 46px/16px/Inter/12px-radius style', () => {
+    const rule = extractRuleBody(css, '.color-generator__generate {')
+    expect(rule).toMatch(/height:\s*var\(--control-height-action\)\s*;/)
+    expect(rule).toMatch(/padding:\s*0 var\(--content-padding-action-x\)\s*;/)
+    expect(rule).toMatch(/font-size:\s*var\(--text-action-md\)\s*;/)
+    expect(rule).toMatch(/font-family:\s*var\(--font-action\)\s*;/)
+    expect(rule).toMatch(/border-radius:\s*var\(--radius-control\)\s*;/)
   })
 })

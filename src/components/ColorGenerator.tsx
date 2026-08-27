@@ -21,6 +21,7 @@ import type { Theme } from '../lib/theme'
 import { AestheticMatch } from './AestheticMatch'
 import { ColorInput } from './ColorInput'
 import { ColorStudy } from './ColorStudy'
+import { ModeSelector } from './ModeSelector'
 import { Palette } from './Palette'
 import { PaletteDescription } from './PaletteDescription'
 import { PaletteExportActions } from './PaletteExportActions'
@@ -97,17 +98,20 @@ export interface ColorGeneratorProps {
  * "Copy HEX" button was removed from that toolbar - see
  * PaletteExportActions.tsx's class doc comment.)
  *
- * grain-3 (Harmony mode selector removal - assumption — needs confirmation):
- * the left panel's ModeSelector (5 standard color-wheel harmony mode buttons -
- * Complementary/Analogous/Triadic/Split Complementary/Monochromatic, see
- * GenerationMode) has been removed entirely per the card's "Harmony
- * 선택기 버튼들을 완전히 제거" instruction, in favor of the new
- * PaletteDescription panel below. Generation now always uses `mode`, fixed at
- * `DEFAULT_MODE` (Complementary) - there is no remaining UI affordance to
- * change it. This is a genuine capability loss versus the prior M-3 behavior
- * (5 selectable harmony modes), not just a markup relocation, so it is
- * explicitly flagged as an assumption needing human confirmation rather than
- * silently dropped.
+ * grain-1 (2026-08-27, mode selector restored): a prior grain-3 removed the
+ * left panel's ModeSelector wholesale (flagged then as an unconfirmed
+ * capability loss - see context/decisions/). This grain restores it: a
+ * `ModeSelector` renders in the post-generate left panel, directly above
+ * `PaletteDescription`, with 5 buttons (Complementary/Analogous/Triadic/
+ * Split Complementary/Monochromatic, see `GenerationMode`). `mode` is once
+ * again stateful (`useState<GenerationMode>`, default `DEFAULT_MODE` =
+ * Complementary) instead of a fixed constant. Selecting a mode calls
+ * `handleSelectMode`, which recomputes the derived slots for the new mode via
+ * `generatePalette(trimmed, nextMode)` (src/lib/palette.ts, unchanged) and
+ * merges the result against the current palette per `locks` - locked slots
+ * (brand included) keep their exact existing color, only unlocked/derived
+ * slots take the new mode's values (M-2 semantics reused for mode switching,
+ * not just Regenerate).
  *
  * getMoodTags(averageHsl(palette)) still derives the current palette's 1-2
  * deterministic mood adjectives from a fixed lookup table - no AI judgment
@@ -170,9 +174,11 @@ export interface ColorGeneratorProps {
  * gone, the only ways to change the palette after Generate are Regenerate,
  * lock/unlock, and per-swatch color-picker edits (see context/decisions/ for
  * which pre-existing tests this superseded and why). Regenerate moves into
- * `panel-preview`, rendered directly above the color chips, and the whole
- * preview panel is center-aligned via the `color-generator__preview--result`
- * modifier class.
+ * `panel-preview`, and the whole preview panel is center-aligned via the
+ * `color-generator__preview--result` modifier class. (Regenerate's position
+ * relative to the color chips - originally rendered directly above them -
+ * was later moved below them; see the grain-1 (M-11/M-12) note further
+ * down.)
  *
  * grain-3 (Palette Description panel): once `showResult` is true,
  * `panel-generator` now renders a PaletteDescription instead of the removed
@@ -214,25 +220,53 @@ export interface ColorGeneratorProps {
  * back to the brand slot) as the base color for both the harmony explorer
  * and the new Shades ramp - see ColorStudy.tsx.
  *
- * grain-1 (theme toggle placement - superseded 2026-08-27, see below): a
- * ThemeToggle was rendered inside `panel-preview` itself - in a dedicated
- * top row, right-aligned, above everything else in that panel. `theme`/
- * `onToggleTheme` are owned by App's `useTheme()` and threaded down as props
- * - ColorGenerator holds no theme state of its own (this part is unchanged).
+ * grain-1 (theme toggle placement - refined 2026-08-27, see below): a
+ * ThemeToggle was originally rendered inside `panel-preview` itself - in a
+ * dedicated top row, right-aligned, above everything else in that panel, in
+ * both the pre- and post-generate states. `theme`/`onToggleTheme` are owned
+ * by App's `useTheme()` and threaded down as props - ColorGenerator holds no
+ * theme state of its own (this part is unchanged).
  *
- * grain-1 (2026-08-27, theme toggle relocated into the intake form): per the
- * spec's revised first-screen layout, the ThemeToggle no longer renders
- * inside `panel-preview` at all - it is now the first child of
- * `.color-generator__intake-form`, directly above the brand
- * `ColorInput` (`brand-color-input`). It keeps the same right-aligned
- * `.color-generator__theme-toggle-row` wrapper (styling only re-targeted to
- * the form column's width in ColorGenerator.css), and is still fed the same
- * `theme`/`onToggleTheme` props. Because `.color-generator__intake-form`
- * only mounts pre-generate (`!showResult`), the toggle - like the rest of
- * the intake form - no longer renders once a palette exists; see
- * context/decisions/ for why this trade-off was accepted rather than
- * duplicating the toggle into the post-generate view (out of this grain's
- * scope).
+ * grain-1 (2026-08-27, theme toggle relocated into the intake form, M-9):
+ * per the spec's revised first-screen layout, the pre-generate ThemeToggle
+ * no longer renders inside `panel-preview` - it is now the first child of
+ * `.color-generator__intake-form`, directly above the brand `ColorInput`
+ * (`brand-color-input`). It keeps the same right-aligned
+ * `.color-generator__theme-toggle-row` wrapper, and is still fed the same
+ * `theme`/`onToggleTheme` props. This relocation is pre-generate only: the
+ * post-generate placement inside `panel-preview` (above the color chips,
+ * per the M-11/M-12 reorder further down) is unchanged - see the grain-4
+ * note below and context/decisions/.
+ *
+ * grain-1 (2026-08-27, M-11/M-12 result-panel reorder): within
+ * `panel-preview--result`, the child order is now ThemeToggle row -> Palette
+ * (color chips) -> Regenerate -> AestheticMatch, superseding the prior
+ * ThemeToggle -> Regenerate -> Palette -> AestheticMatch order from the
+ * "generated result view" grain below. The ThemeToggle row's own markup/CSS
+ * (`.color-generator__theme-toggle-row`, right-aligned) is unchanged - moving
+ * Regenerate out from between it and Palette means the toggle now sits
+ * directly above the color chips with nothing in between (M-11). Regenerate
+ * itself is unchanged markup/CSS-wise
+ * (`.color-generator__regenerate`, horizontally centered via the existing
+ * `.color-generator__preview--result .color-generator__regenerate
+ * { align-self: center }` rule already in ColorGenerator.css) - only its
+ * position relative to Palette moved, from directly above to directly below
+ * (M-12). No new CSS was needed for either move since both the right-align
+ * and center-align rules already existed; this is a pure JSX reorder. See
+ * design-spec/components/result-preview-panel/base.md.
+ *
+ * grain-4 (2026-08-27, M-9 pre-generate toggle relocation): the prior
+ * behavior above - rendering the toggle row unconditionally in
+ * `panel-preview`, both before and after Generate - is **superseded for the
+ * pre-generate state only**. Per spec A's "홈페이지 인테이크 레이아웃" delta,
+ * the toggle now renders inside `.color-generator__intake-form`, directly
+ * above the brand main color `ColorInput`, whenever `!showResult`. The
+ * `panel-preview` toggle row itself is now gated on `showResult` (removed
+ * from the pre-generate empty preview panel entirely) - post-generate, it
+ * renders exactly as before (unchanged; M-11's further move to above the
+ * color chips is out of this grain's scope). Same `theme`/`onToggleTheme`
+ * props, same underlying `ThemeToggle` - purely a conditional-render/markup
+ * relocation, no new state.
  *
  * grain-2 (progressive intake form): the pre-generate form no longer renders
  * all 4 additional-color fields up front. Only the brand `ColorInput` and
@@ -294,6 +328,13 @@ export interface ColorGeneratorProps {
  * spec's copy, including a new "Color Study" sub-section
  * (`.color-generator__intro-subtitle`) - see recording in
  * design-spec/token-groups/typography/base.md.
+ *
+ * grain-3 (2026-08-27, M-8 narrow input fields): the Brand main color and
+ * Mood keyword `ColorInput`s now pass `width="narrow"`, rendering each at
+ * 60% of `.color-generator__intake-form`'s width per spec A's "홈페이지
+ * 인테이크 레이아웃" delta. The 4 additional Hex color fields are untouched
+ * (stay full width) - out of this grain's scope. See ColorInput.tsx/.css
+ * for the width-variant mechanism and design-spec/components/color-input/.
  */
 export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_THEME }: ColorGeneratorProps) {
   const [inputValue, setInputValue] = useState('#E84C40')
@@ -305,11 +346,9 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
   // (progressive disclosure - see the class doc comment above).
   const [revealedExtraColorCount, setRevealedExtraColorCount] = useState(0)
   const [locks, setLocks] = useState<Locks>(() => createInitialLocks())
-  // grain-3: no remaining UI lets the user change the generation mode (the
-  // ModeSelector that used to drive this is removed - see the class doc
-  // comment's "(assumption — needs confirmation)" note above), so `mode` is
-  // now a fixed constant rather than state.
-  const mode: GenerationMode = DEFAULT_MODE
+  // grain-1 (2026-08-27): stateful again now that ModeSelector is restored -
+  // see the class doc comment above.
+  const [mode, setMode] = useState<GenerationMode>(DEFAULT_MODE)
   const [regenerated, setRegenerated] = useState<PaletteColor[] | null>(null)
   // grain-1: the palette/result section only renders once Generate has been
   // clicked with a valid brand color - see the class doc comment above.
@@ -401,6 +440,21 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
     setRegenerated(next)
   }
 
+  /**
+   * grain-1 (2026-08-27): switching generation modes recomputes only the
+   * unlocked/derived slots - locked slots (brand included) keep their exact
+   * current color, mirroring `handleRegenerate`'s lock-respecting merge but
+   * driven by `generatePalette`'s deterministic per-mode rules instead of
+   * jittered regeneration. See ModeSelector.tsx's class doc comment.
+   */
+  const handleSelectMode = (nextMode: GenerationMode) => {
+    setMode(nextMode)
+    if (!palette) return
+    const derived = generatePalette(trimmed, nextMode)
+    if (!derived) return
+    setRegenerated(palette.map((color, slot) => (locks[slot] ? color : derived[slot])))
+  }
+
   const handleSlotColorChange = (index: number, hex: string) => {
     if (!palette) return
     const next = updateSlotColor(palette, index, hex)
@@ -422,6 +476,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
       <section className={controlsClassName}>
         {showResult && palette && paletteName ? (
           <>
+            <ModeSelector mode={mode} onChange={handleSelectMode} />
             <PaletteDescription
               name={paletteName}
               description={paletteDescriptionLines}
@@ -438,13 +493,17 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
           <div className="color-generator__intake">
             <div className="color-generator__intro">
               {/*
-               * grain-1 (2026-08-27, title copy + 110px revert): title copy
-               * changed to "Color Palette Generator", one explicit <br />
-               * per word so it always renders as exactly 3 lines
-               * (Color / Palette / Generator), independent of column width -
-               * see ColorGenerator.css's `.color-generator__intro-title`
-               * comment for the paired --text-display-2xl token revert
-               * (72px -> 110px) this pairs with.
+               * grain-1 (2026-08-27, M-6, word-per-line title copy + 110px
+               * revert): per spec A's "홈페이지 인테이크 레이아웃" delta, the
+               * title copy is now "Color Palette Generator", one explicit
+               * <br /> per word (not the prior "Build a palette around your
+               * brand" copy/breaks) so it always renders as exactly 3 lines
+               * (Color / Palette / Generator), independent of column width.
+               * Paired with `--text-display-2xl` raised back to 110px (see
+               * ColorGenerator.css's `.color-generator__intro-title` comment
+               * and index.css's token comment) - single words at 110px fit
+               * the intake row's column without re-wrapping, unlike the
+               * former multi-word lines that forced the token down to 72px.
                */}
               <h1 className="color-generator__intro-title">
                 Color
@@ -484,6 +543,14 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
              * column as a sibling. See context/decisions/.
              */}
             <section className="color-generator__intake-form">
+              {/*
+               * grain-4 (2026-08-27, M-9): the theme toggle, relocated here
+               * from `panel-preview` (pre-generate only - see the class doc
+               * comment above). Reuses the same `.color-generator__theme-
+               * toggle-row` right-aligned row styling the post-generate
+               * preview panel already uses, just as the first child of this
+               * section instead.
+               */}
               <div className="color-generator__theme-toggle-row">
                 <ThemeToggle theme={theme} onToggle={onToggleTheme} />
               </div>
@@ -494,6 +561,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
                 value={inputValue}
                 onChange={handleInputChange}
                 error={isInvalid ? INVALID_COLOR_MESSAGE : null}
+                width="narrow"
               />
               {revealedExtraColorCount > 0 && (
                 <div className="color-generator__extra-colors">
@@ -526,6 +594,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
                 placeholder="e.g. calm, bold, playful"
                 value={moodKeyword}
                 onChange={setMoodKeyword}
+                width="narrow"
               />
               <button type="button" className="color-generator__generate" onClick={handleGenerate}>
                 Generate
@@ -535,15 +604,19 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
         )}
       </section>
       <section className={previewClassName}>
+        {/*
+         * grain-4 (2026-08-27, M-9): pre-generate, this row moved into
+         * `.color-generator__intake-form` above (see that section's doc
+         * comment) - only render it here once a result exists, matching
+         * the M-11-deferred "keep post-generate position unchanged" scope.
+         */}
+        {showResult && (
+          <div className="color-generator__theme-toggle-row">
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          </div>
+        )}
         {showResult && palette && (
           <>
-            <button
-              type="button"
-              className="color-generator__regenerate"
-              onClick={handleRegenerate}
-            >
-              Regenerate
-            </button>
             <Palette
               colors={palette}
               locks={locks}
@@ -551,6 +624,13 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
               onColorChange={handleSlotColorChange}
               onSelectBase={setBaseColorIndex}
             />
+            <button
+              type="button"
+              className="color-generator__regenerate"
+              onClick={handleRegenerate}
+            >
+              Regenerate
+            </button>
             <AestheticMatch match={aestheticMatch} />
           </>
         )}

@@ -18,6 +18,18 @@
  * always break onto a new, full-width row below the two-column layout
  * instead of being squeezed to the right of `panel-preview`'s 480px
  * min-width - it is no longer capped by either column's width.
+ *
+ * grain-5 (2026-08-27, M-10 top padding): spec A's "페이지 여백/간격" delta calls
+ * out a specific 140px top padding for the page shell, given as a literal
+ * instruction rather than a step on the `--space-*` scale (max rung is
+ * `--space-9` / 64px - 140px doesn't land on it and isn't a new rhythm step,
+ * just the one instructed number). `padding-top: 140px` overrides just the
+ * top side of the shared `padding: var(--space-6)` shorthand below, so
+ * left/right/bottom keep their existing token-driven value - only the top
+ * edge is the spec's fixed px. Documented here per policy/coding.md's "토큰
+ * 체계 이탈 시 사유 기록" rule; see also
+ * design-spec/token-groups/spacing/base.md and
+ * context/decisions/2026-08-27-grain-5-fixed-px-spacing.md.
  */
 .app-shell {
   display: flex;
@@ -25,20 +37,6 @@
   flex-wrap: wrap;
   gap: var(--space-5);
   padding: var(--space-6);
-  /*
-   * grain-1 (2026-08-27, page-top whitespace): the card asks for 140px of
-   * top whitespace above the page's content - well past the spacing scale's
-   * largest registered rung (--space-9, 64px; see design-spec
-   * token-groups/spacing/base.md). This overrides only the top side of the
-   * `padding: var(--space-6)` shorthand above (left/right/bottom keep their
-   * existing --space-6 rhythm) - `padding-top` must come after the shorthand
-   * in source order to win the cascade. Hardcoded literal per the card's
-   * exact pixel spec rather than added as a new --space-* token: this
-   * grain's file Boundary covers only App.css/ColorGenerator.css, so there
-   * is no in-scope place to declare a new custom property (that lives in
-   * src/index.css). See the design-spec audit entry for this date for the
-   * full decision record.
-   */
   padding-top: 140px;
   max-width: var(--content-max-width);
   margin: 0 auto;

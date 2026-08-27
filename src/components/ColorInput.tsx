@@ -14,24 +14,46 @@ export interface ColorInputProps {
   onChange: (value: string) => void
   /** Validation message to display, or null/undefined when the value is valid or empty. */
   error?: string | null
+  /**
+   * Width variant (grain-3, M-8): `'full'` (default) keeps the field at the
+   * intake form's full width; `'narrow'` renders it at 60% of the form's
+   * width (Design Spec `components/color-input/narrow-width`). Only the
+   * Brand main color and Mood keyword fields use `'narrow'` — the additional
+   * Hex fields are out of this grain's scope and stay `'full'`.
+   */
+  width?: 'full' | 'narrow'
 }
 
 /**
  * Single labeled text field, generically reused for the brand main color,
  * the up-to-4 additional Hex color fields, and the mood-keyword field
- * (Design Spec `components/text-input`). Parsing/validation is delegated to
+ * (Design Spec `components/color-input`). Parsing/validation is delegated to
  * the caller (see src/lib/palette.ts's `parseColorInput` for the Hex
  * fields) — this component only renders the field and surfaces a
  * validation message when the caller passes one.
+ *
+ * grain-3 (M-8, field width): `width` controls the root element's own width
+ * via a modifier class (`color-input--narrow`) rather than the parent
+ * container reaching in and sizing this component's DOM directly — see
+ * ColorInput.css and the class doc comment above.
  */
-export function ColorInput({ id, label, placeholder, value, onChange, error }: ColorInputProps) {
+export function ColorInput({
+  id,
+  label,
+  placeholder,
+  value,
+  onChange,
+  error,
+  width = 'full',
+}: ColorInputProps) {
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     onChange(event.target.value)
   }
   const errorId = `${id}-error`
+  const rootClassName = width === 'narrow' ? 'color-input color-input--narrow' : 'color-input'
 
   return (
-    <div className="color-input">
+    <div className={rootClassName}>
       <label className="color-input__label" htmlFor={id}>
         {label}
       </label>
