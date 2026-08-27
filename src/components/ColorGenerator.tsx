@@ -444,23 +444,22 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
           <div className="color-generator__intake">
             <div className="color-generator__intro">
               {/*
-               * grain-1 (2026-08-26, exact-screenshot match): explicit
-               * per-line breaks (not incidental CSS wrap) so the title
-               * always renders as exactly 3 lines at the intake row's 50%
-               * column width, matching the attached screenshot's 3-line
-               * title shape. Wording is unchanged from the existing copy
-               * ("Build a palette around your brand") - only where it
-               * breaks is new. See ColorGenerator.css's
-               * `.color-generator__intro-title` comment for the paired
-               * font-size token change that keeps each line from wrapping
-               * again on its own.
+               * grain-1 (2026-08-27, M-6 word-per-line title): per the spec
+               * A "홈페이지 인테이크 레이아웃" delta, the title copy is now
+               * "Color Palette Generator" broken one word per line (not the
+               * prior "Build a palette around your brand" copy/breaks) and
+               * paired with `--text-display-2xl` raised back to 110px (see
+               * ColorGenerator.css's `.color-generator__intro-title` comment
+               * and index.css's token comment) - single words at 110px fit
+               * the intake row's column without re-wrapping, unlike the
+               * former multi-word lines that forced the token down to 72px.
                */}
               <h1 className="color-generator__intro-title">
-                Build a
+                Color
                 <br />
-                palette around
+                Palette
                 <br />
-                your brand
+                Generator
               </h1>
               <p className="color-generator__intro-description">
                 Add up to four brand colors, describe the mood or vibe you want, and generate a
