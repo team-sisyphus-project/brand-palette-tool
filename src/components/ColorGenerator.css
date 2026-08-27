@@ -122,6 +122,14 @@
  * intro column and would force the longest line ("palette around") to wrap
  * a second time inside a ~600px column. See index.css for the token
  * comment.
+ *
+ * grain-1 (2026-08-27, title copy + 110px revert): title copy is now
+ * "Color Palette Generator" (Color / Palette / Generator, one word per
+ * line via ColorGenerator.tsx's explicit `<br />`s) - each line is short
+ * enough that `--text-display-2xl` reverts to its original `110px` without
+ * re-wrapping inside the 50/50 column. This class is the token's only
+ * reuse point, so the revert is scoped to just this title. See index.css's
+ * token comment and design-spec/token-groups/typography/base.md.
  */
 .color-generator__intro-title {
   margin: 0;

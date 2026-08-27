@@ -426,23 +426,20 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
           <div className="color-generator__intake">
             <div className="color-generator__intro">
               {/*
-               * grain-1 (2026-08-26, exact-screenshot match): explicit
-               * per-line breaks (not incidental CSS wrap) so the title
-               * always renders as exactly 3 lines at the intake row's 50%
-               * column width, matching the attached screenshot's 3-line
-               * title shape. Wording is unchanged from the existing copy
-               * ("Build a palette around your brand") - only where it
-               * breaks is new. See ColorGenerator.css's
-               * `.color-generator__intro-title` comment for the paired
-               * font-size token change that keeps each line from wrapping
-               * again on its own.
+               * grain-1 (2026-08-27, title copy + 110px revert): title copy
+               * changed to "Color Palette Generator", one explicit <br />
+               * per word so it always renders as exactly 3 lines
+               * (Color / Palette / Generator), independent of column width -
+               * see ColorGenerator.css's `.color-generator__intro-title`
+               * comment for the paired --text-display-2xl token revert
+               * (72px -> 110px) this pairs with.
                */}
               <h1 className="color-generator__intro-title">
-                Build a
+                Color
                 <br />
-                palette around
+                Palette
                 <br />
-                your brand
+                Generator
               </h1>
               <p className="color-generator__intro-description">
                 Add up to four brand colors, describe the mood or vibe you want, and generate a
