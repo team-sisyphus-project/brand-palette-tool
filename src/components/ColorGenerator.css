@@ -33,7 +33,18 @@
    * 높이가 좌측 타이틀 텍스트의 렌더링 높이와 가급적 일치" instruction.
    */
   align-items: stretch;
-  gap: var(--space-6);
+  /*
+   * grain-1 (2026-08-27, wide column gap): was `var(--space-6)` (32px) -
+   * the card now asks for a 120px gap between the two columns, well past
+   * the spacing scale's largest registered rung (--space-9, 64px; see
+   * design-spec token-groups/spacing/base.md). Hardcoded literal per the
+   * card's exact pixel spec rather than added as a new --space-* token:
+   * this grain's file Boundary covers only App.css/ColorGenerator.css, so
+   * there is no in-scope place to declare a new custom property (that
+   * lives in src/index.css). See the design-spec audit entry for this
+   * date for the full decision record.
+   */
+  gap: 120px;
   width: 100%;
 }
 
