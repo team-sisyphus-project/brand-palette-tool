@@ -1,10 +1,174 @@
 .color-generator__controls,
-.color-generator__preview {
+.color-generator__preview,
+.color-generator__intake-form {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: var(--element-gap-md);
   width: 100%;
+}
+
+/*
+ * grain-1 (2026-08-26, pre-generate two-column layout): the row combining
+ * the relocated title/description (`.color-generator__intro`, left) with the
+ * intake form (`.color-generator__intake-form`, right) - see the class doc
+ * comment in ColorGenerator.tsx. The intro column grows to fill whatever
+ * space the form column's fixed basis doesn't need (see both columns' rules
+ * below); `width: 100%` (from the shared rule above, for the form column)
+ * doubles as the stacked column's full-width sizing once `flex-direction`
+ * switches to `column` under 768px.
+ */
+.color-generator__intake {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+/*
+ * grain-1 (2026-08-26, real left/right split fix): `panel-generator` (this
+ * section's own class, from App.css) only claims `flex: 4` of `app-shell`'s
+ * row by default - fine post-generate, where `panel-preview` is the visually
+ * dominant `flex: 6` result panel, but pre-generate it left the intake's
+ * internal left/right split rendering squeezed inside the left ~40% of the
+ * page (see the class doc comment in ColorGenerator.tsx). `flex: 1 1 auto`
+ * lets this panel grow to fill essentially the whole shell row instead, so
+ * `.color-generator__intake`'s own row split (below) reads as a true
+ * edge-to-edge left(title)/right(form) layout. Doubled selector
+ * (`.panel-generator.color-generator__controls--intake`) for specificity
+ * over App.css's unconditional `.panel-generator { flex: 4; }`, rather than
+ * relying on stylesheet import order.
+ */
+.panel-generator.color-generator__controls--intake {
+  flex: 1 1 auto;
+}
+
+/*
+ * grain-1 (2026-08-26): the pre-generate counterpart of
+ * `.color-generator__preview--result` (below) - shrinks `panel-preview` from
+ * its default `flex: 6`/`min-width: 480px` (sized for the post-generate
+ * result content) down to just enough room for the top-right ThemeToggle
+ * corner it renders unconditionally, so it no longer eats ~60% of the row
+ * width while empty. See the class doc comment in ColorGenerator.tsx.
+ */
+.panel-preview.color-generator__preview--intake {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: auto;
+}
+
+/*
+ * grain-1 (2026-08-26, exact-screenshot match): true 50/50 split per the
+ * attached screenshot - both the title column and the form column
+ * (`.color-generator__intake-form` below) take an equal `flex: 1 1 0`
+ * share of `.color-generator__intake`'s row, superseding the prior
+ * `flex: 1 1 auto` (intro) / `flex: 0 1 420px` (form) asymmetric split.
+ * `min-width: 0` lets this column shrink below its content's natural width
+ * once the row can no longer fit both columns at their equal share.
+ */
+.color-generator__intro {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+/*
+ * grain-1 (2026-08-26, exact-screenshot match): equal `flex: 1 1 0` share
+ * matching `.color-generator__intro` above, so the two columns split the
+ * row exactly 50/50 as shown in the attached screenshot (superseding the
+ * prior fixed `420px` basis - see that rule's history above).
+ */
+.color-generator__intake-form {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* grain-1 (2026-08-26): "Color Study" sub-section - one step down from the
+   page title, per the attached spec's "### Color Study" heading level (the
+   title itself is "## Build a palette..."). Reuses the existing display
+   scale's next-smallest rung (--text-display-xs, 20px) and the same
+   --space-4 vertical rhythm the intro paragraphs already use - no new
+   typography or spacing token needed. */
+.color-generator__intro-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.color-generator__intro-subtitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-display-xs);
+  font-weight: var(--weight-display-semibold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-text-primary);
+}
+
+/*
+ * grain-1 (2026-08-26): reuses App's former `.app__intro h1`/`p` values
+ * verbatim, aside from the title's font-size - see --text-display-2xl in
+ * src/index.css and design-spec/token-groups/typography/base.md.
+ *
+ * grain-1 (2026-08-26, exact-screenshot match): `--text-display-2xl` is
+ * lowered from `110px` to `72px` so the title's 3 explicit lines
+ * (ColorGenerator.tsx) each fit on one visual line at the intake row's new
+ * true 50/50 column width (roughly 580-620px at the 1440px page cap) without
+ * wrapping again - the prior 110px was sized for the old near-full-width
+ * intro column and would force the longest line ("palette around") to wrap
+ * a second time inside a ~600px column. See index.css for the token
+ * comment.
+ */
+.color-generator__intro-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-display-2xl);
+  font-weight: var(--weight-display-bold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-text-primary);
+}
+
+.color-generator__intro-description {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-text-regular);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-secondary);
+}
+
+/*
+ * grain-1 (2026-08-26): below 768px the intake row stacks to a single
+ * column - title -> description (both inside `.color-generator__intro`) ->
+ * form fields -> Generate button (`.color-generator__intake-form`), per DOM
+ * order. Independent of `app-shell`'s own 1024px/768px breakpoints for
+ * `panel-generator`/`panel-preview` (post-generate, untouched).
+ */
+@media (max-width: 768px) {
+  .color-generator__intake {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  /*
+   * grain-1 (2026-08-26): once the row becomes a column, flex-basis applies
+   * to height rather than width - reset both columns' `flex: 1 1 0` basis
+   * (sized for the wide-viewport 50/50 row split above) back to `auto` so
+   * each simply takes its natural stacked height instead of a width-sized
+   * `0` basis misapplied to the vertical axis (which, with no explicit
+   * container height to distribute, would otherwise collapse toward its
+   * content-size floor rather than reading as a natural block).
+   */
+  .color-generator__intro,
+  .color-generator__intake-form {
+    flex-basis: auto;
+  }
 }
 
 /* grain-1: the 4 optional additional Hex fields stack the same as the other
@@ -59,7 +223,11 @@
 }
 
 /* design-spec components/action-button: shared by Generate (grain-1) and
-   Regenerate. */
+   Regenerate. Black-CTA spec (grain-1, 2026-08-26): fixed 46px height, 16px
+   Inter, 0/21px padding, pure-black background - see the --control-height-
+   action / --font-action / --text-action-md / --content-padding-action-x /
+   --color-action-bg-fixed tokens in src/index.css and
+   design-spec/components/action-button/base.md. */
 .color-generator__generate,
 .color-generator__regenerate {
   align-self: flex-start;
@@ -67,14 +235,14 @@
   align-items: center;
   justify-content: center;
   min-width: var(--touch-target-min);
-  min-height: var(--touch-target-min);
-  padding: var(--content-padding-sm) var(--content-padding-md);
+  height: var(--control-height-action);
+  padding: 0 var(--content-padding-action-x);
   border: none;
   border-radius: var(--radius-control);
-  background: var(--color-action-bg);
+  background: var(--color-action-bg-fixed);
   color: var(--color-text-on-action);
-  font-family: var(--font-text);
-  font-size: var(--text-body-md);
+  font-family: var(--font-action);
+  font-size: var(--text-action-md);
   font-weight: var(--weight-text-medium);
   line-height: var(--leading-text);
   letter-spacing: var(--tracking-text);
