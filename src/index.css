@@ -32,6 +32,17 @@
      110px, superseding the prior 72px screenshot-match value. Recorded in
      design-spec/token-groups/typography/base.md. */
   --text-display-2xl: 110px;
+  /* --text-display-xl-2 (grain-3, 2026-08-27, M-14): new rung between
+     --text-display-xl (48px) and --text-display-2xl (110px) on the same
+     display scale, added for PaletteDescription's name heading per Spec A's
+     "결과 화면 레이아웃" delta (M-14 explicitly calls for 72px). Not reusing
+     --text-display-2xl even though it historically held 72px once (see the
+     grain-1 note above) - --text-display-2xl is now dedicated to the
+     homepage hero title at 110px (M-6, a different component, out of this
+     grain's scope) so repurposing it here would silently regress that
+     unrelated element. Recorded in
+     design-spec/token-groups/typography/base.md. */
+  --text-display-xl-2: 72px;
   --text-display-xl: 48px;
   --text-display-lg: 34px;
   --text-display-md: 28px;
