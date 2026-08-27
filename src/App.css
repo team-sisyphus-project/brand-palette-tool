@@ -18,6 +18,18 @@
  * always break onto a new, full-width row below the two-column layout
  * instead of being squeezed to the right of `panel-preview`'s 480px
  * min-width - it is no longer capped by either column's width.
+ *
+ * grain-5 (2026-08-27, M-10 top padding): spec A's "페이지 여백/간격" delta calls
+ * out a specific 140px top padding for the page shell, given as a literal
+ * instruction rather than a step on the `--space-*` scale (max rung is
+ * `--space-9` / 64px - 140px doesn't land on it and isn't a new rhythm step,
+ * just the one instructed number). `padding-top: 140px` overrides just the
+ * top side of the shared `padding: var(--space-6)` shorthand below, so
+ * left/right/bottom keep their existing token-driven value - only the top
+ * edge is the spec's fixed px. Documented here per policy/coding.md's "토큰
+ * 체계 이탈 시 사유 기록" rule; see also
+ * design-spec/token-groups/spacing/base.md and
+ * context/decisions/2026-08-27-grain-5-fixed-px-spacing.md.
  */
 .app-shell {
   display: flex;
@@ -25,6 +37,7 @@
   flex-wrap: wrap;
   gap: var(--space-5);
   padding: var(--space-6);
+  padding-top: 140px;
   max-width: var(--content-max-width);
   margin: 0 auto;
 }

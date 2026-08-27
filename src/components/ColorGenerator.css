@@ -17,12 +17,22 @@
  * below); `width: 100%` (from the shared rule above, for the form column)
  * doubles as the stacked column's full-width sizing once `flex-direction`
  * switches to `column` under 768px.
+ *
+ * grain-5 (2026-08-27, M-10 column gap): spec A's "페이지 여백/간격" delta calls
+ * out a specific 120px gap between this row's title/form columns, given as a
+ * literal instruction rather than a step on the `--space-*` scale (max rung
+ * is `--space-9` / 64px - 120px doesn't land on it and isn't a new rhythm
+ * step, just the one instructed number). Hardcoded `120px` in place of the
+ * former `--space-6` (32px) token reference - documented here per
+ * policy/coding.md's "토큰 체계 이탈 시 사유 기록" rule; see also
+ * design-spec/token-groups/spacing/base.md and
+ * context/decisions/2026-08-27-grain-5-fixed-px-spacing.md.
  */
 .color-generator__intake {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: var(--space-6);
+  gap: 120px;
   width: 100%;
 }
 
