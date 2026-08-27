@@ -81,10 +81,35 @@
  * matching `.color-generator__intro` above, so the two columns split the
  * row exactly 50/50 as shown in the attached screenshot (superseding the
  * prior fixed `420px` basis - see that rule's history above).
+ *
+ * grain-2 (2026-08-27, M-7 rectangular border + title-height match): spec
+ * A's "홈페이지 인테이크 레이아웃" delta asks for a rectangular (square-corner)
+ * border around this whole section, visually separating it from the title
+ * column, using a semantic chrome color rather than a brand/generated
+ * color (M-5 principle carried over). `--color-border-default` /
+ * `--border-width-default` are the same neutral-gray border tokens
+ * `ColorInput`'s fields and the add-color button already use elsewhere in
+ * this file - reused as-is, no new color introduced (registered as new
+ * Design Spec Token Groups - `border`/`color` - since this is the first
+ * grain to reference them directly; see design-spec/token-groups/).
+ *
+ * The border box's height is spec'd to match the left title's 3-line
+ * (grain-1, M-6) rendered height, within an assumed +/-4px tolerance (see
+ * design-spec/token-groups/typography/base.md). Rather than hardcoding the
+ * resulting 396px as a literal, `calc()` derives it directly from the same
+ * `--text-display-2xl` (110px) / `--leading-display` (1.2) tokens the title
+ * itself renders with, times 3 lines - if either token changes, this box's
+ * height changes with it instead of silently drifting out of the tolerance
+ * window. `box-sizing: border-box` folds the border width into that same
+ * height so the rendered outer box - not just its content - matches the
+ * title's rendered height.
  */
 .color-generator__intake-form {
   flex: 1 1 0;
   min-width: 0;
+  box-sizing: border-box;
+  height: calc(var(--text-display-2xl) * var(--leading-display) * 3);
+  border: var(--border-width-default) solid var(--color-border-default);
 }
 
 /* grain-1 (2026-08-26): "Color Study" sub-section - one step down from the
