@@ -162,10 +162,40 @@
  * `box-sizing: border-box` folds the border into the explicit `height`
  * below (M-7) rather than adding container padding - see that rule's own
  * comment and the M-7 decision record's "rejected alternatives" for why no
- * padding was added here. The M-8 60%-width narrowing for the brand/mood
- * fields (below the width-variant note) is handled by `ColorInput`'s own
- * `width="narrow"` modifier class instead (see ColorInput.tsx/.css) rather
- * than reaching into this column with a `:has()` selector.
+ * padding was added here (superseded by grain-1 below). The M-8 60%-width
+ * narrowing for the brand/mood fields (below the width-variant note) is
+ * handled by `ColorInput`'s own `width="narrow"` modifier class instead
+ * (see ColorInput.tsx/.css) rather than reaching into this column with a
+ * `:has()` selector.
+ *
+ * grain-1 (2026-08-27, panel radius/padding): the panel's corners were fully
+ * square and its fields sat flush against the border, reading as cramped -
+ * this grain adds `border-radius`/`padding`, superseding the M-7 decision's
+ * "no padding" call above now that the card explicitly asks for breathing
+ * room. `border-radius: var(--radius-card)` (16px) - chosen over
+ * `--radius-control` (12px, this project's icon-button/CTA rounding, too
+ * subtle for a full section panel) and `--radius-container` (28px, reserved
+ * for the outermost app-shell panels in App.css - would read as a second
+ * outer shell rather than an inset card) - `--radius-card` is this project's
+ * existing "standalone content card" rung, already used by
+ * `.color-generator__regenerate` (also a rectangular, card-like surface)
+ * above. `padding: var(--space-5)` (24px) matches `.panel-generator`/
+ * `.panel-preview` in App.css, this project's established padding for a
+ * bordered content panel - reused rather than picking a new value, so this
+ * panel's internal rhythm reads consistently with its outer siblings.
+ *
+ * Interaction with `height`/`box-sizing: border-box` (M-7): `border-box`
+ * already folds both the border and this new padding into the existing
+ * fixed `height` above, so the outer box height is unchanged by this
+ * grain - the M-7 title-height match still holds exactly as before. Only
+ * the *inner* content area shrinks by `2 * var(--space-5)` (48px) plus the
+ * border width; the pre-reveal field stack (theme-toggle row, brand field,
+ * add-color button, mood field, Generate button) still fits comfortably
+ * within that reduced budget - confirmed via box-model arithmetic at
+ * 1440/1024/<768px (no headless-browser tooling available in this session;
+ * see context/decisions/2026-08-27-grain-1-intake-form-radius-padding.md's
+ * "Verification method" note and design-spec/token-groups/radius,spacing/
+ * base.md). No `height` formula change was needed.
  */
 .color-generator__intake-form {
   flex: 1 1 0;
@@ -173,6 +203,8 @@
   box-sizing: border-box;
   height: calc(var(--text-display-2xl) * var(--leading-display) * 3);
   border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
 }
 
 /* grain-1 (2026-08-26): "Color Study" sub-section - one step down from the
