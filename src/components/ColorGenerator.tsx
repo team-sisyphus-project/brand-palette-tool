@@ -220,11 +220,23 @@ export interface ColorGeneratorProps {
  * back to the brand slot) as the base color for both the harmony explorer
  * and the new Shades ramp - see ColorStudy.tsx.
  *
- * grain-1 (theme toggle placement): a ThemeToggle is rendered inside
- * `panel-preview` itself - in a dedicated top row, right-aligned, above
- * everything else in that panel (Regenerate/palette chips when a result
- * exists). `theme`/`onToggleTheme` are owned by App's `useTheme()` and
- * threaded down as props - ColorGenerator holds no theme state of its own.
+ * grain-1 (theme toggle placement - refined 2026-08-27, see below): a
+ * ThemeToggle was originally rendered inside `panel-preview` itself - in a
+ * dedicated top row, right-aligned, above everything else in that panel, in
+ * both the pre- and post-generate states. `theme`/`onToggleTheme` are owned
+ * by App's `useTheme()` and threaded down as props - ColorGenerator holds no
+ * theme state of its own (this part is unchanged).
+ *
+ * grain-1 (2026-08-27, theme toggle relocated into the intake form, M-9):
+ * per the spec's revised first-screen layout, the pre-generate ThemeToggle
+ * no longer renders inside `panel-preview` - it is now the first child of
+ * `.color-generator__intake-form`, directly above the brand `ColorInput`
+ * (`brand-color-input`). It keeps the same right-aligned
+ * `.color-generator__theme-toggle-row` wrapper, and is still fed the same
+ * `theme`/`onToggleTheme` props. This relocation is pre-generate only: the
+ * post-generate placement inside `panel-preview` (above the color chips,
+ * per the M-11/M-12 reorder further down) is unchanged - see the grain-4
+ * note below and context/decisions/.
  *
  * grain-1 (2026-08-27, M-11/M-12 result-panel reorder): within
  * `panel-preview--result`, the child order is now ThemeToggle row -> Palette
@@ -481,11 +493,13 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
           <div className="color-generator__intake">
             <div className="color-generator__intro">
               {/*
-               * grain-1 (2026-08-27, M-6 word-per-line title): per the spec
-               * A "홈페이지 인테이크 레이아웃" delta, the title copy is now
-               * "Color Palette Generator" broken one word per line (not the
-               * prior "Build a palette around your brand" copy/breaks) and
-               * paired with `--text-display-2xl` raised back to 110px (see
+               * grain-1 (2026-08-27, M-6, word-per-line title copy + 110px
+               * revert): per spec A's "홈페이지 인테이크 레이아웃" delta, the
+               * title copy is now "Color Palette Generator", one explicit
+               * <br /> per word (not the prior "Build a palette around your
+               * brand" copy/breaks) so it always renders as exactly 3 lines
+               * (Color / Palette / Generator), independent of column width.
+               * Paired with `--text-display-2xl` raised back to 110px (see
                * ColorGenerator.css's `.color-generator__intro-title` comment
                * and index.css's token comment) - single words at 110px fit
                * the intake row's column without re-wrapping, unlike the

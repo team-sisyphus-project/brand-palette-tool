@@ -31,7 +31,33 @@
 .color-generator__intake {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  /*
+   * grain-1 (2026-08-27, intake-form border/height balance): was
+   * `flex-start` - switched to `stretch` so `.color-generator__intake-form`
+   * (below) grows to the same height as its `.color-generator__intro`
+   * sibling (the taller column, per the title + 3 body paragraphs + Color
+   * Study blurb) instead of shrink-wrapping to its own shorter form-field
+   * content. This is what lets the form's border box (see
+   * `.color-generator__intake-form` below) visually balance against the
+   * title column's rendered height, per the card's "테두리 상자의 전체
+   * 높이가 좌측 타이틀 텍스트의 렌더링 높이와 가급적 일치" instruction. Note
+   * `.color-generator__intake-form` itself sets an explicit `height` (M-7,
+   * below), so stretch has no effect there - it only stretches
+   * `.color-generator__intro`, which has no explicit height of its own, up
+   * to that same box height.
+   */
+  align-items: stretch;
+  /*
+   * grain-1 (2026-08-27, wide column gap): was `var(--space-6)` (32px) -
+   * the card now asks for a 120px gap between the two columns, well past
+   * the spacing scale's largest registered rung (--space-9, 64px; see
+   * design-spec token-groups/spacing/base.md). Hardcoded literal per the
+   * card's exact pixel spec rather than added as a new --space-* token:
+   * this grain's file Boundary covers only App.css/ColorGenerator.css, so
+   * there is no in-scope place to declare a new custom property (that
+   * lives in src/index.css). See the design-spec audit entry for this
+   * date for the full decision record.
+   */
   gap: 120px;
   width: 100%;
 }
@@ -120,6 +146,27 @@
  * height so the rendered outer box - not just its content - matches the
  * title's rendered height.
  */
+/*
+ * grain-1 (2026-08-27, intake-form border box): the card asks for a
+ * rectangular border around this column, sized/aligned to balance against
+ * the title column's rendered height (see `.color-generator__intake`'s
+ * `align-items: stretch` above, which is what supplies that height to
+ * stretch into). `border-color` in the original card text
+ * (`var(--border-color)`) isn't a registered Token in this project - the
+ * design-spec's border Token Group (token-groups/border/base.md) only
+ * declares `border-width-default`/`border-width-focus`, and the matching
+ * color Token this project already uses for structural borders everywhere
+ * else (`.color-generator__add-color`, ColorInput, ThemeToggle, etc.) is
+ * `--color-border-default`. Substituted rather than inventing a new
+ * `--border-color` Token - see the design spec's audit record for this date.
+ * `box-sizing: border-box` folds the border into the explicit `height`
+ * below (M-7) rather than adding container padding - see that rule's own
+ * comment and the M-7 decision record's "rejected alternatives" for why no
+ * padding was added here. The M-8 60%-width narrowing for the brand/mood
+ * fields (below the width-variant note) is handled by `ColorInput`'s own
+ * `width="narrow"` modifier class instead (see ColorInput.tsx/.css) rather
+ * than reaching into this column with a `:has()` selector.
+ */
 .color-generator__intake-form {
   flex: 1 1 0;
   min-width: 0;
@@ -164,12 +211,14 @@
  * a second time inside a ~600px column. See index.css for the token
  * comment.
  *
- * grain-1 (2026-08-27, M-6): title copy changed to "Color" / "Palette" /
- * "Generator" (one word per line - see ColorGenerator.tsx) and
- * `--text-display-2xl` raised back to `110px` per spec A's M-6. Each line is
- * now a single short word, so it fits the intake column at 110px without
+ * grain-1 (2026-08-27, M-6, title copy + 110px revert): title copy changed
+ * to "Color Palette Generator" (Color / Palette / Generator, one word per
+ * line via ColorGenerator.tsx's explicit `<br />`s) and `--text-display-2xl`
+ * raised back to its original `110px` per spec A's M-6. Each line is now a
+ * single short word, so it fits the intake column at 110px without
  * re-wrapping - unlike the former multi-word lines this token was lowered
- * for. See index.css for the token comment.
+ * for. This class is the token's only reuse point, so the revert is scoped
+ * to just this title. See index.css for the token comment.
  */
 .color-generator__intro-title {
   margin: 0;
@@ -345,15 +394,24 @@
 }
 
 /*
- * grain-1: ThemeToggle's anchor row inside the preview/color panel - right
- * aligned so the toggle sits at that panel's top-right corner, above the
- * palette chips. Rendered unconditionally, so it also occupies the
- * top-right corner of the (empty) pre-generate preview panel.
+ * grain-1: ThemeToggle's anchor row - right aligned so the toggle sits at
+ * the top-right corner of whichever column currently hosts it. Pre-generate
+ * (M-9), it renders as the first child of `.color-generator__intake-form`,
+ * directly above the brand `ColorInput` field, instead of its original home
+ * inside the preview/color panel - see ColorGenerator.tsx's class doc
+ * comment and context/decisions/. `width: 100%` keeps it spanning the same
+ * column width as its siblings, whether that's `.color-generator__intake-
+ * form`'s flex-column rule above (pre-generate) or `panel-preview`
+ * (post-generate).
  *
- * grain-1 (2026-08-27, M-11): once a result exists, Regenerate no longer
- * renders between this row and the palette chips (moved below the chips
- * instead - see ColorGenerator.tsx) - the toggle row is now directly
- * followed by the chips with nothing in between.
+ * Post-generate, the row still renders inside the preview/color panel,
+ * above the palette chips (unchanged by the M-9 relocation, which only
+ * removed the pre-generate placement from `panel-preview` - see
+ * ColorGenerator.tsx's grain-4 note). grain-1 (2026-08-27, M-11): once a
+ * result exists, Regenerate no longer renders between this row and the
+ * palette chips (moved below the chips instead - see ColorGenerator.tsx) -
+ * the toggle row is now directly followed by the chips with nothing in
+ * between.
  */
 .color-generator__theme-toggle-row {
   display: flex;

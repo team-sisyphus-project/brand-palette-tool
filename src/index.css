@@ -23,13 +23,16 @@
      without wrapping a second time; 110px was sized for the prior
      near-full-width intro column. Value change recorded in
      design-spec/token-groups/typography/base.md.
-     grain-1 (2026-08-27, M-6): raised 72px -> 110px again. The title copy
-     itself changed alongside this (see ColorGenerator.tsx) from the
-     multi-word-per-line "Build a / palette around / your brand" to the
-     single-word-per-line "Color / Palette / Generator" - each line is now
-     one short word, so 110px no longer re-wraps inside the intake column
-     the way it did for "palette around". Spec A's M-6 explicitly calls for
-     110px, superseding the prior 72px screenshot-match value. Recorded in
+     grain-1 (2026-08-27, M-6, title copy + 110px revert): raised 72px ->
+     110px again. The title copy itself changed alongside this (see
+     ColorGenerator.tsx) from the multi-word-per-line "Build a / palette
+     around / your brand" to the single-word-per-line "Color / Palette /
+     Generator" - each line is now one short word, so 110px no longer
+     re-wraps inside the intake column the way it did for "palette around".
+     Spec A's M-6 explicitly calls for 110px, superseding the prior 72px
+     screenshot-match value; this token's only reuse point is
+     `.color-generator__intro-title` (ColorGenerator.css), so the revert is
+     scoped to that title alone. Recorded in
      design-spec/token-groups/typography/base.md. */
   --text-display-2xl: 110px;
   /* --text-display-xl-2 (grain-3, 2026-08-27, M-14): new rung between

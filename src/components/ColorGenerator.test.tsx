@@ -119,7 +119,7 @@ function mockDeterministicRandom() {
 // pre-generate toggle has moved into `.color-generator__intake-form`,
 // directly above the brand main color field - see the grain-4 block below.
 // The post-generate placement (inside `panel-preview`, above the color
-// chips) is unchanged and still covered here.
+// chips per the M-11/M-12 reorder) is unchanged and still covered here.
 describe('grain-1: theme toggle placement (color panel top-right, post-generate)', () => {
   function getPreviewSection(): HTMLElement {
     return document.querySelector('.color-generator__preview') as HTMLElement
@@ -203,6 +203,50 @@ describe('grain-4: theme toggle placement (pre-generate, above brand input)', ()
 
     fireEvent.click(toggle)
     expect(onToggleTheme).toHaveBeenCalledTimes(1)
+  })
+})
+
+// grain-1 (2026-08-27, title copy + 110px revert): the pre-generate hero
+// title's copy changed to "Color Palette Generator", split across exactly 3
+// lines (one word per line) via explicit `<br />`s - see ColorGenerator.tsx's
+// class doc comment. The paired `--text-display-2xl` 72px -> 110px token
+// revert is pinned directly against src/index.css/ColorGenerator.css source
+// in ColorGenerator.title.test.ts, mirroring pageBackground.test.ts's
+// convention (jsdom does not run Vitest's CSS pipeline, so a rendered
+// component's getComputedStyle would not reflect it - see
+// PaletteSwatch.test.tsx's doc comment for the same reasoning).
+describe('grain-1: intro title copy (pre-generate hero)', () => {
+  function getTitle(): HTMLElement {
+    return screen.getByRole('heading', { level: 1 })
+  }
+
+  it('renders "Color Palette Generator" as its full text content', () => {
+    render(<ColorGenerator />)
+    // JSX collapses the whitespace/newlines around each <br/> in the
+    // source, so the DOM text content is the 3 words concatenated with no
+    // separator - the per-line split (verified separately below) is what
+    // carries the "Color Palette Generator" reading, not inter-word spaces.
+    expect(getTitle()).toHaveTextContent('ColorPaletteGenerator')
+  })
+
+  it('splits the title into exactly 3 lines via <br /> - "Color" / "Palette" / "Generator"', () => {
+    render(<ColorGenerator />)
+    const title = getTitle()
+
+    // innerHTML gives us the literal <br/>-delimited structure; each segment
+    // (trimmed) is one rendered line.
+    const lines = title.innerHTML
+      .split(/<br\s*\/?>/i)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+
+    expect(lines).toEqual(['Color', 'Palette', 'Generator'])
+  })
+
+  it('no longer renders the old "Build a palette around your brand" copy', () => {
+    render(<ColorGenerator />)
+    expect(screen.queryByText(/Build a/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/your brand/)).not.toBeInTheDocument()
   })
 })
 
