@@ -955,6 +955,79 @@ describe('matchAesthetic', () => {
   })
 })
 
+// grain-2: full-pipeline scenario tests for spec A's M-4/M-5, driven by
+// concrete brand-color HEX fixtures through the *entire* real path
+// (generatePalette -> averageHsl -> getMoodTags/matchAesthetic) rather than
+// hand-built HSL values - this is what "every generated palette" in M-4/M-5's
+// wording actually means, distinct from the HSL-input unit tests above.
+// Every (hex -> expected match/null) pairing below was verified against this
+// module's own implementation before being hard-coded here (a throwaway
+// calibration script printed generatePalette(hex) -> averageHsl ->
+// matchAesthetic/getMoodTags for each candidate hex; the script itself was
+// never committed - only the confirmed hex/expectation pairs were kept).
+describe('M-4/M-5 scenarios: concrete hex fixtures through the full generatePalette pipeline', () => {
+  // Brand colors deliberately spread across hue (warm/cool/neutral),
+  // saturation, and lightness so this is not just re-testing one region of
+  // the H/S/L space that happens to work.
+  const DIVERSE_BRAND_HEXES = [
+    '#3366ff', // cool, vivid, mid-lightness blue
+    '#ff6600', // warm, vivid, mid-lightness orange
+    '#33cc99', // neutral-hue, mid-saturation teal/green
+    '#996633', // warm, mid-saturation, mid-dark brown
+    '#e0e0e0', // near-neutral, low-saturation, high-lightness gray
+    '#1a1a2e', // cool, low-mid saturation, low-lightness near-black
+  ] as const
+
+  it('M-4: every generated palette (across diverse brand hex fixtures) yields 1-2 non-empty mood tags', () => {
+    for (const hex of DIVERSE_BRAND_HEXES) {
+      const palette = generatePalette(hex)
+      expect(palette).not.toBeNull()
+
+      const avg = averageHsl(palette!)
+      const tags = getMoodTags(avg)
+
+      expect(tags.length).toBeGreaterThanOrEqual(1)
+      expect(tags.length).toBeLessThanOrEqual(2)
+      tags.forEach((tag) => expect(tag.length).toBeGreaterThan(0))
+      expect(new Set(tags).size).toBe(tags.length) // no duplicate tags
+    }
+  })
+
+  it('M-4: mood tags are produced for every one of a brand color\'s 5 generation-mode palettes', () => {
+    for (const mode of GENERATION_MODES) {
+      const palette = generatePalette('#3366ff', mode)!
+      const tags = getMoodTags(averageHsl(palette))
+      expect(tags.length).toBeGreaterThanOrEqual(1)
+      expect(tags.length).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('M-5 (in-threshold branch): shows exactly one archetype name for brand hexes whose generated-palette average HSL lands close to an archetype center', () => {
+    const IN_THRESHOLD_FIXTURES: Array<[string, string]> = [
+      ['#33cc99', 'Tropical'],
+      ['#996633', 'Earth Tone'],
+      ['#5b3a29', 'Dark Academia'],
+      ['#9fb8cc', 'Coastal'],
+    ]
+
+    for (const [hex, expectedName] of IN_THRESHOLD_FIXTURES) {
+      const palette = generatePalette(hex)!
+      const avg = averageHsl(palette)
+      expect(matchAesthetic(avg)).toBe(expectedName)
+    }
+  })
+
+  it('M-5 (out-of-threshold branch): shows no archetype name for brand hexes whose generated-palette average HSL is far from every archetype center', () => {
+    const OUT_OF_THRESHOLD_FIXTURES = ['#3366ff', '#ff6600']
+
+    for (const hex of OUT_OF_THRESHOLD_FIXTURES) {
+      const palette = generatePalette(hex)!
+      const avg = averageHsl(palette)
+      expect(matchAesthetic(avg)).toBeNull()
+    }
+  })
+})
+
 describe('generateShades', () => {
   const base: HSL = { h: 210, s: 60, l: 45 }
 

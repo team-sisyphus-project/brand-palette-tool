@@ -1106,6 +1106,32 @@ describe('grain-1: mood tag words relocated into the left keyword list', () => {
 
     expect(secondKeywords).toEqual(firstKeywords)
   })
+
+  // grain-2: M-4 scenario coverage across diverse brand hex fixtures - the
+  // test above only proves the wiring for one brand color (#3366ff); this
+  // proves "every generated palette shows mood tags" holds across brand
+  // colors spread across hue (warm/cool/neutral), saturation, and lightness,
+  // including ones that land outside every aesthetic archetype's threshold
+  // (#3366ff, #ff6600) and ones that land inside it (#33cc99, #996633) -
+  // mood tags must show up in the left panel in both cases, since M-4 (mood
+  // tags) and M-5 (aesthetic name) are independent gates.
+  it('shows at least one mood word in the left keyword list for every generated palette, across diverse brand hex fixtures', () => {
+    const brandHexes = ['#3366ff', '#ff6600', '#33cc99', '#996633', '#e0e0e0', '#1a1a2e']
+
+    for (const hex of brandHexes) {
+      const { unmount } = render(<ColorGenerator />)
+      generate(hex)
+
+      const hsl = averageHsl(generatePalette(hex, 'complementary')!)
+      const moodWords = getMoodTags(hsl).map((word) => word.toLowerCase())
+      expect(moodWords.length).toBeGreaterThanOrEqual(1)
+
+      const leftKeywords = getLeftKeywords()
+      moodWords.forEach((word) => expect(leftKeywords).toContain(word))
+
+      unmount()
+    }
+  })
 })
 
 // grain-1: aesthetic archetype matching based on palette average HSL (M-5).
@@ -1140,6 +1166,36 @@ describe('grain-1: aesthetic name matching (M-5)', () => {
   it('shows nothing when the average HSL is outside the threshold from every archetype', () => {
     render(<ColorGenerator />)
     generate('#1a3300')
+
+    expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
+  })
+
+  // grain-2: additional concrete hex fixtures for both threshold branches,
+  // beyond the single pair above - each (hex, expected name) pairing below
+  // was verified against this module's own generatePalette/averageHsl/
+  // matchAesthetic pipeline before being hard-coded here (a throwaway,
+  // never-committed calibration script), same approach as
+  // palette.test.ts's "M-4/M-5 scenarios" pipeline suite.
+  it('shows exactly one archetype name for further in-threshold brand hex fixtures spanning different archetypes', () => {
+    const inThresholdFixtures: Array<[string, string]> = [
+      ['#996633', 'Earth Tone'],
+      ['#1a1a2e', 'Luxury'],
+    ]
+
+    for (const [hex, expectedName] of inThresholdFixtures) {
+      const { unmount } = render(<ColorGenerator />)
+      generate(hex)
+
+      const match = screen.getByRole('status', { name: 'Palette aesthetic match' })
+      expect(match).toHaveTextContent(expectedName)
+
+      unmount()
+    }
+  })
+
+  it('shows nothing for a further out-of-threshold brand hex fixture', () => {
+    render(<ColorGenerator />)
+    generate('#ff6600')
 
     expect(screen.queryByRole('status', { name: 'Palette aesthetic match' })).not.toBeInTheDocument()
   })
