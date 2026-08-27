@@ -48,9 +48,15 @@
  * grain-1 (2026-08-26): the pre-generate counterpart of
  * `.color-generator__preview--result` (below) - shrinks `panel-preview` from
  * its default `flex: 6`/`min-width: 480px` (sized for the post-generate
- * result content) down to just enough room for the top-right ThemeToggle
- * corner it renders unconditionally, so it no longer eats ~60% of the row
- * width while empty. See the class doc comment in ColorGenerator.tsx.
+ * result content) down to content size, so it no longer eats ~60% of the
+ * row width while empty. See the class doc comment in ColorGenerator.tsx.
+ *
+ * grain-4 (2026-08-27, M-9): this panel used to always render the top-right
+ * ThemeToggle corner (hence "shrinks to just enough room for" in the prior
+ * note) - the toggle no longer renders here pre-generate at all (moved into
+ * `.color-generator__intake-form`, see ColorGenerator.tsx), so this panel is
+ * now genuinely empty pre-generate; `flex: 0 0 auto` collapses it to zero
+ * content width.
  */
 .panel-preview.color-generator__preview--intake {
   flex: 0 0 auto;

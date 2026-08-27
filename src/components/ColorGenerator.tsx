@@ -218,13 +218,24 @@ export interface ColorGeneratorProps {
  * back to the brand slot) as the base color for both the harmony explorer
  * and the new Shades ramp - see ColorStudy.tsx.
  *
- * grain-1 (theme toggle placement): a ThemeToggle is now rendered inside
+ * grain-1 (theme toggle placement): a ThemeToggle is rendered inside
  * `panel-preview` itself - in a dedicated top row, right-aligned, above
  * everything else in that panel (Regenerate/palette chips when a result
- * exists). It renders unconditionally (both before and after Generate),
- * since `panel-preview`'s children below it are the only part gated by
- * `showResult`. `theme`/`onToggleTheme` are owned by App's `useTheme()` and
+ * exists). `theme`/`onToggleTheme` are owned by App's `useTheme()` and
  * threaded down as props - ColorGenerator holds no theme state of its own.
+ *
+ * grain-4 (2026-08-27, M-9 pre-generate toggle relocation): the prior
+ * behavior above - rendering the toggle row unconditionally in
+ * `panel-preview`, both before and after Generate - is **superseded for the
+ * pre-generate state only**. Per spec A's "홈페이지 인테이크 레이아웃" delta,
+ * the toggle now renders inside `.color-generator__intake-form`, directly
+ * above the brand main color `ColorInput`, whenever `!showResult`. The
+ * `panel-preview` toggle row itself is now gated on `showResult` (removed
+ * from the pre-generate empty preview panel entirely) - post-generate, it
+ * renders exactly as before (unchanged; M-11's further move to above the
+ * color chips is out of this grain's scope). Same `theme`/`onToggleTheme`
+ * props, same underlying `ThemeToggle` - purely a conditional-render/markup
+ * relocation, no new state.
  *
  * grain-2 (progressive intake form): the pre-generate form no longer renders
  * all 4 additional-color fields up front. Only the brand `ColorInput` and
@@ -499,6 +510,17 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
              * column as a sibling. See context/decisions/.
              */}
             <section className="color-generator__intake-form">
+              {/*
+               * grain-4 (2026-08-27, M-9): the theme toggle, relocated here
+               * from `panel-preview` (pre-generate only - see the class doc
+               * comment above). Reuses the same `.color-generator__theme-
+               * toggle-row` right-aligned row styling the post-generate
+               * preview panel already uses, just as the first child of this
+               * section instead.
+               */}
+              <div className="color-generator__theme-toggle-row">
+                <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+              </div>
               <ColorInput
                 id="brand-color-input"
                 label="Brand main color"
@@ -549,9 +571,17 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
         )}
       </section>
       <section className={previewClassName}>
-        <div className="color-generator__theme-toggle-row">
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-        </div>
+        {/*
+         * grain-4 (2026-08-27, M-9): pre-generate, this row moved into
+         * `.color-generator__intake-form` above (see that section's doc
+         * comment) - only render it here once a result exists, matching
+         * the M-11-deferred "keep post-generate position unchanged" scope.
+         */}
+        {showResult && (
+          <div className="color-generator__theme-toggle-row">
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          </div>
+        )}
         {showResult && palette && (
           <>
             <button
