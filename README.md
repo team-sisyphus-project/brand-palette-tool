@@ -42,6 +42,7 @@ platform-injected `PORT` value is used as-is.
 | `npm run build` | Type check + production build (`dist/`) |
 | `npm run start` | Preview server for the build output (for deployment/local verification) |
 | `npm run lint` | ESLint check |
+| `npm run test` | Runs the unit test suite (Vitest) |
 
 ## Project Status
 
