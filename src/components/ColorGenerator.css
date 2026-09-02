@@ -162,17 +162,81 @@
  * `box-sizing: border-box` folds the border into the explicit `height`
  * below (M-7) rather than adding container padding - see that rule's own
  * comment and the M-7 decision record's "rejected alternatives" for why no
- * padding was added here. The M-8 60%-width narrowing for the brand/mood
- * fields (below the width-variant note) is handled by `ColorInput`'s own
- * `width="narrow"` modifier class instead (see ColorInput.tsx/.css) rather
- * than reaching into this column with a `:has()` selector.
+ * padding was added here (superseded by grain-1 below). The M-8 60%-width
+ * narrowing for the brand/mood fields (below the width-variant note) is
+ * handled by `ColorInput`'s own `width="narrow"` modifier class instead
+ * (see ColorInput.tsx/.css) rather than reaching into this column with a
+ * `:has()` selector.
+ *
+ * grain-1 (2026-08-27, panel radius/padding): the panel's corners were fully
+ * square and its fields sat flush against the border, reading as cramped -
+ * this grain adds `border-radius`/`padding`, superseding the M-7 decision's
+ * "no padding" call above now that the card explicitly asks for breathing
+ * room. `border-radius: var(--radius-card)` (16px) - chosen over
+ * `--radius-control` (12px, this project's icon-button/CTA rounding, too
+ * subtle for a full section panel) and `--radius-container` (28px, reserved
+ * for the outermost app-shell panels in App.css - would read as a second
+ * outer shell rather than an inset card) - `--radius-card` is this project's
+ * existing "standalone content card" rung, already used by
+ * `.color-generator__regenerate` (also a rectangular, card-like surface)
+ * above. `padding: var(--space-5)` (24px) matches `.panel-generator`/
+ * `.panel-preview` in App.css, this project's established padding for a
+ * bordered content panel - reused rather than picking a new value, so this
+ * panel's internal rhythm reads consistently with its outer siblings.
+ *
+ * Interaction with `height`/`box-sizing: border-box` (M-7): `border-box`
+ * already folds both the border and this new padding into the existing
+ * fixed `height` above, so the outer box height is unchanged by this
+ * grain - the M-7 title-height match still holds exactly as before. Only
+ * the *inner* content area shrinks by `2 * var(--space-5)` (48px) plus the
+ * border width; the pre-reveal field stack (theme-toggle row, brand field,
+ * add-color button, mood field, Generate button) still fits comfortably
+ * within that reduced budget - confirmed via box-model arithmetic at
+ * 1440/1024/<768px (no headless-browser tooling available in this session;
+ * see context/decisions/2026-08-27-grain-1-intake-form-radius-padding.md's
+ * "Verification method" note and design-spec/token-groups/radius,spacing/
+ * base.md). No `height` formula change was needed *for the pre-reveal
+ * state* - see the following grain for what happens once fields reveal.
+ *
+ * grain-1 (2026-08-27, height/padding fit verification - M-radius/padding
+ * follow-up): re-ran the same box-model arithmetic above, this time with
+ * all 4 progressive-disclosure additional-color fields revealed (the
+ * add-color button unmounts once `revealedExtraColorCount === 4` - see
+ * ColorGenerator.tsx). Available inner height is unchanged at 346px (396px
+ * outer minus `2 * var(--space-5)` padding minus `2 * var(--border-width-
+ * default)` border, both folded in via `box-sizing: border-box`). Content
+ * height with the 4-field `.color-generator__extra-colors` stack present
+ * comes to ~586px (5 stacked ColorInput fields' 64px each + their internal
+ * gaps, plus the toggle row and Generate button, plus the `--element-gap-
+ * md` gaps between the form's own direct children) - about 240px past the
+ * 346px budget. Worse, even a *single* revealed field already overflows by
+ * ~78px, since the add-color button (~62px) stays mounted alongside the
+ * newly-revealed field until all 4 are shown. A fixed `height` cannot
+ * accommodate that - the box either clips this overflowing content (via an
+ * implicit `overflow: visible` render past the border) or would need
+ * `overflow: hidden`/`scroll`, either of which hides real form fields from
+ * the user. Switched `height` to `min-height`, keeping the exact same
+ * title-derived calc() as a floor: the box still renders at the M-7
+ * title-matched 396px whenever content fits (the pre-reveal state, still
+ * within the ~2px-margin budget computed above), and grows past it to fit
+ * revealed fields without clipping once content needs more, rather than
+ * overflowing a hard cap. `align-items: stretch` on the parent
+ * `.color-generator__intake` row (above) is unaffected - it stretches the
+ * shorter sibling *up to* this column's rendered height either way. No
+ * viewport-width dependency: the fixed/min height was never a function of
+ * column width, so this fix (and the overflow it fixes) is identical at
+ * 1440/1024/767/375px - the <=768px media query below only ever touched
+ * `flex-basis`, not height. See
+ * context/decisions/2026-08-27-grain-1-intake-form-min-height-overflow-fix.md.
  */
 .color-generator__intake-form {
   flex: 1 1 0;
   min-width: 0;
   box-sizing: border-box;
-  height: calc(var(--text-display-2xl) * var(--leading-display) * 3);
+  min-height: calc(var(--text-display-2xl) * var(--leading-display) * 3);
   border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
 }
 
 /* grain-1 (2026-08-26): "Color Study" sub-section - one step down from the

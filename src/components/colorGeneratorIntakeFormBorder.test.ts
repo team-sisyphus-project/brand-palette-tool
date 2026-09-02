@@ -7,8 +7,8 @@ import { describe, expect, it } from 'vitest'
  * grain-2 (M-7, intake-form rectangular border + title-height match):
  * regression guard for spec A's "홈페이지 인테이크 레이아웃" delta - the
  * `.color-generator__intake-form` container must (1) carry a rectangular,
- * semantic-chrome border (not a brand/generated color) and (2) render at the
- * same height as the left title's 3-line, 110px text.
+ * semantic-chrome border (not a brand/generated color) and (2) render at
+ * *least* as tall as the left title's 3-line, 110px text.
  *
  * jsdom (this project's test environment) does not perform real text layout
  * - it cannot report a font's actual rendered line-box height, so a true
@@ -22,6 +22,19 @@ import { describe, expect, it } from 'vitest'
  * produces an exact `font-size * line-height` line-box height in every
  * engine - so tying both rules to identical token references *is* the
  * pixel-exact guarantee, not an approximation of one.
+ *
+ * grain-1 (2026-08-27, height -> min-height overflow fix): `height` was
+ * swapped for `min-height` (same calc() formula) so the box can grow past
+ * the title-matched 396px floor once the 4 progressive-disclosure
+ * additional-color fields are revealed, instead of clipping/overflowing a
+ * hard-capped `height` - box-model arithmetic showed even a single revealed
+ * field already overflows the old fixed height by ~78px. See
+ * ColorGenerator.css's own comment on this rule and
+ * context/decisions/2026-08-27-grain-1-intake-form-min-height-overflow-fix.md.
+ * The assertions below are updated to check `min-height` instead of
+ * `height`; the "renders a rectangular border..."/"folds the border..."/
+ * token-tie assertions are unchanged since neither the border nor the
+ * box-sizing/token references moved.
  */
 
 const componentsDir = path.dirname(fileURLToPath(import.meta.url))
@@ -83,10 +96,14 @@ describe('.color-generator__intake-form border + title-height match (M-7)', () =
     expect(extractDeclaration(intakeFormRule, 'box-sizing')).toBe('border-box')
   })
 
-  it("derives its height from the title's own font-size/line-height tokens instead of a literal px", () => {
-    expect(extractDeclaration(intakeFormRule, 'height')).toBe(
+  it("derives its min-height floor from the title's own font-size/line-height tokens instead of a literal px", () => {
+    expect(extractDeclaration(intakeFormRule, 'min-height')).toBe(
       'calc(var(--text-display-2xl) * var(--leading-display) * 3)',
     )
+  })
+
+  it('no longer caps the box at a fixed height (would clip revealed additional-color fields)', () => {
+    expect(() => extractDeclaration(intakeFormRule, 'height')).toThrow()
   })
 
   it('ties to the same tokens the 3-line title actually renders with', () => {
@@ -94,15 +111,15 @@ describe('.color-generator__intake-form border + title-height match (M-7)', () =
     expect(extractDeclaration(introTitleRule, 'line-height')).toBe('var(--leading-display)')
   })
 
-  it('resolves to 396px given the current token values (3 lines * 110px * 1.2), matching the title exactly', () => {
+  it('resolves its floor to 396px given the current token values (3 lines * 110px * 1.2), matching the title exactly when content is short enough to not need to grow', () => {
     const textDisplay2xl = parseFloat(extractDeclaration(rootTokens, '--text-display-2xl'))
     const leadingDisplay = parseFloat(extractDeclaration(rootTokens, '--leading-display'))
     const titleHeight = textDisplay2xl * leadingDisplay * 3
-    const intakeFormHeight = titleHeight // same calc() formula, by construction
+    const intakeFormMinHeight = titleHeight // same calc() formula, by construction
 
     expect(titleHeight).toBe(396)
     // Design-spec assumption (±4px tolerance) - see design-spec/audit/2026-08-27.md -
     // is satisfied with margin to spare since both sides use the identical formula.
-    expect(Math.abs(intakeFormHeight - titleHeight)).toBeLessThanOrEqual(4)
+    expect(Math.abs(intakeFormMinHeight - titleHeight)).toBeLessThanOrEqual(4)
   })
 })
