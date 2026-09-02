@@ -1,0 +1,53 @@
+/* grain-6: one row per role - "Aa" preview swatch (recommended text color) + label + pairs-with text. */
+.pairing-guide-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pairing-guide-card__item {
+  display: flex;
+  align-items: center;
+  gap: var(--element-gap-md);
+}
+
+.pairing-guide-card__swatch {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  font-family: var(--font-text);
+  font-size: var(--text-body-md);
+  font-weight: var(--weight-text-semibold);
+}
+
+.pairing-guide-card__details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap-xs);
+}
+
+.pairing-guide-card__label {
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-text-semibold);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-primary);
+}
+
+.pairing-guide-card__pairs {
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-text-regular);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-secondary);
+}

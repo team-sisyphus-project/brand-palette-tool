@@ -1,0 +1,125 @@
+.app {
+  min-height: 100vh;
+}
+
+/*
+ * app-shell: left control panel (flex 4) + right preview panel (flex 6),
+ * per the 8px-multiple --space-* scale (spacing/base Token Group, grain-1).
+ * Panels stack vertically at 1024px and below; padding/gap tighten further
+ * at 768px and below. Breakpoint numbers are implementation config values
+ * (policy/coding.md: 값을 바꿔도 사용자가 "간격의 크기"만 다르게 인지할 뿐 새로운
+ * 디자인 축이 아니므로 breakpoint 자체는 토큰화하지 않는다), not design tokens.
+ *
+ * grain-2 (full-width masonry layout shell): `ColorGenerator` now returns
+ * `ColorStudy` as a third top-level element alongside `panel-generator`/
+ * `panel-preview` (see ColorGenerator.tsx), so it also lands inside this
+ * flex row as a plain flex item. `flex-wrap: wrap` + the `.color-study`
+ * item forcing `flex: 1 1 100%` (its own basis, not a fixed width) makes it
+ * always break onto a new, full-width row below the two-column layout
+ * instead of being squeezed to the right of `panel-preview`'s 480px
+ * min-width - it is no longer capped by either column's width.
+ *
+ * grain-5 (2026-08-27, M-10 top padding): spec A's "페이지 여백/간격" delta calls
+ * out a specific 140px top padding for the page shell, given as a literal
+ * instruction rather than a step on the `--space-*` scale (max rung is
+ * `--space-9` / 64px - 140px doesn't land on it and isn't a new rhythm step,
+ * just the one instructed number). `padding-top: 140px` overrides just the
+ * top side of the shared `padding: var(--space-6)` shorthand below, so
+ * left/right/bottom keep their existing token-driven value - only the top
+ * edge is the spec's fixed px. Documented here per policy/coding.md's "토큰
+ * 체계 이탈 시 사유 기록" rule; see also
+ * design-spec/token-groups/spacing/base.md and
+ * context/decisions/2026-08-27-grain-5-fixed-px-spacing.md.
+ */
+.app-shell {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  padding-top: 140px;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+}
+
+.panel-generator {
+  flex: 4;
+  min-width: 360px;
+  padding: var(--space-5);
+}
+
+.panel-preview {
+  flex: 6;
+  min-width: 480px;
+  padding: var(--space-5);
+}
+
+.app-shell > .color-study {
+  flex: 1 1 100%;
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .panel-generator,
+  .panel-preview {
+    flex: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  /*
+   * grain-1 (2026-08-26): once the panels stack, the PaletteDescription
+   * hero name steps down from --text-display-xl to --text-display-lg - the
+   * same size the page's own <h1> already reads at - so it never outgrows
+   * the now-full-width panel. Its macro-rhythm tapers with it (--space-6 ->
+   * --space-5) to match. Reuses existing scale tokens only, per
+   * policy/coding.md (정의가 있을 때 따른다) - no new tokens.
+   *
+   * Selectors are scoped under `.app-shell` (not the bare
+   * `.palette-description(__name)` class) so this override always wins
+   * over PaletteDescription.css's unconditional base rule: both rules
+   * share the same origin/layer, and PaletteDescription.css's <link>
+   * happens to be concatenated after App.css's, so with equal specificity
+   * the base rule would otherwise win by source order even while this
+   * media query is active. The extra ancestor selector raises specificity
+   * instead of relying on stylesheet order.
+   */
+  .app-shell .palette-description {
+    gap: var(--space-5);
+  }
+
+  .app-shell .palette-description__name {
+    font-size: var(--text-display-lg);
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+
+  .panel-generator,
+  .panel-preview {
+    padding: var(--space-4);
+  }
+
+  /*
+   * grain-1 (2026-08-26): a second step down for phone-width viewports -
+   * --text-display-md (28px), the next rung on the same display scale -
+   * plus a further-tightened vertical rhythm (--space-4) so name/
+   * description/keywords keep stacking cleanly instead of leaving
+   * disproportionately large gaps under a narrow column. Same
+   * `.app-shell` ancestor-scoping rationale as the 1024px block above.
+   */
+  .app-shell .palette-description {
+    gap: var(--space-4);
+  }
+
+  .app-shell .palette-description__name {
+    font-size: var(--text-display-md);
+  }
+}

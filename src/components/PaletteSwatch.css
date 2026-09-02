@@ -1,0 +1,228 @@
+/*
+ * grain-3: the whole chip is now also a click target for setting Color
+ * Study's custom base color (see PaletteSwatch.tsx's `onSelectBase`).
+ * `cursor: pointer` is an implementation setting, not a design token (per
+ * policy/coding.md) - it introduces no new visual value, just an affordance
+ * hint.
+ */
+.palette-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--element-gap-xs);
+  width: 100%;
+  cursor: pointer;
+}
+
+.palette-swatch__preview {
+  position: relative;
+  width: 100%;
+}
+
+/*
+ * grain-2: reuses the pre-existing `--radius-container` token (already in
+ * src/index.css's radius scale, previously unused anywhere) rather than
+ * `--radius-card` - `--radius-card` still backs HarmonyExplorer's swatch
+ * (out of scope here) and bumping it in place would have rounded that too.
+ * See design-spec/token-groups/radius/base.md.
+ *
+ * Toss look-and-feel grain: adds `--shadow-subtle` (defined in index.css
+ * since the very first design-spec grain but never actually painted
+ * anywhere) so the main color tile reads as a soft elevated card, matching
+ * Toss's flat-color-plus-soft-shadow tile treatment instead of a flat bordered
+ * square.
+ */
+.palette-swatch__color {
+  width: 100%;
+  aspect-ratio: 1;
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-container);
+  box-shadow: var(--shadow-subtle);
+}
+
+/*
+ * Invisible native color-picker control layered over the preview swatch.
+ * It introduces no new design values: position/inset/opacity/cursor here
+ * are implementation settings (per policy/coding.md), and padding/border
+ * are reset to 0 rather than tokenized because they only strip the native
+ * input chrome that opacity: 0 already hides.
+ */
+.palette-swatch__color-picker {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/*
+ * grain-3: was a plain `<span>`; now a `<button>` so the hex code is a real
+ * click/keyboard target for inline editing (PaletteSwatch.tsx's
+ * `startEditingHex`). `background`/`border`/`padding`/`margin` reset the
+ * native button chrome to zero (implementation settings, per
+ * policy/coding.md - same treatment as `.palette-swatch__color-picker`
+ * above); `cursor: text` and the hover/focus-visible rules below are the
+ * "this is editable" affordance the assignment asks for, without changing
+ * the token values already carrying this text's color.
+ *
+ * grain-4 (2026-08-26): switched from the Mono type role
+ * (`--font-mono`/`--text-mono-md`/`--weight-mono-regular`) to the Display
+ * role, reusing the exact family/weight tokens `.app__intro h1` already
+ * reads at (`--font-display`/`--weight-display-bold`, see App.css) so the
+ * HEX label carries the same visual weight as the page title instead of a
+ * small code-like mono string. Size steps up to `--text-display-xs`
+ * (20px) - the smallest rung already on the existing display scale
+ * (20/22/28/34/48, see index.css) - rather than matching h1's own
+ * `--text-display-lg` (34px): the swatch sits in a 5-up grid
+ * (`Palette.css`'s `repeat(5, 1fr)`) with `panel-generator` allowed to
+ * shrink to 360px, and 34px risks the "#RRGGBB" string overflowing a
+ * ~60px-wide column at that floor, whereas 20px comfortably fits while
+ * still landing far above the previous 13px. `color`/contrast
+ * (`--color-text-secondary`, `:hover`/`:focus-visible` swap to
+ * `--color-text-primary`) are untouched, per the grain's boundary.
+ * Recorded in design-spec/components/palette-swatch/base.md.
+ */
+.palette-swatch__hex {
+  font-family: var(--font-display);
+  font-size: var(--text-display-xs);
+  font-weight: var(--weight-display-bold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  background: none;
+  border: var(--border-width-default) solid transparent;
+  border-radius: var(--radius-control);
+  padding: 0;
+  margin: 0;
+  cursor: text;
+}
+
+.palette-swatch__hex:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+.palette-swatch__hex:focus-visible {
+  outline: none;
+  color: var(--color-text-primary);
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+}
+
+/*
+ * grain-3: the input that replaces `.palette-swatch__hex` while editing.
+ * Sized/typeset to match the button it replaces (same font tokens, no layout
+ * jump) rather than looking like a generic form field.
+ *
+ * grain-4 (2026-08-26): follows `.palette-swatch__hex`'s switch to the
+ * Display type role (see that rule's comment) so editing doesn't jump size
+ * or typeface mid-interaction.
+ */
+.palette-swatch__hex-input {
+  font-family: var(--font-display);
+  font-size: var(--text-display-xs);
+  font-weight: var(--weight-display-bold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  background: var(--color-bg-surface);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.palette-swatch__hex-input:focus-visible {
+  outline: none;
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+}
+
+/* grain-3: shown when a committed edit fails hexToRgb validation. */
+.palette-swatch__hex-error {
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-state-error);
+}
+
+.palette-swatch__badge {
+  padding: var(--content-padding-sm) var(--content-padding-md);
+  font-family: var(--font-rounded);
+  font-size: var(--text-rounded-sm);
+  font-weight: var(--weight-rounded-medium);
+  line-height: var(--leading-rounded);
+  letter-spacing: var(--tracking-rounded);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-muted);
+  border-radius: var(--radius-pill);
+}
+
+/*
+ * grain-2: was an always-visible row below the swatch; now an overlay inside
+ * `.palette-swatch__preview`, hidden by default and revealed only on hover
+ * (of the whole preview, so moving the pointer anywhere over the square
+ * reveals it, not just the icon's own small hit area) or keyboard focus
+ * (`:focus-visible`, so it's still reachable and visible via Tab). Left
+ * absent-but-clickable (no `pointer-events: none`) while hidden so the same
+ * click target already tested via the accessible name keeps working with or
+ * without a prior hover.
+ *
+ * grain-3: repositioned from the top-right corner to bottom-center
+ * (`bottom` + `left: 50%` / `translateX(-50%)`) per
+ * design-spec/components/palette-swatch/base.md, and the icon glyphs moved
+ * from emoji to `lucide-react`'s `Lock`/`Unlock` (see PaletteSwatch.tsx) -
+ * this rule only carries position/box/color, unchanged by that swap. When
+ * locked (`[aria-pressed='true']` below), the icon now stays at `opacity: 1`
+ * unconditionally instead of only on hover/focus, so a locked slot is
+ * always legible as locked.
+ */
+.palette-swatch__lock {
+  position: absolute;
+  bottom: var(--content-padding-sm);
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: var(--content-padding-sm);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.palette-swatch__preview:hover .palette-swatch__lock,
+.palette-swatch__lock:focus-visible {
+  opacity: 1;
+}
+
+.palette-swatch__lock:focus-visible {
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+  outline: none;
+}
+
+.palette-swatch__lock[aria-pressed='true'] {
+  border-color: var(--color-action-bg);
+  color: var(--color-action-bg);
+  font-weight: var(--weight-text-medium);
+  opacity: 1;
+}

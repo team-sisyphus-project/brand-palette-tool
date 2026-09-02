@@ -1,0 +1,531 @@
+.color-generator__controls,
+.color-generator__preview,
+.color-generator__intake-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--element-gap-md);
+  width: 100%;
+}
+
+/*
+ * grain-1 (2026-08-26, pre-generate two-column layout): the row combining
+ * the relocated title/description (`.color-generator__intro`, left) with the
+ * intake form (`.color-generator__intake-form`, right) - see the class doc
+ * comment in ColorGenerator.tsx. The intro column grows to fill whatever
+ * space the form column's fixed basis doesn't need (see both columns' rules
+ * below); `width: 100%` (from the shared rule above, for the form column)
+ * doubles as the stacked column's full-width sizing once `flex-direction`
+ * switches to `column` under 768px.
+ *
+ * grain-5 (2026-08-27, M-10 column gap): spec A's "페이지 여백/간격" delta calls
+ * out a specific 120px gap between this row's title/form columns, given as a
+ * literal instruction rather than a step on the `--space-*` scale (max rung
+ * is `--space-9` / 64px - 120px doesn't land on it and isn't a new rhythm
+ * step, just the one instructed number). Hardcoded `120px` in place of the
+ * former `--space-6` (32px) token reference - documented here per
+ * policy/coding.md's "토큰 체계 이탈 시 사유 기록" rule; see also
+ * design-spec/token-groups/spacing/base.md and
+ * context/decisions/2026-08-27-grain-5-fixed-px-spacing.md.
+ */
+.color-generator__intake {
+  display: flex;
+  flex-direction: row;
+  /*
+   * grain-1 (2026-08-27, intake-form border/height balance): was
+   * `flex-start` - switched to `stretch` so `.color-generator__intake-form`
+   * (below) grows to the same height as its `.color-generator__intro`
+   * sibling (the taller column, per the title + 3 body paragraphs + Color
+   * Study blurb) instead of shrink-wrapping to its own shorter form-field
+   * content. This is what lets the form's border box (see
+   * `.color-generator__intake-form` below) visually balance against the
+   * title column's rendered height, per the card's "테두리 상자의 전체
+   * 높이가 좌측 타이틀 텍스트의 렌더링 높이와 가급적 일치" instruction. Note
+   * `.color-generator__intake-form` itself sets an explicit `height` (M-7,
+   * below), so stretch has no effect there - it only stretches
+   * `.color-generator__intro`, which has no explicit height of its own, up
+   * to that same box height.
+   */
+  align-items: stretch;
+  /*
+   * grain-1 (2026-08-27, wide column gap): was `var(--space-6)` (32px) -
+   * the card now asks for a 120px gap between the two columns, well past
+   * the spacing scale's largest registered rung (--space-9, 64px; see
+   * design-spec token-groups/spacing/base.md). Hardcoded literal per the
+   * card's exact pixel spec rather than added as a new --space-* token:
+   * this grain's file Boundary covers only App.css/ColorGenerator.css, so
+   * there is no in-scope place to declare a new custom property (that
+   * lives in src/index.css). See the design-spec audit entry for this
+   * date for the full decision record.
+   */
+  gap: 120px;
+  width: 100%;
+}
+
+/*
+ * grain-1 (2026-08-26, real left/right split fix): `panel-generator` (this
+ * section's own class, from App.css) only claims `flex: 4` of `app-shell`'s
+ * row by default - fine post-generate, where `panel-preview` is the visually
+ * dominant `flex: 6` result panel, but pre-generate it left the intake's
+ * internal left/right split rendering squeezed inside the left ~40% of the
+ * page (see the class doc comment in ColorGenerator.tsx). `flex: 1 1 auto`
+ * lets this panel grow to fill essentially the whole shell row instead, so
+ * `.color-generator__intake`'s own row split (below) reads as a true
+ * edge-to-edge left(title)/right(form) layout. Doubled selector
+ * (`.panel-generator.color-generator__controls--intake`) for specificity
+ * over App.css's unconditional `.panel-generator { flex: 4; }`, rather than
+ * relying on stylesheet import order.
+ */
+.panel-generator.color-generator__controls--intake {
+  flex: 1 1 auto;
+}
+
+/*
+ * grain-1 (2026-08-26): the pre-generate counterpart of
+ * `.color-generator__preview--result` (below) - shrinks `panel-preview` from
+ * its default `flex: 6`/`min-width: 480px` (sized for the post-generate
+ * result content) down to content size, so it no longer eats ~60% of the
+ * row width while empty. See the class doc comment in ColorGenerator.tsx.
+ *
+ * grain-4 (2026-08-27, M-9): this panel used to always render the top-right
+ * ThemeToggle corner (hence "shrinks to just enough room for" in the prior
+ * note) - the toggle no longer renders here pre-generate at all (moved into
+ * `.color-generator__intake-form`, see ColorGenerator.tsx), so this panel is
+ * now genuinely empty pre-generate; `flex: 0 0 auto` collapses it to zero
+ * content width.
+ */
+.panel-preview.color-generator__preview--intake {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: auto;
+}
+
+/*
+ * grain-1 (2026-08-26, exact-screenshot match): true 50/50 split per the
+ * attached screenshot - both the title column and the form column
+ * (`.color-generator__intake-form` below) take an equal `flex: 1 1 0`
+ * share of `.color-generator__intake`'s row, superseding the prior
+ * `flex: 1 1 auto` (intro) / `flex: 0 1 420px` (form) asymmetric split.
+ * `min-width: 0` lets this column shrink below its content's natural width
+ * once the row can no longer fit both columns at their equal share.
+ */
+.color-generator__intro {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+/*
+ * grain-1 (2026-08-26, exact-screenshot match): equal `flex: 1 1 0` share
+ * matching `.color-generator__intro` above, so the two columns split the
+ * row exactly 50/50 as shown in the attached screenshot (superseding the
+ * prior fixed `420px` basis - see that rule's history above).
+ *
+ * grain-2 (2026-08-27, M-7 rectangular border + title-height match): spec
+ * A's "홈페이지 인테이크 레이아웃" delta asks for a rectangular (square-corner)
+ * border around this whole section, visually separating it from the title
+ * column, using a semantic chrome color rather than a brand/generated
+ * color (M-5 principle carried over). `--color-border-default` /
+ * `--border-width-default` are the same neutral-gray border tokens
+ * `ColorInput`'s fields and the add-color button already use elsewhere in
+ * this file - reused as-is, no new color introduced (registered as new
+ * Design Spec Token Groups - `border`/`color` - since this is the first
+ * grain to reference them directly; see design-spec/token-groups/).
+ *
+ * The border box's height is spec'd to match the left title's 3-line
+ * (grain-1, M-6) rendered height, within an assumed +/-4px tolerance (see
+ * design-spec/token-groups/typography/base.md). Rather than hardcoding the
+ * resulting 396px as a literal, `calc()` derives it directly from the same
+ * `--text-display-2xl` (110px) / `--leading-display` (1.2) tokens the title
+ * itself renders with, times 3 lines - if either token changes, this box's
+ * height changes with it instead of silently drifting out of the tolerance
+ * window. `box-sizing: border-box` folds the border width into that same
+ * height so the rendered outer box - not just its content - matches the
+ * title's rendered height.
+ */
+/*
+ * grain-1 (2026-08-27, intake-form border box): the card asks for a
+ * rectangular border around this column, sized/aligned to balance against
+ * the title column's rendered height (see `.color-generator__intake`'s
+ * `align-items: stretch` above, which is what supplies that height to
+ * stretch into). `border-color` in the original card text
+ * (`var(--border-color)`) isn't a registered Token in this project - the
+ * design-spec's border Token Group (token-groups/border/base.md) only
+ * declares `border-width-default`/`border-width-focus`, and the matching
+ * color Token this project already uses for structural borders everywhere
+ * else (`.color-generator__add-color`, ColorInput, ThemeToggle, etc.) is
+ * `--color-border-default`. Substituted rather than inventing a new
+ * `--border-color` Token - see the design spec's audit record for this date.
+ * `box-sizing: border-box` folds the border into the explicit `height`
+ * below (M-7) rather than adding container padding - see that rule's own
+ * comment and the M-7 decision record's "rejected alternatives" for why no
+ * padding was added here (superseded by grain-1 below). The M-8 60%-width
+ * narrowing for the brand/mood fields (below the width-variant note) is
+ * handled by `ColorInput`'s own `width="narrow"` modifier class instead
+ * (see ColorInput.tsx/.css) rather than reaching into this column with a
+ * `:has()` selector.
+ *
+ * grain-1 (2026-08-27, panel radius/padding): the panel's corners were fully
+ * square and its fields sat flush against the border, reading as cramped -
+ * this grain adds `border-radius`/`padding`, superseding the M-7 decision's
+ * "no padding" call above now that the card explicitly asks for breathing
+ * room. `border-radius: var(--radius-card)` (16px) - chosen over
+ * `--radius-control` (12px, this project's icon-button/CTA rounding, too
+ * subtle for a full section panel) and `--radius-container` (28px, reserved
+ * for the outermost app-shell panels in App.css - would read as a second
+ * outer shell rather than an inset card) - `--radius-card` is this project's
+ * existing "standalone content card" rung, already used by
+ * `.color-generator__regenerate` (also a rectangular, card-like surface)
+ * above. `padding: var(--space-5)` (24px) matches `.panel-generator`/
+ * `.panel-preview` in App.css, this project's established padding for a
+ * bordered content panel - reused rather than picking a new value, so this
+ * panel's internal rhythm reads consistently with its outer siblings.
+ *
+ * Interaction with `height`/`box-sizing: border-box` (M-7): `border-box`
+ * already folds both the border and this new padding into the existing
+ * fixed `height` above, so the outer box height is unchanged by this
+ * grain - the M-7 title-height match still holds exactly as before. Only
+ * the *inner* content area shrinks by `2 * var(--space-5)` (48px) plus the
+ * border width; the pre-reveal field stack (theme-toggle row, brand field,
+ * add-color button, mood field, Generate button) still fits comfortably
+ * within that reduced budget - confirmed via box-model arithmetic at
+ * 1440/1024/<768px (no headless-browser tooling available in this session;
+ * see context/decisions/2026-08-27-grain-1-intake-form-radius-padding.md's
+ * "Verification method" note and design-spec/token-groups/radius,spacing/
+ * base.md). No `height` formula change was needed *for the pre-reveal
+ * state* - see the following grain for what happens once fields reveal.
+ *
+ * grain-1 (2026-08-27, height/padding fit verification - M-radius/padding
+ * follow-up): re-ran the same box-model arithmetic above, this time with
+ * all 4 progressive-disclosure additional-color fields revealed (the
+ * add-color button unmounts once `revealedExtraColorCount === 4` - see
+ * ColorGenerator.tsx). Available inner height is unchanged at 346px (396px
+ * outer minus `2 * var(--space-5)` padding minus `2 * var(--border-width-
+ * default)` border, both folded in via `box-sizing: border-box`). Content
+ * height with the 4-field `.color-generator__extra-colors` stack present
+ * comes to ~586px (5 stacked ColorInput fields' 64px each + their internal
+ * gaps, plus the toggle row and Generate button, plus the `--element-gap-
+ * md` gaps between the form's own direct children) - about 240px past the
+ * 346px budget. Worse, even a *single* revealed field already overflows by
+ * ~78px, since the add-color button (~62px) stays mounted alongside the
+ * newly-revealed field until all 4 are shown. A fixed `height` cannot
+ * accommodate that - the box either clips this overflowing content (via an
+ * implicit `overflow: visible` render past the border) or would need
+ * `overflow: hidden`/`scroll`, either of which hides real form fields from
+ * the user. Switched `height` to `min-height`, keeping the exact same
+ * title-derived calc() as a floor: the box still renders at the M-7
+ * title-matched 396px whenever content fits (the pre-reveal state, still
+ * within the ~2px-margin budget computed above), and grows past it to fit
+ * revealed fields without clipping once content needs more, rather than
+ * overflowing a hard cap. `align-items: stretch` on the parent
+ * `.color-generator__intake` row (above) is unaffected - it stretches the
+ * shorter sibling *up to* this column's rendered height either way. No
+ * viewport-width dependency: the fixed/min height was never a function of
+ * column width, so this fix (and the overflow it fixes) is identical at
+ * 1440/1024/767/375px - the <=768px media query below only ever touched
+ * `flex-basis`, not height. See
+ * context/decisions/2026-08-27-grain-1-intake-form-min-height-overflow-fix.md.
+ */
+.color-generator__intake-form {
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: calc(var(--text-display-2xl) * var(--leading-display) * 3);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
+}
+
+/* grain-1 (2026-08-26): "Color Study" sub-section - one step down from the
+   page title, per the attached spec's "### Color Study" heading level (the
+   title itself is "## Build a palette..."). Reuses the existing display
+   scale's next-smallest rung (--text-display-xs, 20px) and the same
+   --space-4 vertical rhythm the intro paragraphs already use - no new
+   typography or spacing token needed. */
+.color-generator__intro-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.color-generator__intro-subtitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-display-xs);
+  font-weight: var(--weight-display-semibold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-text-primary);
+}
+
+/*
+ * grain-1 (2026-08-26): reuses App's former `.app__intro h1`/`p` values
+ * verbatim, aside from the title's font-size - see --text-display-2xl in
+ * src/index.css and design-spec/token-groups/typography/base.md.
+ *
+ * grain-1 (2026-08-26, exact-screenshot match): `--text-display-2xl` is
+ * lowered from `110px` to `72px` so the title's 3 explicit lines
+ * (ColorGenerator.tsx) each fit on one visual line at the intake row's new
+ * true 50/50 column width (roughly 580-620px at the 1440px page cap) without
+ * wrapping again - the prior 110px was sized for the old near-full-width
+ * intro column and would force the longest line ("palette around") to wrap
+ * a second time inside a ~600px column. See index.css for the token
+ * comment.
+ *
+ * grain-1 (2026-08-27, M-6, title copy + 110px revert): title copy changed
+ * to "Color Palette Generator" (Color / Palette / Generator, one word per
+ * line via ColorGenerator.tsx's explicit `<br />`s) and `--text-display-2xl`
+ * raised back to its original `110px` per spec A's M-6. Each line is now a
+ * single short word, so it fits the intake column at 110px without
+ * re-wrapping - unlike the former multi-word lines this token was lowered
+ * for. This class is the token's only reuse point, so the revert is scoped
+ * to just this title. See index.css for the token comment.
+ */
+.color-generator__intro-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-display-2xl);
+  font-weight: var(--weight-display-bold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-text-primary);
+}
+
+.color-generator__intro-description {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-text-regular);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-secondary);
+}
+
+/*
+ * grain-1 (2026-08-26): below 768px the intake row stacks to a single
+ * column - title -> description (both inside `.color-generator__intro`) ->
+ * form fields -> Generate button (`.color-generator__intake-form`), per DOM
+ * order. Independent of `app-shell`'s own 1024px/768px breakpoints for
+ * `panel-generator`/`panel-preview` (post-generate, untouched).
+ */
+@media (max-width: 768px) {
+  .color-generator__intake {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  /*
+   * grain-1 (2026-08-26): once the row becomes a column, flex-basis applies
+   * to height rather than width - reset both columns' `flex: 1 1 0` basis
+   * (sized for the wide-viewport 50/50 row split above) back to `auto` so
+   * each simply takes its natural stacked height instead of a width-sized
+   * `0` basis misapplied to the vertical axis (which, with no explicit
+   * container height to distribute, would otherwise collapse toward its
+   * content-size floor rather than reading as a natural block).
+   */
+  .color-generator__intro,
+  .color-generator__intake-form {
+    flex-basis: auto;
+  }
+}
+
+/* grain-1: the 4 optional additional Hex fields stack the same as the other
+   color-input fields (design-spec components/text-input) - no new spacing
+   token needed beyond the existing element-gap-md the controls column
+   already uses. */
+.color-generator__extra-colors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap-md);
+  width: 100%;
+}
+
+/*
+ * grain-2: "+" add-color button (design-spec components/add-color-button) -
+ * reveals one more of the 4 additional-color fields per click, sitting
+ * directly beneath the brand color field. Reuses the same icon-button
+ * token set as Palette's lock toggle (radius-control, touch-target-min,
+ * border-default) rather than the pill-shaped Generate/Regenerate
+ * action-button, since this is an icon-only affordance, not a labeled CTA -
+ * no new token values.
+ */
+.color-generator__add-color {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: var(--content-padding-sm);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-family: var(--font-text);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  cursor: pointer;
+}
+
+.color-generator__add-color:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
+}
+
+.color-generator__add-color:focus-visible {
+  outline: none;
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+}
+
+/* design-spec components/action-button (base): Generate's own rule, unchanged
+   by grain-2's M-13 Regenerate-only style. Black-CTA spec (grain-1,
+   2026-08-26): fixed 46px height, 16px Inter, 0/21px padding, pure-black
+   background - see the --control-height-action / --font-action /
+   --text-action-md / --content-padding-action-x / --color-action-bg-fixed
+   tokens in src/index.css and design-spec/components/action-button/base.md.
+   grain-2 (2026-08-27, M-13): selector split out of the former combined
+   `.color-generator__generate, .color-generator__regenerate` rule so
+   Regenerate's diverging style (below) cannot drift this one - see that
+   rule's own comment and design-spec/components/action-button/regenerate.md. */
+.color-generator__generate {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  height: var(--control-height-action);
+  padding: 0 var(--content-padding-action-x);
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--color-action-bg-fixed);
+  color: var(--color-text-on-action);
+  font-family: var(--font-action);
+  font-size: var(--text-action-md);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  cursor: pointer;
+}
+
+/*
+ * design-spec components/action-button (variant: regenerate) - grain-2
+ * (2026-08-27, M-13): spec A's "결과 화면 레이아웃" delta gives Regenerate its
+ * own padding/font-size/font-family/border-radius, diverging from Generate's
+ * shared action-button style above (Generate is explicitly out of this
+ * grain's scope and stays byte-for-byte unchanged). Declares its own full
+ * rule (rather than layering overrides on the shared selector) per this
+ * grain's "액션버튼 셀렉터 분리" boundary.
+ *   - padding: 32px all sides -> reuses the existing (previously-unused)
+ *     --content-padding-lg (2rem/32px) token, no new spacing value.
+ *   - font-size: 24px -> no existing step matches (Action family only has
+ *     --text-action-md/16px; --space-5/24px is the wrong axis - spacing, not
+ *     type), so a new --text-action-lg token was added to the Action
+ *     typography scale (src/index.css).
+ *   - font-family: Pretendard -> reuses --font-text (the existing
+ *     Pretendard-first stack), not Generate's Inter-based --font-action.
+ *   - border-radius: 16px -> reuses the existing, widely-used --radius-card
+ *     token, not Generate's --radius-control (12px).
+ * `height: auto` replaces the shared rule's fixed --control-height-action
+ * (46px): a fixed height would clip the new 32px vertical padding instead of
+ * letting the box grow with it. Recorded in
+ * design-spec/components/action-button/regenerate.md and
+ * design-spec/token-groups/typography/base.md.
+ */
+.color-generator__regenerate {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  height: auto;
+  padding: var(--content-padding-lg);
+  border: none;
+  border-radius: var(--radius-card);
+  background: var(--color-action-bg-fixed);
+  color: var(--color-text-on-action);
+  font-family: var(--font-text);
+  font-size: var(--text-action-lg);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  cursor: pointer;
+}
+
+/*
+ * grain-1: ThemeToggle's anchor row - right aligned so the toggle sits at
+ * the top-right corner of whichever column currently hosts it. Pre-generate
+ * (M-9), it renders as the first child of `.color-generator__intake-form`,
+ * directly above the brand `ColorInput` field, instead of its original home
+ * inside the preview/color panel - see ColorGenerator.tsx's class doc
+ * comment and context/decisions/. `width: 100%` keeps it spanning the same
+ * column width as its siblings, whether that's `.color-generator__intake-
+ * form`'s flex-column rule above (pre-generate) or `panel-preview`
+ * (post-generate).
+ *
+ * Post-generate, the row still renders inside the preview/color panel,
+ * above the palette chips (unchanged by the M-9 relocation, which only
+ * removed the pre-generate placement from `panel-preview` - see
+ * ColorGenerator.tsx's grain-4 note). grain-1 (2026-08-27, M-11): once a
+ * result exists, Regenerate no longer renders between this row and the
+ * palette chips (moved below the chips instead - see ColorGenerator.tsx) -
+ * the toggle row is now directly followed by the chips with nothing in
+ * between.
+ */
+.color-generator__theme-toggle-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+/*
+ * grain-2: once a palette has been generated, the preview panel
+ * (color-generator__preview--result) centers its contents - the color chips,
+ * Regenerate button, mood tags, aesthetic match, and color wheel. Reuses the
+ * existing align-items/text-align layout primitives (no new spacing/color
+ * token needed - see context/decisions/). `.color-generator__regenerate`
+ * keeps the shared action-button align-self: flex-start above for its (now
+ * unused) generator-panel context, so it is re-centered here for its new
+ * home.
+ *
+ * grain-1 (2026-08-27, M-11/M-12): Regenerate's position relative to the
+ * color chips (above vs. below) is a JSX ordering concern, not a CSS one -
+ * this centering rule keeps applying unchanged regardless of which side of
+ * the chips Regenerate renders on (see ColorGenerator.tsx's class doc
+ * comment for the current order).
+ */
+.color-generator__preview--result {
+  align-items: center;
+  text-align: center;
+}
+
+.color-generator__preview--result .color-generator__regenerate {
+  align-self: center;
+}
+
+/*
+ * grain-1 (2026-08-26): PaletteExportActions renders directly below
+ * PaletteDescription inside panel-generator (`.color-generator__controls`).
+ * The controls panel's shared `gap: var(--element-gap-md)` (16px - used
+ * between the pre-generate form's stacked fields) is a generic form-field
+ * gap, not the "Apple landing page" macro-rhythm PaletteDescription.css
+ * establishes internally (--space-6 / 32px between its name/description/
+ * keywords). Topping it up to that same 32px total here - via an extra
+ * --space-4 (16px) margin-top on top of the parent's 16px gap - makes the
+ * export toolbar read as one continuous whitespace rhythm with the
+ * description block above it, rather than a differently-spaced element
+ * bolted on below. Deliberately no divider/border here (unlike ColorStudy's
+ * `border-top` section break in ColorStudy.css): a rule line would visually
+ * separate the toolbar from the description it belongs to, when the goal is
+ * the opposite - reading as one integrated block. Reuses existing --space-4
+ * scale step, no new spacing token. Scoped to this parent/child pair only,
+ * so it does not affect the pre-generate form's field spacing.
+ */
+.color-generator__controls .palette-export {
+  margin-top: var(--space-4);
+}

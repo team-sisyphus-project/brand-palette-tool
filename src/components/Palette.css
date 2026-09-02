@@ -1,0 +1,10 @@
+.palette {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--element-gap-md);
+  width: 100%;
+}
+
+.palette__item {
+  display: flex;
+}

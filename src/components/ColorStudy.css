@@ -1,0 +1,81 @@
+/*
+ * grain-1: independent "Color Study" section shell. The top border is the
+ * visual separator from the Palette/MoodTag/AestheticMatch group that used
+ * to render above it in the same preview panel (design-spec
+ * components/color-study/base.md) - reuses existing spacing/border/color
+ * tokens, no new token values introduced.
+ *
+ * grain-2 (full-width masonry layout shell): the section is now a
+ * full-width, independent sibling of the panel-generator/panel-preview pair
+ * (see ColorGenerator.tsx) rather than a child confined to the preview
+ * column's width. `max-width: 1920px` + `margin-inline: auto` is a new
+ * container convention this grain introduces (no pre-existing container-max
+ * token in index.css) so the section keeps a readable line/tile width on
+ * ultra-wide viewports instead of stretching edge-to-edge indefinitely -
+ * recorded in design-spec/token-groups (see context/decisions/).
+ */
+.color-study {
+  display: block;
+  width: 100%;
+  max-width: 1920px;
+  margin-inline: auto;
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  padding-inline: var(--space-6);
+  border-top: var(--border-width-default) solid var(--color-border-default);
+}
+
+.color-study__heading {
+  margin: 0 0 var(--element-gap-md);
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: var(--text-display-xs);
+  font-weight: var(--weight-display-semibold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-text-primary);
+}
+
+/*
+ * grain-2: Pinterest-style masonry via CSS multi-column layout rather than
+ * CSS Grid. Tiles (ColorWheel/HarmonyExplorer/Shades today, more analysis
+ * cards in later grains) vary in height, and `columns` fills each column
+ * top-to-bottom without gaps - CSS Grid would need a manually-computed
+ * `grid-row: span N` per tile to achieve the same effect. 4 columns is the
+ * desktop (>1024px) default; it steps down to 2 at <=1024px and 1 at
+ * <=768px, mirroring App.css's existing app-shell breakpoints.
+ */
+.color-study__grid {
+  columns: 4;
+  column-gap: var(--space-5);
+}
+
+.color-study__tile {
+  width: 100%;
+  margin-bottom: var(--space-5);
+  padding: var(--space-5);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-surface);
+  break-inside: avoid;
+}
+
+@media (max-width: 1024px) {
+  .color-study {
+    padding-inline: var(--space-5);
+  }
+
+  .color-study__grid {
+    columns: 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .color-study {
+    padding-inline: var(--space-4);
+  }
+
+  .color-study__grid {
+    columns: 1;
+  }
+}

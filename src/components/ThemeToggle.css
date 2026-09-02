@@ -1,0 +1,89 @@
+.theme-toggle {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  /* 92px = 14px Sun icon + 6px gap + 52px track + 6px gap + 14px Moon icon.
+     The track itself stays 52px (unchanged from before icons were added) and
+     is offset within this wider hit area — see ::before's `left`/`width`
+     below. */
+  width: 92px;
+  height: var(--touch-target-min);
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* Track: offset within the button so the Sun/Moon icons have room to sit
+   left/right of it without ever being covered by the sliding thumb. */
+.theme-toggle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  width: 52px;
+  height: 28px;
+  transform: translateY(-50%);
+  background-color: var(--color-bg-muted);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-pill);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* Sun/Moon: static decoration flanking the track, always visible in both
+   states — they mark the toggle as a theme control, they don't track
+   `aria-checked` themselves (the thumb position/track color already convey
+   state). `currentColor` picks up `color` here so both the stroked Sun and
+   filled Moon share one token. */
+.theme-toggle-icon {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.theme-toggle-icon--sun {
+  left: 0;
+}
+
+.theme-toggle-icon--moon {
+  right: 0;
+}
+
+.theme-toggle[aria-checked='true']::before {
+  background-color: var(--color-action-bg);
+  border-color: var(--color-action-bg);
+}
+
+.theme-toggle:focus-visible::before {
+  outline: none;
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  top: 50%;
+  left: 23px;
+  width: 22px;
+  height: 22px;
+  transform: translate(0, -50%);
+  background-color: var(--color-text-on-action);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-subtle);
+  transition: transform 0.2s ease;
+}
+
+.theme-toggle[aria-checked='true'] .theme-toggle-thumb {
+  transform: translate(24px, -50%);
+}
+
+.theme-toggle:hover::before {
+  border-color: var(--color-border-hover);
+}

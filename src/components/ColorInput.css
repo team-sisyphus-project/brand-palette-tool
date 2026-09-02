@@ -1,0 +1,69 @@
+.color-input {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--element-gap-xs);
+  text-align: left;
+  width: 100%;
+}
+
+/*
+ * grain-3 (M-8, field width): `.color-input` is a direct flex item of
+ * `.color-generator__intake-form` (`display: flex; flex-direction: column`),
+ * whose default `align-items: stretch` would otherwise stretch this field to
+ * the form's full cross-axis width. Setting an explicit `width` here
+ * overrides that stretch for the two fields the spec calls out (Brand main
+ * color, Mood keyword — see ColorGenerator.tsx), shrinking them to 60% of
+ * the form's width per spec A's "홈페이지 인테이크 레이아웃" delta (M-8). This
+ * is a direct spec-given percentage, not a `--space-*`/sizing scale value —
+ * recorded as `input-width-narrow` in
+ * design-spec/token-groups/sizing/base.md.
+ */
+.color-input--narrow {
+  width: 60%;
+}
+
+.color-input__label {
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-text-medium);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-primary);
+}
+
+.color-input__field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--content-padding-sm) var(--content-padding-md);
+  font-family: var(--font-text);
+  font-size: var(--text-body-md);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-surface);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-control);
+}
+
+.color-input__field:focus {
+  outline: none;
+  border-width: var(--border-width-focus);
+  border-color: var(--color-border-focus);
+}
+
+.color-input__field[aria-invalid='true'] {
+  border-color: var(--color-state-error);
+}
+
+.color-input__error {
+  margin: 0;
+  padding: var(--element-gap-xs) var(--content-padding-sm);
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-text);
+  letter-spacing: var(--tracking-text);
+  color: var(--color-state-error);
+  background-color: var(--color-state-error-bg);
+  border-radius: var(--radius-control);
+}

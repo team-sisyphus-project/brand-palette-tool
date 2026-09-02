@@ -1,0 +1,338 @@
+:root {
+  color-scheme: light dark;
+
+  /* Design tokens — typography: Display (headers, >= 20px)
+     Toss look-and-feel: Pretendard first (loaded in index.html), the
+     typeface Toss's own product UI uses, falling back to each OS's native
+     Korean UI font (Apple SD Gothic Neo / Malgun Gothic) and finally the
+     prior system stack when neither is available. */
+  --font-display: "Pretendard", -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+  /* --text-display-xl (grain-1, 2026-08-26): Apple-landing-style hero size for
+     PaletteDescription's palette name, one step above the existing
+     --text-display-lg app title. Continues the same scale progression
+     (20/22/28/34 -> 48) rather than introducing a second scale. Recorded in
+     design-spec/token-groups/typography/base.md. */
+  /* --text-display-2xl (grain-1, 2026-08-26): pre-generate homepage hero
+     title, one step above --text-display-xl. Continues the same scale
+     progression (20/22/28/34/48 -> 110) rather than introducing a second
+     scale. Recorded in design-spec/token-groups/typography/base.md.
+     grain-1 (2026-08-26, exact-screenshot match): lowered 110px -> 72px -
+     the intake row's title column is now a true 50/50 split (see
+     ColorGenerator.css), so the title's 3 explicit line breaks need to each
+     fit within roughly a 580-620px column (at the new 1440px page cap)
+     without wrapping a second time; 110px was sized for the prior
+     near-full-width intro column. Value change recorded in
+     design-spec/token-groups/typography/base.md.
+     grain-1 (2026-08-27, M-6, title copy + 110px revert): raised 72px ->
+     110px again. The title copy itself changed alongside this (see
+     ColorGenerator.tsx) from the multi-word-per-line "Build a / palette
+     around / your brand" to the single-word-per-line "Color / Palette /
+     Generator" - each line is now one short word, so 110px no longer
+     re-wraps inside the intake column the way it did for "palette around".
+     Spec A's M-6 explicitly calls for 110px, superseding the prior 72px
+     screenshot-match value; this token's only reuse point is
+     `.color-generator__intro-title` (ColorGenerator.css), so the revert is
+     scoped to that title alone. Recorded in
+     design-spec/token-groups/typography/base.md. */
+  --text-display-2xl: 110px;
+  /* --text-display-xl-2 (grain-3, 2026-08-27, M-14): new rung between
+     --text-display-xl (48px) and --text-display-2xl (110px) on the same
+     display scale, added for PaletteDescription's name heading per Spec A's
+     "결과 화면 레이아웃" delta (M-14 explicitly calls for 72px). Not reusing
+     --text-display-2xl even though it historically held 72px once (see the
+     grain-1 note above) - --text-display-2xl is now dedicated to the
+     homepage hero title at 110px (M-6, a different component, out of this
+     grain's scope) so repurposing it here would silently regress that
+     unrelated element. Recorded in
+     design-spec/token-groups/typography/base.md. */
+  --text-display-xl-2: 72px;
+  --text-display-xl: 48px;
+  --text-display-lg: 34px;
+  --text-display-md: 28px;
+  --text-display-sm: 22px;
+  --text-display-xs: 20px;
+  --tracking-display: -0.02em;
+  --leading-display: 1.2;
+  --weight-display-regular: 400;
+  --weight-display-semibold: 600;
+  --weight-display-bold: 700;
+
+  /* Design tokens — typography: Text (body/label, < 20px)
+     Toss look-and-feel: same Pretendard-first stack as Display, see above. */
+  --font-text: "Pretendard", -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+  --text-body-lg: 17px;
+  --text-body-md: 15px;
+  --text-body-sm: 13px;
+  --tracking-text: -0.01em;
+  --leading-text: 1.5;
+  --weight-text-regular: 400;
+  --weight-text-medium: 500;
+  --weight-text-semibold: 600;
+
+  /* Design tokens — typography: Action (primary CTA button label - Generate/
+     Regenerate). Deliberately a separate family from Text above: the attached
+     spec calls for Inter specifically (not the Pretendard-first stack used
+     everywhere else), at a size (16px) that doesn't match any --text-body-*
+     step. Recorded in design-spec/token-groups/typography/base.md. */
+  --font-action: Inter, sans-serif;
+  --text-action-md: 16px;
+  /* --text-action-lg (grain-2, 2026-08-27, M-13): Regenerate-only CTA label
+     size (24px) - spec A's "결과 화면 레이아웃" delta calls for a larger,
+     more prominent Regenerate button, diverging from Generate's shared
+     --text-action-md (16px). 24px doesn't land on the Action family's only
+     other step (md/16px) or on --space-5 (24px, a spacing token, wrong
+     axis), so this is a new step on the same {role}-{property}-{scale}
+     Action typography scale rather than a reused value. Recorded in
+     design-spec/token-groups/typography/base.md. */
+  --text-action-lg: 24px;
+
+  /* Design tokens — typography: Rounded (badges/tags)
+     Toss look-and-feel: Pretendard first, same rationale as Display/Text. */
+  --font-rounded: "Pretendard", ui-rounded, "SF Pro Rounded", var(--font-text);
+  --text-rounded-md: 13px;
+  --text-rounded-sm: 11px;
+  --tracking-rounded: 0em;
+  --leading-rounded: 1.2;
+  --weight-rounded-medium: 500;
+
+  /* Design tokens — typography: Mono (hex values, code, contrast numbers) */
+  --font-mono: ui-monospace, "SF Mono", "Menlo", monospace;
+  --text-mono-md: 13px;
+  --text-mono-sm: 12px;
+  --tracking-mono: 0em;
+  --leading-mono: 1.4;
+  --weight-mono-regular: 400;
+  --weight-mono-medium: 500;
+
+  /* Design tokens — radius (continuous-corner approximation via standard
+     border-radius). Toss look-and-feel: every step bumped rounder than the
+     prior iOS-derived scale (Toss's cards/controls read noticeably softer). */
+  --radius-control: 12px;
+  --radius-card: 16px;
+  --radius-container: 28px;
+  --radius-pill: 999px;
+
+  /* Design tokens — material (Liquid Glass blur amount; theme-independent) */
+  --material-thick: saturate(180%) blur(20px);
+  --material-thin: saturate(150%) blur(10px);
+
+  /* Design tokens — border (structural widths; theme-independent) */
+  --border-width-default: 1px;
+  --border-width-focus: 2px;
+
+  /* Design tokens — spacing (pre-existing, unchanged by this grain) */
+  --element-gap-xs: 4px;
+  --element-gap-md: 16px;
+  --content-padding-sm: 8px;
+  --content-padding-md: 12px;
+  --content-padding-lg: 2rem;
+  /* --content-padding-action-x (grain-1, 2026-08-26): Generate/Regenerate CTA
+     spec horizontal padding (21px), a pixel-precise value from the attached
+     mockup that doesn't land on the sm/md/lg content-padding steps above.
+     Recorded in design-spec/token-groups/spacing/base.md. */
+  --content-padding-action-x: 21px;
+
+  /* Design tokens — spacing: 8px-multiple scale (app shell gap/padding source) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+  --space-8: 48px;
+  --space-9: 64px;
+  --touch-target-min: 44px;
+  /* --control-height-action (grain-1, 2026-08-26): fixed height for the
+     Generate/Regenerate CTA (46px), distinct from --touch-target-min (44px,
+     the WCAG minimum floor applied broadly) - this is the exact control
+     height the attached spec calls for. Recorded in
+     design-spec/token-groups/sizing/base.md. */
+  --control-height-action: 46px;
+  /* grain-2 (2026-08-26): app-shell's outer width cap for wide-screen
+     support. Shares the spacing Token Group's space-allocation axis with
+     the content-padding and space tokens above (see design-spec grain-2
+     decision).
+     grain-1 (2026-08-26, exact-screenshot match): lowered 1920px -> 1440px
+     per the attached screenshot's page-width request. This is a layout
+     container width (implementation config per the sizing Token Group's
+     own "flex/min-width/width axis" boundary note in
+     design-spec/token-groups/sizing/base.md), not a scanned design-token
+     axis (color/typography/spacing/radius/shadow/border/opacity) - so it is
+     not registered as a new Design Spec Token, consistent with the
+     existing 2026-08-26 audit's treatment of this same value. */
+  --content-max-width: 1440px;
+
+  /* Design tokens — color: adaptive semantic tokens (light values are the
+     default/fallback). Toss look-and-feel: the light-theme neutrals below
+     are Toss's own solid gray scale (Gray900/700/300, Toss's "Blue 500"
+     accent, "Red 500" error) in place of the prior translucent iOS scale —
+     see context/decisions/ and design-spec/token-groups/color/base.md for
+     the contrast-ratio verification of every swap. */
+  --color-system-bg-primary: #ffffff;
+  --color-system-bg-secondary: #f2f4f6;
+  --color-system-bg-tertiary: #ffffff;
+  --color-text-primary: #191f28;
+  /* #191f28 (Toss Gray900, opaque): verified via contrast.test.ts to hold
+     >=4.5:1 against both --color-system-bg-primary (#fff, ~16.56:1) and
+     --color-system-bg-secondary (#f2f4f6, ~15.02:1) for WCAG AA. */
+  --color-text-secondary: #4e5968;
+  --color-text-tertiary: rgba(60, 60, 67, 0.3);
+  --border-subtle: #e5e8eb;
+  --shadow-subtle: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --color-accent: #3182f6;
+  --color-status-success: #34c759;
+  --color-status-warning: #ff9f0a;
+  --color-status-error: #f04452;
+  --material-thick-bg: rgba(255, 255, 255, 0.72);
+  --material-thin-bg: rgba(255, 255, 255, 0.55);
+
+  /* Design tokens — color: derived from the adaptive tokens above so components
+     that need a background/border/action color stay in sync with the active theme. */
+  --color-bg-surface: var(--color-system-bg-tertiary);
+  --color-bg-muted: var(--color-system-bg-secondary);
+  /* Page-level (body) background — distinct from --color-bg-muted so a
+     future muted-surface tweak can't silently change the page background.
+     Defaults to the secondary system background (pre-existing behavior);
+     explicitly overridden to pure white in the light theme below
+     (grain-1, see context/decisions/). Dark/OS-preference values are
+     untouched — they keep tracking --color-system-bg-secondary. */
+  --color-bg-page: var(--color-system-bg-secondary);
+  --color-bg-hover: color-mix(in srgb, var(--color-system-bg-tertiary) 92%, var(--color-text-primary) 8%);
+  --color-border-default: var(--border-subtle);
+  --color-border-hover: color-mix(in srgb, var(--border-subtle) 100%, var(--color-text-primary) 20%);
+  /* Opaque neutral gray, not --color-accent: UI chrome (focus rings, action
+     buttons/strokes) stays monochrome per the deference principle. The only
+     remaining accent usage is the selected ModeSelector chip, via
+     --color-action-bg-strong below. Verified >=4.5:1 against
+     --color-text-on-action in contrast.test.ts. */
+  --color-border-focus: #6e6e73;
+  --color-action-bg: #6e6e73;
+  --color-action-bg-strong: color-mix(in srgb, var(--color-accent) 82%, black);
+  --color-text-on-action: #ffffff;
+  /* --color-action-bg-fixed (grain-1, 2026-08-26): Generate/Regenerate CTA
+     spec calls for a fixed pure-black background in both themes - distinct
+     from the adaptive --color-action-bg (#6e6e73 light / #5c5c61 dark) above,
+     which stays reused as-is by ThemeToggle/PaletteSwatch/HarmonyExplorer/
+     ColorWheel. Declared once here (not re-declared per theme/OS-preference
+     block below) since it does not adapt. Verified 21:1 against
+     --color-text-on-action in contrast.test.ts. Recorded in
+     design-spec/token-groups/color/base.md. */
+  --color-action-bg-fixed: #000000;
+  --color-state-error: var(--color-status-error);
+  --color-state-error-bg: color-mix(in srgb, var(--color-status-error) 12%, transparent);
+  /* grain-2 (spec C: HEX/CSS 변수 복사 피드백): same derivation pattern as
+     --color-state-error/-bg above, mirrored onto --color-status-success -
+     no new raw color, just the missing "success feedback" semantic layer
+     that --color-state-error already has for the error case. Recorded in
+     the design spec's color Token Group. */
+  --color-state-success: var(--color-status-success);
+  --color-state-success-bg: color-mix(in srgb, var(--color-status-success) 12%, transparent);
+}
+
+/* Manual theme toggle: explicit opt-in to light, always wins over OS preference. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-system-bg-primary: #ffffff;
+  --color-system-bg-secondary: #f2f4f6;
+  --color-system-bg-tertiary: #ffffff;
+  --color-text-primary: #191f28;
+  /* #191f28 (Toss Gray900, opaque): verified via contrast.test.ts to hold
+     >=4.5:1 against both --color-system-bg-primary (#fff, ~16.56:1) and
+     --color-system-bg-secondary (#f2f4f6, ~15.02:1) for WCAG AA. */
+  --color-text-secondary: #4e5968;
+  --color-text-tertiary: rgba(60, 60, 67, 0.3);
+  --border-subtle: #e5e8eb;
+  --shadow-subtle: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --color-accent: #3182f6;
+  --color-status-success: #34c759;
+  --color-status-warning: #ff9f0a;
+  --color-status-error: #f04452;
+  --color-border-focus: #6e6e73;
+  --color-action-bg: #6e6e73;
+  --material-thick-bg: rgba(255, 255, 255, 0.72);
+  --material-thin-bg: rgba(255, 255, 255, 0.55);
+  /* grain-1 (prior job): light-mode page background is pure white,
+     independent of --color-bg-muted (which stays
+     --color-system-bg-secondary, now Toss Gray100 #f2f4f6). */
+  --color-bg-page: #ffffff;
+}
+
+/* Manual theme toggle: explicit opt-in to dark, always wins over OS preference. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-system-bg-primary: #000000;
+  --color-system-bg-secondary: #1c1c1e;
+  --color-system-bg-tertiary: #2c2c2e;
+  --color-text-primary: rgba(255, 255, 255, 0.85);
+  --color-text-secondary: rgba(235, 235, 245, 0.6);
+  --color-text-tertiary: rgba(235, 235, 245, 0.3);
+  --border-subtle: rgba(84, 84, 88, 0.6);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+  /* Toss look-and-feel: same brand blue/red as the light theme (dark-theme
+     neutrals are intentionally left unchanged — out of this grain's scope,
+     see context/decisions/). Both re-verified >=4.5:1 against their
+     pairings: --color-action-bg-strong (this accent mixed 82% toward black)
+     vs --color-text-on-action ~5.21:1; --color-status-error vs
+     --color-system-bg-primary/secondary ~6.96:1 / ~5.64:1. */
+  --color-accent: #3182f6;
+  --color-status-success: #30d158;
+  --color-status-warning: #ff9f0a;
+  --color-status-error: #ff5b6a;
+  --color-border-focus: #5c5c61;
+  --color-action-bg: #5c5c61;
+  --material-thick-bg: rgba(28, 28, 30, 0.72);
+  --material-thin-bg: rgba(28, 28, 30, 0.55);
+}
+
+/* No manual override present: follow the OS preference automatically. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='dark']) {
+    color-scheme: dark;
+    --color-system-bg-primary: #000000;
+    --color-system-bg-secondary: #1c1c1e;
+    --color-system-bg-tertiary: #2c2c2e;
+    --color-text-primary: rgba(255, 255, 255, 0.85);
+    --color-text-secondary: rgba(235, 235, 245, 0.6);
+    --color-text-tertiary: rgba(235, 235, 245, 0.3);
+    --border-subtle: rgba(84, 84, 88, 0.6);
+    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --color-accent: #3182f6;
+    --color-status-success: #30d158;
+    --color-status-warning: #ff9f0a;
+    --color-status-error: #ff5b6a;
+    --color-border-focus: #5c5c61;
+    --color-action-bg: #5c5c61;
+    --material-thick-bg: rgba(28, 28, 30, 0.72);
+    --material-thin-bg: rgba(28, 28, 30, 0.55);
+  }
+}
+
+/* backdrop-filter fallback: raise the glass background to a near-opaque value
+   so `.panel--glass`/`.chip--glass` consumers stay legible without blur support. */
+@supports not (backdrop-filter: blur(1px)) {
+  :root {
+    --material-thick-bg: rgba(255, 255, 255, 0.97);
+    --material-thin-bg: rgba(255, 255, 255, 0.97);
+  }
+
+  :root[data-theme='dark'] {
+    --material-thick-bg: rgba(28, 28, 30, 0.97);
+    --material-thin-bg: rgba(28, 28, 30, 0.97);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']):not([data-theme='dark']) {
+      --material-thick-bg: rgba(28, 28, 30, 0.97);
+      --material-thin-bg: rgba(28, 28, 30, 0.97);
+    }
+  }
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-family: var(--font-text);
+}
