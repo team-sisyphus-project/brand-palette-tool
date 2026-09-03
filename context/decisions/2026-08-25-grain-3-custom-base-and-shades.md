@@ -37,14 +37,14 @@
    "border-radius changes", and the only established swatch-corner token
    (`--radius-card`, used by `PaletteSwatch`/`HarmonyExplorer`) isn't
    registered in any Design Spec Token Group yet (a pre-existing `radius`
-   Token Group gap - see `design-spec/audit/2026-08-25.md`'s "grain-3 추가
-   점검"), so introducing it here would have meant creating that Token Group
+   Token Group gap - see `design-spec/audit/2026-08-25.md`'s "grain-3 follow-up
+   checks"), so introducing it here would have meant creating that Token Group
    as a side effect of a change the Boundary says is out of scope.
 
 ## Why
 
 - **Whole-chip click, not a sub-element:** the assignment's own wording
-  ("상단 팔레트 칩을 클릭해") and this grain's Boundary phrase ("avoiding its
+  ("click a top palette chip") and this grain's Boundary phrase ("avoiding its
   existing color-picker overlay") both read as "the chip is the click
   target; the picker overlay is the one carved-out exception" - not "a new,
   separate button somewhere on the chip." A `<div role="button" tabIndex>`
@@ -64,7 +64,7 @@
   `ColorStudy.test.tsx`'s pre-existing `getByText(color.hex)` assertions
   (ambiguous match) the first time this was tried. Prefixing the lightness
   percentage keeps every step's text unique while adding information this
-  panel is explicitly meant to convey ("명도 단계별" - which step a user is
+  panel is explicitly meant to convey ("per lightness step" - which step a user is
   looking at), so the fix also improves the feature rather than working
   around the collision by suppressing it. This mirrors grain-2's own
   precedent for the same class of problem (its `aria-label`
@@ -93,7 +93,7 @@
   lightness (e.g. `base.l +/- {40, 20, 0, -20, -40}` clamped): rejected -
   would make different colors' ramps span different visible ranges,
   weakening the "consistent ladder" read: this Boundary's own wording calls
-  out "명도 단계별" (lightness-*step*), which fixed absolute levels represent
+  out "per lightness step" (lightness-*step*), which fixed absolute levels represent
   more literally than an input-relative spread.
 - Suppressing the HEX-collision by having `generateShades` skip a level
   equal to the input's own rounded lightness: rejected - would make the
@@ -113,9 +113,9 @@ interaction contract; introduces no new token values) and
 `design-spec/components/color-study/shades.md` (the new Shades panel and its
 token reuse from `PaletteSwatch.css`). Newly-consumed-but-previously-
 unregistered token entries (already-confirmed values, per
-`policy/coding.md`'s "실제 렌더링되는 페이지에서 사용되고 있는 값은 확정된
-디자인 결정이다") were added to `typography/base.md`, `spacing/base.md`, and
+`policy/coding.md`'s "a value in use on the actually rendered page is a
+confirmed design decision") were added to `typography/base.md`, `spacing/base.md`, and
 `color/base.md`. Audit check recorded in `design-spec/audit/2026-08-25.md`
-under "grain-3 추가 점검", including the `--radius-card` Orphan finding
+under "grain-3 follow-up checks", including the `--radius-card` Orphan finding
 (left open, out of scope per Boundary) now cross-referenced from
 `index.md`'s Orphans table.

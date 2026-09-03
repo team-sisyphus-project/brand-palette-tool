@@ -31,17 +31,17 @@ no Design Spec mockup pattern for these two cards existed yet.
   `opacity` to visually de-emphasize secondary mock text, but the codebase's
   only existing `opacity` usage is for hiding the native color-picker input
   (`PaletteSwatch.css`), not a "muted text" convention, and inventing one for
-  a single card would be exactly the "실험적이거나 임시적인 값" the design
+  a single card would be exactly the "experimental or temporary values" the design
   system's coding policy rules out. Both cards reuse the `text` role color
   directly for all mock copy, differentiating heading vs. body only through
   existing typography scale (size/weight), not a new color/opacity token.
 
 - **Extension of `color-study`, not two standalone Components.** Per
-  `policy/recording.md`'s 분화 기준, these two tiles add structure to the
+  `policy/recording.md`'s differentiation criteria, these two tiles add structure to the
   existing masonry grid (same context, same Tile shell rule) rather than
   introducing an unrelated concept — `color-study/base.md` already flagged
-  this exact addition ("향후 grain에서... 추가 분석 타일이 같은 grid/tile
-  shell 규칙으로 늘어날 예정"). Recorded as an Extension file rather than
+  this exact addition ("in future grains... more analysis tiles are expected to be added under
+  the same grid/tile shell rules"). Recorded as an Extension file rather than
   folding directly into `base.md`, keeping `base.md` as grain-2's original
   shell description and layering each batch of new tiles as its own
   Extension — mirrors how the codebase's own `context/decisions/` splits one

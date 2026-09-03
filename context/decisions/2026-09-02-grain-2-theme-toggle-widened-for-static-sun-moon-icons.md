@@ -34,7 +34,7 @@ Boundary regardless).
 
 - **Icon inside the sliding thumb** (single icon that swaps Sun/Moon based on
   `theme`, moving with the thumb): rejected — the card explicitly says
-  "트랙 좌우측에 각각... 배치" (place respectively on the track's left/right
+  "place each on the track's left/right sides..." (place respectively on the track's left/right
   sides), i.e. on the track, not the thumb; a thumb-only icon wouldn't have a
   "left" and "right" icon simultaneously.
 - **Keep 52px width, accept the thumb covering one icon depending on

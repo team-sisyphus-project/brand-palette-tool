@@ -65,7 +65,7 @@ describe('DistributionCard', () => {
 
   it('contains no Korean text', () => {
     const { container } = render(<DistributionCard palette={palette} />)
-    expect(container.textContent ?? '').not.toMatch(/[ㄱ-힝]/)
+    expect(container.textContent ?? '').not.toMatch(/[\u3131-\uD79D]/)
   })
 })
 

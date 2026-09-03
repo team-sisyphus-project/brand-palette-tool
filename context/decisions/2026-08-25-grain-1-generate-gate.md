@@ -20,7 +20,7 @@
 ## Why
 
 - The card explicitly asks for a Generate action so results only appear
-  after an explicit click ("생성" gate), which cannot coexist with the old
+  after an explicit click (a "Generate" gate), which cannot coexist with the old
   "renders immediately on every keystroke" contract - one card supersedes
   the other by requirement, not by mistake.
 - Reusing `ColorInput` (Design Spec `components/text-input`) for the 4 extra

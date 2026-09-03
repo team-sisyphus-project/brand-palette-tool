@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 /**
  * grain-5 (M-10, app-shell top padding + intake column gap): regression
- * guard for spec A's "페이지 여백/간격" delta - `.app-shell` must render a
+ * guard for spec A's "page margins/spacing" delta - `.app-shell` must render a
  * 140px top padding and `.color-generator__intake` must render a 120px gap
  * between its title/form columns.
  *

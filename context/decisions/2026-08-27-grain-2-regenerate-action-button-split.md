@@ -30,36 +30,36 @@ family's tokens.
 
 ## Why
 
-- Grain boundary explicitly requires "ColorGenerator.css 액션버튼 셀렉터 분리"
-  and "Generate 버튼 스타일 불변" — a combined selector with per-property
+- Grain boundary explicitly requires "ColorGenerator.css action-button selector split"
+  and "Generate button styles unchanged" — a combined selector with per-property
   overrides layered on top risks a future edit to the shared block silently
   touching Generate too. Two independent rules make that structurally
   impossible.
 - 24px has no existing match in any typography scale (Action only had 16px;
   `--space-5` is 24px but that's the spacing axis, wrong role) — per
-  `policy/coding.md`'s "정의가 없을 때" rule, extended the existing Action
+  `policy/coding.md`'s "when no definition exists" rule, extended the existing Action
   scale with a new step rather than hardcoding a literal, following the
   `{role}-{property}-{scale}` naming convention already used by
   `--text-action-md`.
 - Padding (32px) and radius (16px) both already had exact-match existing
   tokens (`--content-padding-lg`, `--radius-card`) once checked against
   `src/index.css` — reused as-is rather than introducing new ones, per
-  `policy/coding.md`'s "이미 존재하면 그것을 쓴다" rule.
+  `policy/coding.md`'s "if it already exists, use it" rule.
 
 ## Rejected alternatives
 
 - Keeping the combined selector and adding a second, more-specific override
   rule for Regenerate afterward — rejected: leaves Generate and Regenerate
   coupled through the shared block, contradicting the grain's explicit
-  selector-separation boundary, and makes "Generate 불변" harder to verify by
+  selector-separation boundary, and makes "Generate unchanged" harder to verify by
   inspection.
 - Hardcoding `font-size: 24px` as a literal directly in the CSS — rejected:
-  violates `policy/coding.md`'s "오염 금지" (no raw design values outside a
+  violates `policy/coding.md`'s "no contamination" (no raw design values outside a
   Token Group) and the grain's Done criteria explicitly calls for
   tokenizing-or-literal-with-recorded-reason; tokenizing was clearly
   preferable here since it fits the existing Action scale's naming pattern.
 - Keeping Generate's fixed `height: var(--control-height-action)` on
   Regenerate and only changing padding — rejected: with a fixed 46px height,
   32px of vertical padding would overflow/clip the button's content instead
-  of visually growing it, failing the "4개 스타일 값 모두 렌더링 일치" Done
+  of visually growing it, failing the "all 4 style values match the rendered output" Done
   criterion.

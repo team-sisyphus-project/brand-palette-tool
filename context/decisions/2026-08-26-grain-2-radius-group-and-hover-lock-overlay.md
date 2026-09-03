@@ -11,7 +11,7 @@
    (`design-spec/token-groups/radius/base.md`) with all four existing radius
    tokens, and retroactively declared it on `color-study` (its
    `harmony-explorer` Extension already used `radius-control`/`radius-card`
-   before this Token Group existed), per `policy/updating.md`'s "차원 추가"
+   before this Token Group existed), per `policy/updating.md`'s "add a dimension"
    procedure.
 3. Moved the lock toggle button from an always-visible row below the swatch
    to an absolutely-positioned overlay inside `.palette-swatch__preview`,
@@ -24,7 +24,7 @@
 - `--radius-card` is shared with `HarmonyExplorer.css`'s
   `.harmony-explorer__swatch`, which is out of this grain's scope
   (`PaletteSwatch` presentation only). Changing `--radius-card`'s value would
-  have silently rounded that swatch too (`policy/coding.md`'s "오염 금지").
+  have silently rounded that swatch too (`policy/coding.md`'s "no contamination").
   `--radius-container` already existed in `src/index.css`'s radius scale,
   unused anywhere, and its value (20px) reads as a clearly rounder step up
   from `--radius-card` — reusing it needed no new Design Spec value, only a
@@ -32,9 +32,9 @@
 - `radius` had been an open Orphan since grain-3 (see
   `design-spec/audit/2026-08-25.md`) because no grain had directly referenced
   it as its own subject before. This grain does, so per `policy/audit.md`
-  ("작업 범위 안에 Orphan이 있으면 교정한다") it was now in scope to resolve.
+  ("if an Orphan is inside the work scope, correct it") it was now in scope to resolve.
 - A hover/focus-revealed overlay (vs. an always-visible row) directly
-  matches the assignment's "마우스 호버 시에만 잠금 버튼 활성화" requirement,
+  matches the assignment's "activate the lock button only on mouse hover" requirement,
   and keyboard accessibility (`:focus-visible`) keeps the same control
   reachable and visible via Tab without a mouse, matching this project's
   existing focus-ring convention (`ModeSelector`/`ThemeToggle`/

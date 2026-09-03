@@ -40,10 +40,10 @@ describe('buildMarkdownExportText', () => {
     samplePalette.forEach((color) => {
       expect(text).toContain(color.hex)
     })
-    expect(text).toContain('주조색')
-    expect(text).toContain('보조색')
-    expect(text).toContain('강조색')
-    expect(text).toContain('배경·중성색')
+    expect(text).toContain('Primary')
+    expect(text).toContain('Secondary')
+    expect(text).toContain('Accent')
+    expect(text).toContain('Background/Neutral')
   })
 
   it('includes the exact mode description for the given mode', () => {
@@ -105,7 +105,7 @@ describe('validateMarkdownExportText', () => {
     const broken = text.split(samplePalette[BRAND_SLOT_INDEX].hex).join('#000000')
     const result = validateMarkdownExportText(broken, samplePalette, 'complementary', sampleMood, sampleAesthetic)
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('브랜드 메인 컬러'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('brand main color'))).toBe(true)
   })
 
   it('rejects text missing one of the 5 colors', () => {
@@ -120,7 +120,7 @@ describe('validateMarkdownExportText', () => {
     const text = buildMarkdownExportText(samplePalette, 'complementary', sampleMood, sampleAesthetic)
     const result = validateMarkdownExportText(text, samplePalette, 'triadic', sampleMood, sampleAesthetic)
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('생성 모드'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('generation mode'))).toBe(true)
   })
 
   it('rejects text missing a mood tag that is expected to be present', () => {
@@ -133,7 +133,7 @@ describe('validateMarkdownExportText', () => {
       sampleAesthetic,
     )
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('무드 태그'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('Mood tag'))).toBe(true)
   })
 
   it('rejects text whose aesthetic name does not match the given aestheticMatch', () => {
@@ -147,7 +147,7 @@ describe('validateMarkdownExportText', () => {
     const text = buildMarkdownExportText(samplePalette, 'complementary', sampleMood, 'Coastal')
     const result = validateMarkdownExportText(text, samplePalette, 'complementary', sampleMood, null)
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('포함하지 않아야'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('must not include'))).toBe(true)
   })
 
   it('rejects text missing the 60-30-10 guideline paragraph', () => {
@@ -157,7 +157,7 @@ describe('validateMarkdownExportText', () => {
     )
     const result = validateMarkdownExportText(text, samplePalette, 'complementary', sampleMood, sampleAesthetic)
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('가이드라인'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('guideline'))).toBe(true)
   })
 
   it('reports every problem found, not just the first', () => {

@@ -20,7 +20,7 @@ definition scope had only ever covered the Action axis, per grain-2's note).
 
 ## Why
 
-- `policy/coding.md`'s "정의가 없을 때" rule: no existing Display-scale value
+- `policy/coding.md`'s "when no definition exists" rule: no existing Display-scale value
   matches 72px, so extend the scale with a new step rather than hardcode a
   literal — same approach grain-2 took for `--text-action-lg` (24px).
 - Did **not** repurpose `--text-display-2xl` (which historically held 72px for
@@ -32,7 +32,7 @@ definition scope had only ever covered the Action axis, per grain-2's note).
   than renaming the existing `-2xl` token to `-3xl` and reusing `-2xl` for
   72px — renaming `-2xl` would require touching every existing reference to
   it (`App.css`'s intro title, `ColorGenerator.css`), which is both outside
-  this grain's boundary ("PaletteDescription.css 타이포그래피") and a needless
+  this grain's boundary ("PaletteDescription.css typography") and a needless
   blast-radius increase for a change that only needs one new value.
 - Registering the Display axis as part of the same `typography` Token Group
   (rather than a new `typography/display` Token Group) follows
@@ -44,7 +44,7 @@ definition scope had only ever covered the Action axis, per grain-2's note).
 ## Rejected alternatives
 
 - Hardcoding `font-size: 72px` as a literal directly in the CSS — rejected:
-  violates `policy/coding.md`'s "오염 금지" (no raw design values outside a
+  violates `policy/coding.md`'s "no contamination" (no raw design values outside a
   Token Group), and the grain's Done criteria explicitly calls for
   tokenizing-or-literal-with-recorded-reason; tokenizing fits the existing
   scale's naming pattern cleanly.

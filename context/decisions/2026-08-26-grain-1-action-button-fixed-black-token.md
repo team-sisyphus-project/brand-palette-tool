@@ -18,9 +18,9 @@ it — instead of changing the value of the existing adaptive
 - `--color-action-bg` is shared by four other consumers
   (`ThemeToggle.css`, `PaletteSwatch.css`, `HarmonyExplorer.css`,
   `ColorWheel.css`) that are explicitly out of this grain's scope (DoneWhen
-  (5): "기존 `--color-action-bg` 소비처 4곳 시각적 무변경"). Changing that
+  (5): "no visual change to the 4 existing `--color-action-bg` consumers"). Changing that
   token's value, or its per-theme declarations, would have repainted all four
-  — a boundary violation (`policy/coding.md`'s "오염 금지").
+  — a boundary violation (`policy/coding.md`'s "no contamination").
 - A single fixed token declared once (rather than duplicating the same
   `#000000` literal into both the light and dark `:root[data-theme=...]`
   blocks) makes the "does not adapt" property structurally obvious and

@@ -91,13 +91,13 @@ describe('validateCssVariablesText', () => {
   it('rejects text with no braces at all', () => {
     const result = validateCssVariablesText('--color-brand-main: #3366ff;')
     expect(result.valid).toBe(false)
-    expect(result.errors[0]).toMatch(/중괄호/)
+    expect(result.errors[0]).toMatch(/[Bb]races/)
   })
 
   it('rejects unbalanced braces', () => {
     const missingClose = validateCssVariablesText(':root { --a: #fff;')
     expect(missingClose.valid).toBe(false)
-    expect(missingClose.errors[0]).toMatch(/중괄호/)
+    expect(missingClose.errors[0]).toMatch(/[Bb]races/)
 
     const extraOpen = validateCssVariablesText(':root { { --a: #fff; }')
     expect(extraOpen.valid).toBe(false)
@@ -106,25 +106,25 @@ describe('validateCssVariablesText', () => {
   it('rejects a block with an empty selector', () => {
     const result = validateCssVariablesText('{ --a: #fff; }')
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('선택자'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('Selector'))).toBe(true)
   })
 
   it('rejects an empty declaration body', () => {
     const result = validateCssVariablesText(':root {}')
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('비어 있습니다'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('empty'))).toBe(true)
   })
 
   it('rejects a body missing the trailing semicolon on the last declaration', () => {
     const result = validateCssVariablesText(':root {\n  --a: #fff\n}')
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('세미콜론'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('semicolon'))).toBe(true)
   })
 
   it('rejects an invalid custom-property identifier (missing -- prefix)', () => {
     const result = validateCssVariablesText(':root {\n  color-a: #fff;\n}')
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('올바르지 않은 선언'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('Invalid declaration'))).toBe(true)
   })
 
   it('rejects an identifier starting with a digit after --', () => {
@@ -135,13 +135,13 @@ describe('validateCssVariablesText', () => {
   it('rejects a declaration with an empty value', () => {
     const result = validateCssVariablesText(':root {\n  --a: ;\n}')
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('값이 비어 있습니다'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('Value is empty'))).toBe(true)
   })
 
   it('rejects duplicate variable names within the same block', () => {
     const result = validateCssVariablesText(':root {\n  --a: #fff;\n  --a: #000;\n}')
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('중복된 변수명'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('Duplicate variable name'))).toBe(true)
   })
 
   it('reports every problem found, not just the first', () => {
@@ -154,18 +154,18 @@ describe('validateCssVariablesText', () => {
 describe('roleForSlot / PALETTE_SLOT_ROLES', () => {
   it('has exactly PALETTE_SIZE role entries, brand slot first', () => {
     expect(PALETTE_SLOT_ROLES).toHaveLength(PALETTE_SIZE)
-    expect(PALETTE_SLOT_ROLES[BRAND_SLOT_INDEX]).toBe('주조색')
+    expect(PALETTE_SLOT_ROLES[BRAND_SLOT_INDEX]).toBe('Primary')
   })
 
-  it('assigns 보조색 to slots 1-2, 강조색 to slot 3, 배경·중성색 to slot 4', () => {
-    expect(roleForSlot(1)).toBe('보조색')
-    expect(roleForSlot(2)).toBe('보조색')
-    expect(roleForSlot(3)).toBe('강조색')
-    expect(roleForSlot(4)).toBe('배경·중성색')
+  it('assigns Secondary to slots 1-2, Accent to slot 3, Background/Neutral to slot 4', () => {
+    expect(roleForSlot(1)).toBe('Secondary')
+    expect(roleForSlot(2)).toBe('Secondary')
+    expect(roleForSlot(3)).toBe('Accent')
+    expect(roleForSlot(4)).toBe('Background/Neutral')
   })
 
   it('falls back to a defensive label for an out-of-range slot', () => {
-    expect(roleForSlot(99)).toBe('미분류')
+    expect(roleForSlot(99)).toBe('Unassigned')
   })
 })
 
@@ -218,7 +218,7 @@ describe('validatePaletteJson', () => {
   it('rejects a JSON array at the top level', () => {
     const result = validatePaletteJson('[1, 2, 3]')
     expect(result.valid).toBe(false)
-    expect(result.errors.some((e) => e.includes('객체'))).toBe(true)
+    expect(result.errors.some((e) => e.includes('object'))).toBe(true)
   })
 
   it('rejects a payload missing the colors array', () => {

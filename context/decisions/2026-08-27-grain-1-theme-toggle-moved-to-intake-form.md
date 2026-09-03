@@ -23,8 +23,8 @@ pre-generate-only placement and the post-generate unmount instead).
 - The assignment's Do is explicit and unconditional: remove the toggle from
   the preview section entirely and place it inside the intake form, above the
   brand field - not "also render it somewhere post-generate." The task's
-  Out-of-scope list explicitly excludes "post-generate(showResult true)
-  레이아웃 변경," i.e. don't touch the result view's layout to compensate -
+  Out-of-scope list explicitly excludes "post-generate (showResult true)
+  layout changes," i.e. don't touch the result view's layout to compensate -
   so no new post-generate toggle placement was added.
 - Reusing the same `.color-generator__theme-toggle-row` class (right-aligned,
   full-width) rather than inventing a new one keeps the visual anchor
@@ -53,7 +53,7 @@ a Component here - confirmed by checking `index.md`'s Components table across
 this project's job history). Registered it now
 (`design-spec/components/theme-toggle/base.md`, plus the `border` Token Group
 it declares - `design-spec/token-groups/border/base.md`, both matching the
-existing code/token values, no code changes from this) with its "사용처"
+existing code/token values, no code changes from this) with its "usage"
 section already describing the new placement, so there is one authoritative
 description rather than a registration followed immediately by an update. See
 `design-spec/audit/2026-08-27.md`'s grain-1 addendum for the Orphan
@@ -69,4 +69,4 @@ classification/resolution and `design-spec/index.md`'s matching history note.
   `panel-preview` (e.g. hoisted to a shared wrapper) so it survives
   Generate: rejected as exceeding this grain's boundary
   (`src/components/ColorGenerator.tsx`/`.css` only, no `App.tsx` changes) and
-  its explicit "post-generate 레이아웃 변경" out-of-scope note.
+  its explicit "post-generate layout changes" out-of-scope note.

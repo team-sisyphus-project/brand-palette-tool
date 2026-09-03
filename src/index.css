@@ -38,7 +38,7 @@
   /* --text-display-xl-2 (grain-3, 2026-08-27, M-14): new rung between
      --text-display-xl (48px) and --text-display-2xl (110px) on the same
      display scale, added for PaletteDescription's name heading per Spec A's
-     "결과 화면 레이아웃" delta (M-14 explicitly calls for 72px). Not reusing
+     "result screen layout" delta (M-14 explicitly calls for 72px). Not reusing
      --text-display-2xl even though it historically held 72px once (see the
      grain-1 note above) - --text-display-2xl is now dedicated to the
      homepage hero title at 110px (M-6, a different component, out of this
@@ -77,7 +77,7 @@
   --font-action: Inter, sans-serif;
   --text-action-md: 16px;
   /* --text-action-lg (grain-2, 2026-08-27, M-13): Regenerate-only CTA label
-     size (24px) - spec A's "결과 화면 레이아웃" delta calls for a larger,
+     size (24px) - spec A's "result screen layout" delta calls for a larger,
      more prominent Regenerate button, diverging from Generate's shared
      --text-action-md (16px). 24px doesn't land on the Action family's only
      other step (md/16px) or on --space-5 (24px, a spacing token, wrong
@@ -221,7 +221,7 @@
   --color-action-bg-fixed: #000000;
   --color-state-error: var(--color-status-error);
   --color-state-error-bg: color-mix(in srgb, var(--color-status-error) 12%, transparent);
-  /* grain-2 (spec C: HEX/CSS 변수 복사 피드백): same derivation pattern as
+  /* grain-2 (spec C: HEX/CSS variable copy feedback): same derivation pattern as
      --color-state-error/-bg above, mirrored onto --color-status-success -
      no new raw color, just the missing "success feedback" semantic layer
      that --color-state-error already has for the error case. Recorded in

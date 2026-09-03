@@ -50,7 +50,7 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
 }
 
 /**
- * Spec C "CSS 변수 형식 복사" (M-1): a button that copies the current palette
+ * Spec C "copy as CSS variables" (M-1): a button that copies the current palette
  * to the clipboard via `navigator.clipboard.writeText`, using grain-1's pure
  * formatter (`paletteToCssVariablesText`) for the copied text itself. This
  * component owns no color/text logic of its own - it only wires that
@@ -59,7 +59,7 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
  *
  * grain-1 (2026-08-26): the former "Copy HEX" button (and its
  * `paletteToHexList`-backed handler) was removed from this toolbar per the
- * card's "우측 결과 영역 정리" instruction - `paletteToHexList` itself is
+ * card's "tidy up the right result area" instruction - `paletteToHexList` itself is
  * untouched (out of this grain's boundary) and keeps its own unit test
  * coverage in paletteExport.test.ts.
  *
@@ -78,7 +78,7 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
  * own tests already guarantee it never does), so this never surfaces a
  * user-facing message for it - it only avoids ever copying malformed text.
  *
- * Spec C "파일 내보내기 (PNG, JSON...)" (M-2): two more buttons ("Download
+ * Spec C "file export (PNG, JSON...)" (M-2): two more buttons ("Download
  * PNG" / "Download JSON") that build a `Blob` via grain-1's
  * `paletteToJsonText` / grain-2's `paletteToPngBlob` and hand it to the
  * browser through a throwaway `<a download>` + `URL.createObjectURL(...)`
@@ -91,7 +91,7 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
  * secondary palette action as the copy buttons - no new design decision
  * needed here.
  *
- * Spec C "LLM 입력용 Markdown(.md) 내보내기" (M-4): a "Download MD" button
+ * Spec C "Markdown (.md) export for LLM input" (M-4): a "Download MD" button
  * that builds a `Blob` via grain-1's `buildMarkdownExportText` (fed with
  * `mode`/`moodTags`/`aestheticMatch` sourced one level up from
  * `ColorGenerator`'s own state/memo values, since this component computes

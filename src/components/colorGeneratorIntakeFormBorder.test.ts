@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 /**
  * grain-2 (M-7, intake-form rectangular border + title-height match):
- * regression guard for spec A's "홈페이지 인테이크 레이아웃" delta - the
+ * regression guard for spec A's "homepage intake layout" delta - the
  * `.color-generator__intake-form` container must (1) carry a rectangular,
  * semantic-chrome border (not a brand/generated color) and (2) render at
  * *least* as tall as the left title's 3-line, 110px text.

@@ -2,14 +2,14 @@
  * Recent-palette storage: keeps the last few saved palettes in localStorage
  * so a user can later re-select one and get back to the exact same colors,
  * generation mode, and lock state without regenerating from scratch (spec C
- * "최근 생성 팔레트 로컬 저장 관리", M-3). Mirrors theme.ts's storage
+ * "recent generated palette local storage management", M-3). Mirrors theme.ts's storage
  * pattern: a single module-scope localStorage key, defensive parse/validate
  * on read, plain synchronous read/write on save - no framework state lives
  * in this module itself.
  *
  * (assumption — needs confirmation) *When* to call `saveRecentPalette` is a
  * product decision spec C's text doesn't name explicitly (it only says
- * "최근 생성 팔레트 로컬 저장 관리", not a trigger). This grain assumes: on
+ * "recent generated palette local storage management", not a trigger). This grain assumes: on
  * Regenerate, on generation-mode change, and on a manual per-slot color
  * edit - but never on every input keystroke, since a palette that hasn't
  * been acted on yet isn't a "saved" one worth cluttering the recent list

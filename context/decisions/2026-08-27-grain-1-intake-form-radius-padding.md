@@ -20,7 +20,7 @@
   reserved for the outer `App.css` app-shell panels — would make this nested
   panel read as a second outer shell). `--radius-card` is already this
   project's "standalone content card" rung (`.color-generator__regenerate`),
-  matching the card's "적당한 둥글기" ask.
+  matching the card's "moderate rounding" ask.
 - `--space-5` matches `.panel-generator`/`.panel-preview` in `App.css`, this
   project's existing padding for a bordered content panel — reused instead of
   picking a new value so panel padding stays consistent project-wide.
@@ -46,7 +46,7 @@ therefore done only by (1) confirming the compiled CSS output
 `border-radius:var(--radius-card);padding:var(--space-5)` on this exact
 selector, and (2) box-model arithmetic at the three breakpoints. This was
 flagged as a gap for follow-up, and the reviewer correctly rejected it as
-not meeting DoneWhen (4)'s "육안 확인" (visual confirmation) requirement.
+not meeting DoneWhen (4)'s "visual confirmation" requirement.
 
 ### fix-1: real rendered screenshots obtained (2026-08-27)
 

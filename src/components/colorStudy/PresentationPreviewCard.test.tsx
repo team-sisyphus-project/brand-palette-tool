@@ -75,7 +75,7 @@ describe('PresentationPreviewCard', () => {
 
   it('contains no Korean text', () => {
     const { container } = render(<PresentationPreviewCard palette={palette} />)
-    expect(container.textContent ?? '').not.toMatch(/[ㄱ-힝]/)
+    expect(container.textContent ?? '').not.toMatch(/[\u3131-\uD79D]/)
   })
 })
 

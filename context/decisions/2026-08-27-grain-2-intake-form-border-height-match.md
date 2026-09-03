@@ -26,8 +26,8 @@
   tolerance window.
 - `border-width-default`/`color-border-default` were Orphans (used elsewhere
   in code, never registered) until this grain referenced them directly for
-  the first time (`policy/audit.md`: "작업 범위 안에 Orphan이 있으면
-  교정한다"), so both got minimal new Token Groups rather than being reused
+  the first time (`policy/audit.md`: "if an Orphan is inside the
+  work scope, correct it"), so both got minimal new Token Groups rather than being reused
   silently.
 - `.color-generator__intake-form` meets 2 of the 3 Component-identification
   criteria in `policy/reading.md` (independent role, clear boundary — not

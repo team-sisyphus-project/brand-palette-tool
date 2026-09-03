@@ -7,8 +7,9 @@
  * per the 8px-multiple --space-* scale (spacing/base Token Group, grain-1).
  * Panels stack vertically at 1024px and below; padding/gap tighten further
  * at 768px and below. Breakpoint numbers are implementation config values
- * (policy/coding.md: 값을 바꿔도 사용자가 "간격의 크기"만 다르게 인지할 뿐 새로운
- * 디자인 축이 아니므로 breakpoint 자체는 토큰화하지 않는다), not design tokens.
+ * (policy/coding.md: breakpoints themselves are not tokenized, because changing
+ * the value only changes how large the user perceives the spacing to be - it is
+ * not a new design axis), not design tokens.
  *
  * grain-2 (full-width masonry layout shell): `ColorGenerator` now returns
  * `ColorStudy` as a third top-level element alongside `panel-generator`/
@@ -19,15 +20,15 @@
  * instead of being squeezed to the right of `panel-preview`'s 480px
  * min-width - it is no longer capped by either column's width.
  *
- * grain-5 (2026-08-27, M-10 top padding): spec A's "페이지 여백/간격" delta calls
+ * grain-5 (2026-08-27, M-10 top padding): spec A's "page margins/spacing" delta calls
  * out a specific 140px top padding for the page shell, given as a literal
  * instruction rather than a step on the `--space-*` scale (max rung is
  * `--space-9` / 64px - 140px doesn't land on it and isn't a new rhythm step,
  * just the one instructed number). `padding-top: 140px` overrides just the
  * top side of the shared `padding: var(--space-6)` shorthand below, so
  * left/right/bottom keep their existing token-driven value - only the top
- * edge is the spec's fixed px. Documented here per policy/coding.md's "토큰
- * 체계 이탈 시 사유 기록" rule; see also
+ * edge is the spec's fixed px. Documented here per policy/coding.md's "record the
+ * rationale when deviating from the token system" rule; see also
  * design-spec/token-groups/spacing/base.md and
  * context/decisions/2026-08-27-grain-5-fixed-px-spacing.md.
  */
@@ -76,7 +77,7 @@
    * same size the page's own <h1> already reads at - so it never outgrows
    * the now-full-width panel. Its macro-rhythm tapers with it (--space-6 ->
    * --space-5) to match. Reuses existing scale tokens only, per
-   * policy/coding.md (정의가 있을 때 따른다) - no new tokens.
+   * policy/coding.md (follow the definition when one exists) - no new tokens.
    *
    * Selectors are scoped under `.app-shell` (not the bare
    * `.palette-description(__name)` class) so this override always wins

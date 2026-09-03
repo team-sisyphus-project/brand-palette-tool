@@ -15,7 +15,7 @@
    ("Generator", 9 characters) is short enough that 110px does not force a
    second wrap, so the constraint that motivated 72px no longer holds -
    reverting to the token's original value is a straight token-value edit
-   (`policy/updating.md` "Token 값 수정"), not a new design decision: the
+   (`policy/updating.md` "Token value modification"), not a new design decision: the
    Design Spec's `token-groups/typography/base.md` already documents 110px
    as the "intended" pre-generate-hero value, with 72px recorded as a
    layout-driven interim lowering. `.color-generator__intro-title` remains
@@ -38,7 +38,7 @@
 
 - Hardcoding `font-size: 110px` directly on `.color-generator__intro-title`
   instead of updating the `--text-display-2xl` token: rejected per
-  `policy/coding.md`'s "Component에 디자인 값을 직접 하드코딩하지 않는다"
+  `policy/coding.md`'s "do not hardcode design values directly in a Component"
   (no direct design values in components - route through the Token Group)
   and the card's own instruction to update the token, since this class is
   the token's sole reuse point.

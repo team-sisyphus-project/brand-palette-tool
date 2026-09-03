@@ -5,7 +5,7 @@
 1. Deleted `ModeSelector.tsx`/`.css` and `RecentPalettes.tsx`/`.css`/
    `.test.tsx` outright, rather than keeping them mounted elsewhere or
    behind a flag. The card explicitly says to remove both wholesale
-   ("Harmony 선택기 버튼들과 Recent Palettes 목록을 완전히 제거"), and no
+   ("remove the Harmony selector buttons and the Recent Palettes list entirely"), and no
    other component imports either, so keeping the files would just be dead
    code.
 2. Treated this as a genuine capability removal, not a markup relocation:

@@ -20,7 +20,7 @@ multi-column. Once the 10 cards were actually wired in, this showed up as
 cards touching edge-to-edge within a column. Added the one missing
 declaration (reusing the existing `--space-5` token, no new value) rather
 than introducing a second wrapper - see design-spec's
-`components/color-study/base.md` "grain-7 결정 사항" section.
+`components/color-study/base.md` "grain-7 decisions" section.
 
 Each of the 10 cards mounts as a **direct child** of `.color-study__grid`,
 *not* additionally wrapped in `.color-study__tile` - `CardShell` is already a

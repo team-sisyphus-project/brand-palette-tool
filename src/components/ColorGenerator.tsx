@@ -121,8 +121,8 @@ export interface ColorGeneratorProps {
  *
  * grain-1 (2026-08-26, MoodTag chip removal - assumption — needs
  * confirmation): the right-panel MoodTag chip list that used to render these
- * adjectives as pill chips has been removed entirely per the card's "칩 형태
- * 태그 제거" instruction; `MoodTag.tsx`/`.css` are deleted (no remaining
+ * adjectives as pill chips has been removed entirely per the card's "remove
+ * chip-style tags" instruction; `MoodTag.tsx`/`.css` are deleted (no remaining
  * caller). `moodTags` is no longer dropped once computed - it is instead
  * merged into `paletteKeywords` below (case-insensitively deduped against
  * `vibeKeywords`) and shown as plain text in the left PaletteDescription
@@ -258,7 +258,7 @@ export interface ColorGeneratorProps {
  * grain-4 (2026-08-27, M-9 pre-generate toggle relocation): the prior
  * behavior above - rendering the toggle row unconditionally in
  * `panel-preview`, both before and after Generate - is **superseded for the
- * pre-generate state only**. Per spec A's "홈페이지 인테이크 레이아웃" delta,
+ * pre-generate state only**. Per spec A's "homepage intake layout" delta,
  * the toggle now renders inside `.color-generator__intake-form`, directly
  * above the brand main color `ColorInput`, whenever `!showResult`. The
  * `panel-preview` toggle row itself is now gated on `showResult` (removed
@@ -280,9 +280,9 @@ export interface ColorGeneratorProps {
  * grain-1.
  *
  * grain-3 (Recent Palettes removal - assumption — needs confirmation): the
- * left panel's RecentPalettes list (grain-2, spec C "최근 생성 팔레트 로컬
- * 저장 관리") has been removed entirely per the card's "Recent Palettes
- * 목록을 완전히 제거" instruction, and along with its markup this component no
+ * left panel's RecentPalettes list (grain-2, spec C "recent generated
+ * palette local storage management") has been removed entirely per the card's "remove the
+ * Recent Palettes list entirely" instruction, and along with its markup this component no
  * longer calls recentPalettes.ts's loadRecentPalettes()/saveRecentPalette()
  * at all - there is no remaining UI to view or restore a saved entry, so
  * writing to that store on every Regenerate/manual edit would be a
@@ -331,8 +331,8 @@ export interface ColorGeneratorProps {
  *
  * grain-3 (2026-08-27, M-8 narrow input fields): the Brand main color and
  * Mood keyword `ColorInput`s now pass `width="narrow"`, rendering each at
- * 60% of `.color-generator__intake-form`'s width per spec A's "홈페이지
- * 인테이크 레이아웃" delta. The 4 additional Hex color fields are untouched
+ * 60% of `.color-generator__intake-form`'s width per spec A's "homepage
+ * intake layout" delta. The 4 additional Hex color fields are untouched
  * (stay full width) - out of this grain's scope. See ColorInput.tsx/.css
  * for the width-variant mechanism and design-spec/components/color-input/.
  */
@@ -494,7 +494,7 @@ export function ColorGenerator({ theme = 'light', onToggleTheme = NOOP_TOGGLE_TH
             <div className="color-generator__intro">
               {/*
                * grain-1 (2026-08-27, M-6, word-per-line title copy + 110px
-               * revert): per spec A's "홈페이지 인테이크 레이아웃" delta, the
+               * revert): per spec A's "homepage intake layout" delta, the
                * title copy is now "Color Palette Generator", one explicit
                * <br /> per word (not the prior "Build a palette around your
                * brand" copy/breaks) so it always renders as exactly 3 lines

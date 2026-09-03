@@ -9,7 +9,7 @@ import { ColorInput } from './ColorInput'
 
 /**
  * grain-3 (M-8, input field width 60%): regression guard for spec A's
- * "홈페이지 인테이크 레이아웃" delta - the Brand main color and Mood keyword
+ * "homepage intake layout" delta - the Brand main color and Mood keyword
  * fields must render at 60% of `.color-generator__intake-form`'s width,
  * while every other intake field (the 4 optional additional Hex fields)
  * stays at full width.
@@ -99,7 +99,7 @@ describe('ColorGenerator intake form field widths (M-8)', () => {
     expect(mood).toHaveClass('color-input--narrow')
 
     // Reveal all 4 optional additional Hex fields (out of this grain's
-    // scope per its "extra color 필드 폭" exclusion) and confirm none of
+    // scope per its "extra color field width" exclusion) and confirm none of
     // them picked up the narrow modifier - only brand + mood should ever be
     // narrow.
     const addColorButton = screen.getByRole('button', { name: 'Add another color' })

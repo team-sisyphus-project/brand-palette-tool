@@ -21,8 +21,8 @@
 
 ## Why
 
-- The grain's `Boundary` explicitly named the mechanism: "ColorInput 폭
-  제어(신규 prop/클래스)" — width control belongs on `ColorInput` via a new
+- The grain's `Boundary` explicitly named the mechanism: "ColorInput width
+  control (new prop/class)" — width control belongs on `ColorInput` via a new
   prop/class, not as a `ColorGenerator.css` rule targeting `ColorInput`'s
   internals from outside (which would leak knowledge of `ColorInput`'s DOM
   structure into the parent and make the width non-reusable/non-obvious from
@@ -33,7 +33,7 @@
   class name backs which state.
 - `60%`/`100%` don't fit any existing Token Group's declared scope
   (`spacing` is margin/padding/gap; `border`/`color`/`typography` don't
-  apply) — per `policy/recording.md`'s "애매하면 새로 만든다" rule, a new
+  apply) — per `policy/recording.md`'s "when in doubt, create a new one" rule, a new
   `sizing` Token Group was created rather than forcing the value into an
   unrelated group.
 

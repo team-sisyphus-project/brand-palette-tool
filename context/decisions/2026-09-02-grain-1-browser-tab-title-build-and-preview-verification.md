@@ -1,13 +1,13 @@
 # Decision: browser tab title change verified via production build + local preview (no source changes)
 
 **Date:** 2026-09-02
-**Grain:** grain-1 — 빌드 및 로컬 구동으로 탭 타이틀 영문 노출 검증
+**Grain:** grain-1 — verify the English tab title via build and local preview
 
 ## What was decided
 
 This grain performed build + local-preview verification only, per its
-Boundary ("빌드/로컬 프리뷰 실행 및 산출물 검증 범위 (소스 코드 수정
-없음)"). No source files were touched. Verification steps and results:
+Boundary ("build/local preview execution and artifact verification scope
+(no source code changes)"). No source files were touched. Verification steps and results:
 
 1. `npm install` (node_modules was absent in this worktree) followed by
    `npm run build` (`tsc -b && vite build`) — exited 0. Output:
@@ -23,9 +23,9 @@ Boundary ("빌드/로컬 프리뷰 실행 및 산출물 검증 범위 (소스 �
    Generator`, matching the built `dist/index.html`. Server was stopped
    after verification.
 4. Checked `$GENOSIS_SPEC_PATH` (design-spec): only `audit/2026-09-02.md`
-   exists, already logged as covering this exact change ("이 작업(grain-1)은
-   `index.html`의 `<title>` 텍스트... 카피 변경으로... 디자인 토큰 범주에
-   해당하는 변경이 아니다"). No Token/Component record applies — this
+   exists, already logged as covering this exact change ("this work (grain-1) is a copy
+   change to `index.html`'s `<title>` text... not a change that falls into
+   the design-token category"). No Token/Component record applies — this
    grain introduced no new design token, so no `recording.md`-format
    Token/Component/Variant entry was added to the Design Spec; this
    decision file is the record of the verification result instead.
@@ -42,8 +42,7 @@ Boundary ("빌드/로컬 프리뷰 실행 및 산출물 검증 범위 (소스 �
   grain made no such decision, so recording the verification here in
   `context/decisions/` (the general engineering decision log) rather than
   forcing an artificial Token Group entry follows `recording.md`'s own
-  scoping rule ("Token이 어느 Token Group에도 맞지 않으면... 억지로 넣지
-  않는다").
+  scoping rule ("if a Token fits no Token Group... do not force it in").
 
 ## What was rejected
 

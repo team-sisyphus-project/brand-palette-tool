@@ -56,6 +56,6 @@ Every token referenced by the new CSS (`CardShell.css`,
 `UsageGuideCard.css`) already exists in `src/index.css` and is already
 registered/reused per the existing 2026-08-26 audit pass (radius/spacing/
 border/color/typography Token Groups) — no new raw design value introduced,
-so no Orphan/불일치 entry is required beyond the note above about
+so no Orphan/mismatch entry is required beyond the note above about
 `--color-state-warning` not existing (a gap, not a mismatch — nothing in code
 here claims that token exists).

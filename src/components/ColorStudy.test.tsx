@@ -38,7 +38,7 @@ describe('ColorStudy', () => {
 
   it('contains no Korean text', () => {
     const { container } = render(<ColorStudy colors={colors} />)
-    expect(container.textContent ?? '').not.toMatch(/[ㄱ-힝]/)
+    expect(container.textContent ?? '').not.toMatch(/[\u3131-\uD79D]/)
   })
 
   it('renders the Complementary/Analogous/Triadic harmony button group under the wheel', () => {

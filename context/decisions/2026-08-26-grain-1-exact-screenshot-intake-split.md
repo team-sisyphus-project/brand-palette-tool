@@ -33,8 +33,8 @@
 4. `--content-max-width` lowered 1920px -> 1440px per the explicit request.
    Not registered as a new Design Spec Token: this project's existing
    sizing Token Group (`design-spec/token-groups/sizing/base.md`) already
-   states its own boundary excludes "레이아웃 컨테이너의 flex-grow/min-width
-   같은 배치 축" (layout-container placement axis) as implementation config,
+   states its own boundary excludes "placement axes such as a layout
+   container's flex-grow/min-width" (layout-container placement axis) as implementation config,
    and the 2026-08-26 audit already classified this same variable's sibling
    layout values (flex/min-width/width) as outside the tokenized scan axes
    (color/typography/spacing/radius/shadow/border/opacity). Kept as a plain

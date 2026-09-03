@@ -115,7 +115,7 @@ function mockDeterministicRandom() {
 // originally ColorGenerator rendered ThemeToggle unconditionally inside the
 // color/preview panel (`panel-preview` / `.color-generator__preview`),
 // top-right, in both the pre-generate (empty preview) and post-generate
-// (result) states. Per spec A's "홈페이지 인테이크 레이아웃" delta (M-9), the
+// (result) states. Per spec A's "homepage intake layout" delta (M-9), the
 // pre-generate toggle has moved into `.color-generator__intake-form`,
 // directly above the brand main color field - see the grain-4 block below.
 // The post-generate placement (inside `panel-preview`, above the color
@@ -1009,7 +1009,7 @@ describe('grain-2: palette export actions wiring', () => {
   })
 
   // grain-1 (2026-08-26): "Copy HEX" was removed from PaletteExportActions'
-  // toolbar per the card's "우측 결과 영역 정리" instruction - see
+  // toolbar per the card's "tidy up the right result area" instruction - see
   // PaletteExportActions.test.tsx for the button-level coverage of the
   // remaining toolbar buttons.
   it('never shows a Copy HEX button, before or after Generate', () => {
@@ -1299,8 +1299,8 @@ describe('grain-1: aesthetic name matching (M-5)', () => {
 
 // grain-4 (2026-08-26): the standalone right-panel "keyword:" line
 // (VibeKeywords, rendered separately from PaletteDescription's own keyword
-// list) is removed entirely per the card's "우측에 중복 렌더링되던
-// VibeKeywords 인스턴스 제거" instruction - see ColorGenerator.tsx's class doc
+// list) is removed entirely per the card's "remove the duplicate
+// VibeKeywords instance rendered on the right" instruction - see ColorGenerator.tsx's class doc
 // comment, "export actions relocation + duplicate keyword line removal".
 // getVibeKeywords(averageHsl(palette)) itself is untouched and still feeds
 // `paletteKeywords`, which PaletteDescription's own keyword list renders - it
@@ -1430,7 +1430,7 @@ describe('grain-2: generated result view (center + hide form)', () => {
   // grain-1 (2026-08-27, M-12): superseded - Regenerate used to render
   // immediately *before* the color chips; it now renders immediately *after*
   // them (below, center-aligned - see the dedicated M-11/M-12 describe block
-  // further down). Updated per spec A's "결과 화면 레이아웃" delta rather than
+  // further down). Updated per spec A's "result screen layout" delta rather than
   // left asserting the old order - see context/decisions/.
   it('Regenerate renders inside the preview panel, immediately after the color chips', () => {
     render(<ColorGenerator />)
@@ -1471,8 +1471,8 @@ describe('grain-2: generated result view (center + hide form)', () => {
   })
 })
 
-// grain-1 (2026-08-27, M-11/M-12 result-panel reorder): per spec A's "결과
-// 화면 레이아웃" delta, the theme toggle moves to directly above the color
+// grain-1 (2026-08-27, M-11/M-12 result-panel reorder): per spec A's "result
+// screen layout" delta, the theme toggle moves to directly above the color
 // chips (right-aligned) and Regenerate moves to directly below the color
 // chips (horizontally centered) - see ColorGenerator.tsx/.css's class doc
 // comments and design-spec/components/result-preview-panel/base.md.
@@ -1745,7 +1745,7 @@ describe('grain-2: Color Study renders outside the preview panel (full-width she
 
 // grain-2 (2026-08-27, M-13): source-level CSS assertions, mirroring the
 // pattern already used by ColorStudy.test.tsx's "source-level" suite (this
-// grain's style values are 비-UI-verified per spec A's Measure table, and
+// grain's style values are non-UI-verified per spec A's Measure table, and
 // jsdom does not apply external stylesheet rules to computed style during
 // render() the way a browser would).
 describe('ColorGenerator.css: M-13 Regenerate-only action-button style (source-level)', () => {
@@ -1780,7 +1780,7 @@ describe('ColorGenerator.css: M-13 Regenerate-only action-button style (source-l
   })
 
   it('M-13: Regenerate has its own selector, separate from Generate', () => {
-    // Selector split (boundary: "ColorGenerator.css 액션버튼 셀렉터 분리") - each
+    // Selector split (boundary: "ColorGenerator.css action-button selector split") - each
     // button now owns a standalone rule, rather than a combined
     // `.color-generator__generate, .color-generator__regenerate { ... }` block.
     expect(css).toMatch(/\.color-generator__generate\s*\{/)

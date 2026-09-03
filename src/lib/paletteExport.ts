@@ -1,6 +1,6 @@
 /**
  * Pure text formatters for copying a generated palette out of the app
- * (spec C "HEX 코드 일괄 복사" / "CSS 변수 형식 복사", M-1).
+ * (spec C "bulk HEX code copy" / "copy as CSS variables", M-1).
  *
  * No UI, no Clipboard API calls, no file I/O - every function here only
  * turns a `PaletteColor[]` into a plain string (or validates one). The
@@ -34,7 +34,7 @@ export function cssVariableNameForSlot(slotIndex: number): string {
 
 /**
  * Formats a palette as a plain list of HEX codes, one per line, in slot
- * order - the "HEX 코드 일괄 복사" feature. Ready to paste as-is (e.g. into
+ * order - the "bulk HEX code copy" feature. Ready to paste as-is (e.g. into
  * a text file or chat), no extra punctuation.
  */
 export function paletteToHexList(palette: PaletteColor[]): string {
@@ -42,8 +42,8 @@ export function paletteToHexList(palette: PaletteColor[]): string {
 }
 
 /**
- * Formats a palette as a CSS custom-properties block - the "CSS 변수 형식
- * 복사" feature. The result is ready to paste directly into any project's
+ * Formats a palette as a CSS custom-properties block - the "copy as CSS
+ * variables" feature. The result is ready to paste directly into any project's
  * CSS/stylesheet: a `selector { --name: value; ... }` block using
  * `cssVariableNameForSlot` for each slot's name and the slot's own HEX code
  * as the value. `validateCssVariablesText` confirms the output always
@@ -70,20 +70,20 @@ export interface CssValidationResult {
 // identifier must start with `--` followed by a letter or underscore, then
 // any run of letters/digits/hyphens/underscores. The value half is captured
 // even when empty (`.*`) so an empty-value declaration still matches here
-// and gets its own dedicated "값이 비어 있습니다" error below, rather than
-// falling through to the generic "올바르지 않은 선언" message.
+// and gets its own dedicated "value is empty" error below, rather than
+// falling through to the generic "invalid declaration" message.
 const DECLARATION_RE = /^(--[a-zA-Z_][a-zA-Z0-9_-]*)\s*:\s*(.*)$/
 
 // A single `selector { body }` block spanning the whole (trimmed) input.
 // The selector half allows zero length (`*`, not `+`) so an empty selector
 // (e.g. `{ --a: #fff; }`) still matches the block shape and gets its own
-// dedicated "선택자가 비어 있습니다" error below.
+// dedicated "selector is empty" error below.
 const BLOCK_RE = /^([^{}]*)\{([\s\S]*)\}$/
 
 /**
  * Validates that `text` is a syntactically correct, paste-ready CSS
- * custom-properties block (M-1: "실제 웹 프로젝트에 바로 적용 가능한
- * 문법"). Checks, in order:
+ * custom-properties block (M-1: "syntax that can be applied
+ * directly to a real web project"). Checks, in order:
  *
  * - Non-empty input.
  * - Exactly one matched pair of `{`/`}` (one `selector { ... }` block).
@@ -101,7 +101,7 @@ export function validateCssVariablesText(text: string): CssValidationResult {
   const trimmed = text.trim()
 
   if (!trimmed) {
-    return { valid: false, errors: ['입력이 비어 있습니다.'] }
+    return { valid: false, errors: ['Input is empty.'] }
   }
 
   const openCount = (trimmed.match(/\{/g) ?? []).length
@@ -110,31 +110,31 @@ export function validateCssVariablesText(text: string): CssValidationResult {
     return {
       valid: false,
       errors: [
-        `중괄호 짝이 맞지 않습니다 (여는 중괄호 ${openCount}개, 닫는 중괄호 ${closeCount}개, 각각 1개여야 합니다).`,
+        `Braces are not balanced (${openCount} opening brace(s), ${closeCount} closing brace(s); there must be exactly one of each).`,
       ],
     }
   }
 
   const blockMatch = BLOCK_RE.exec(trimmed)
   if (!blockMatch) {
-    return { valid: false, errors: ['`selector { ... }` 형태의 블록을 찾을 수 없습니다.'] }
+    return { valid: false, errors: ['Could not find a `selector { ... }` block.'] }
   }
 
   const errors: string[] = []
   const [, rawSelector, rawBody] = blockMatch
 
   if (!rawSelector.trim()) {
-    errors.push('선택자가 비어 있습니다.')
+    errors.push('Selector is empty.')
   }
 
   const body = rawBody.trim()
   if (!body) {
-    errors.push('선언 블록이 비어 있습니다 (변수가 하나도 없습니다).')
+    errors.push('Declaration block is empty (contains no variables).')
     return { valid: false, errors }
   }
 
   if (!rawBody.trimEnd().endsWith(';')) {
-    errors.push('마지막 선언이 세미콜론(;)으로 끝나지 않습니다.')
+    errors.push('The last declaration does not end with a semicolon (;).')
   }
 
   const declarations = body
@@ -146,16 +146,16 @@ export function validateCssVariablesText(text: string): CssValidationResult {
   for (const declaration of declarations) {
     const declMatch = DECLARATION_RE.exec(declaration)
     if (!declMatch) {
-      errors.push(`올바르지 않은 선언입니다: "${declaration}" (형식: --name: value;)`)
+      errors.push(`Invalid declaration: "${declaration}" (expected format: --name: value;)`)
       continue
     }
 
     const [, name, value] = declMatch
     if (!value.trim()) {
-      errors.push(`값이 비어 있습니다: "${name}"`)
+      errors.push(`Value is empty: "${name}"`)
     }
     if (seenNames.has(name)) {
-      errors.push(`중복된 변수명입니다: "${name}"`)
+      errors.push(`Duplicate variable name: "${name}"`)
     }
     seenNames.add(name)
   }
@@ -165,26 +165,27 @@ export function validateCssVariablesText(text: string): CssValidationResult {
 
 /**
  * Slot (0-based, `BRAND_SLOT_INDEX` first) -> palette role name, for the
- * "JSON 다운로드 파일이 팔레트 색상·역할 정보를 빠짐없이 포함함" feature
+ * "the JSON download file contains every palette color and role" feature
  * (spec C M-2). Spec C defines role names for the first time (spec A only
  * defines the 5-color *generation* rule, not role names) and explicitly
  * flags the slot-to-role assignment itself as an assumption:
  *
- * "실제 역할-슬롯 매핑은 (가정 — 확인 필요): 생성 순서상 1번(브랜드 메인)을
- * 주조색, 2~3번을 보조색, 4번을 강조색, 5번을 배경/중성색으로 임시 배정한다."
+ * "The actual role-slot mapping is (assumption — needs confirmation): provisionally
+ * assign #1 in generation order (brand main) as Primary, #2-3 as Secondary,
+ * #4 as Accent, and #5 as Background/Neutral."
  *
  * Recorded in the design spec's `content-copy` Token Group (grain-1).
  */
 export const PALETTE_SLOT_ROLES: readonly string[] = [
-  '주조색', // slot 0 (BRAND_SLOT_INDEX) - 가정 — 확인 필요
-  '보조색', // slot 1 - 가정 — 확인 필요
-  '보조색', // slot 2 - 가정 — 확인 필요
-  '강조색', // slot 3 - 가정 — 확인 필요
-  '배경·중성색', // slot 4 - 가정 — 확인 필요
+  'Primary', // slot 0 (BRAND_SLOT_INDEX) - assumption — needs confirmation
+  'Secondary', // slot 1 - assumption — needs confirmation
+  'Secondary', // slot 2 - assumption — needs confirmation
+  'Accent', // slot 3 - assumption — needs confirmation
+  'Background/Neutral', // slot 4 - assumption — needs confirmation
 ]
 
 /** Fallback role name for a slot index beyond `PALETTE_SLOT_ROLES` (defensive; a valid palette never has more than `PALETTE_SIZE` slots). */
-const UNKNOWN_SLOT_ROLE = '미분류'
+const UNKNOWN_SLOT_ROLE = 'Unassigned'
 
 /** Looks up the role name for a given 0-based slot index; see `PALETTE_SLOT_ROLES`. */
 export function roleForSlot(slotIndex: number): string {
@@ -206,7 +207,7 @@ export interface PaletteExportData {
 }
 
 /**
- * Builds the structured export payload for the "JSON 다운로드" feature: every
+ * Builds the structured export payload for the "JSON download" feature: every
  * palette slot's full color data (hex/rgb/hsl) plus its mapped role name
  * (`roleForSlot`), in slot order - so the payload is complete enough that
  * `validatePaletteJson` can confirm nothing is missing (M-2).
@@ -224,7 +225,7 @@ export function buildPaletteExportData(palette: PaletteColor[]): PaletteExportDa
 }
 
 /**
- * Formats a palette as pretty-printed JSON text - the "JSON 다운로드" file
+ * Formats a palette as pretty-printed JSON text - the "JSON download" file
  * contents. Built from `buildPaletteExportData` so the emitted JSON always
  * satisfies `validatePaletteJson`.
  */
@@ -244,8 +245,8 @@ function isFiniteNumber(value: unknown): value is number {
 
 /**
  * Validates that `jsonText` is a complete `PaletteExportData` payload - the
- * "다운로드된 JSON 데이터가 누락 없이 모든 색상 및 역할 정보를 포함하고
- * 있는지 검증" requirement (M-2). Checks, in order:
+ * "verify the downloaded JSON data contains every color and role value with
+ * nothing missing" requirement (M-2). Checks, in order:
  *
  * - `jsonText` is non-empty and parses as JSON.
  * - The parsed value has a `colors` array with exactly `PALETTE_SIZE` entries
@@ -260,48 +261,48 @@ function isFiniteNumber(value: unknown): value is number {
 export function validatePaletteJson(jsonText: string): PaletteJsonValidationResult {
   const trimmed = jsonText.trim()
   if (!trimmed) {
-    return { valid: false, errors: ['입력이 비어 있습니다.'] }
+    return { valid: false, errors: ['Input is empty.'] }
   }
 
   let parsed: unknown
   try {
     parsed = JSON.parse(trimmed)
   } catch {
-    return { valid: false, errors: ['올바른 JSON이 아닙니다.'] }
+    return { valid: false, errors: ['Not valid JSON.'] }
   }
 
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    return { valid: false, errors: ['최상위 값이 객체가 아닙니다.'] }
+    return { valid: false, errors: ['The top-level value is not an object.'] }
   }
 
   const colors = (parsed as { colors?: unknown }).colors
   if (!Array.isArray(colors)) {
-    return { valid: false, errors: ['"colors" 배열이 없습니다.'] }
+    return { valid: false, errors: ['The "colors" array is missing.'] }
   }
 
   const errors: string[] = []
   if (colors.length !== PALETTE_SIZE) {
-    errors.push(`"colors" 배열의 길이가 ${PALETTE_SIZE}이 아닙니다 (실제: ${colors.length}).`)
+    errors.push(`The "colors" array length is not ${PALETTE_SIZE} (actual: ${colors.length}).`)
   }
 
   colors.forEach((entry, index) => {
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
-      errors.push(`colors[${index}]: 객체가 아닙니다.`)
+      errors.push(`colors[${index}]: not an object.`)
       return
     }
 
     const record = entry as Record<string, unknown>
 
     if (record.slot !== index) {
-      errors.push(`colors[${index}]: "slot" 값이 없거나 배열 위치(${index})와 일치하지 않습니다.`)
+      errors.push(`colors[${index}]: "slot" is missing or does not match the array position (${index}).`)
     }
 
     if (typeof record.role !== 'string' || !record.role.trim()) {
-      errors.push(`colors[${index}]: "role"이 없거나 비어 있습니다.`)
+      errors.push(`colors[${index}]: "role" is missing or empty.`)
     }
 
     if (typeof record.hex !== 'string' || !hexToRgb(record.hex)) {
-      errors.push(`colors[${index}]: "hex"가 없거나 올바르지 않습니다.`)
+      errors.push(`colors[${index}]: "hex" is missing or invalid.`)
     }
 
     const rgb = record.rgb as Partial<RGB> | undefined
@@ -313,7 +314,7 @@ export function validatePaletteJson(jsonText: string): PaletteJsonValidationResu
         return isFiniteNumber(value) && value >= 0 && value <= 255
       })
     ) {
-      errors.push(`colors[${index}]: "rgb"가 없거나 r/g/b 중 누락·범위 초과 값이 있습니다.`)
+      errors.push(`colors[${index}]: "rgb" is missing, or one of r/g/b is missing or out of range.`)
     }
 
     const hsl = record.hsl as Partial<HSL> | undefined
@@ -330,7 +331,7 @@ export function validatePaletteJson(jsonText: string): PaletteJsonValidationResu
       (hsl as HSL).l >= 0 &&
       (hsl as HSL).l <= 100
     if (!hslValid) {
-      errors.push(`colors[${index}]: "hsl"이 없거나 h/s/l 중 누락·범위 초과 값이 있습니다.`)
+      errors.push(`colors[${index}]: "hsl" is missing, or one of h/s/l is missing or out of range.`)
     }
   })
 
@@ -348,8 +349,8 @@ function formatYyyyMmDd(date: Date): string {
 /**
  * Builds the JSON export filename: `brand-palette-{HEX}-{YYYYMMDD}.json`,
  * mirroring the `.md` export's filename convention from spec C
- * ("파일명은 브랜드 메인 컬러 Hex와 생성 일시를 포함해 재다운로드 시 구분
- * 가능하게 한다" - also "(가정 — 확인 필요)"), so re-downloading the same
+ * ("the filename includes the brand main color Hex and the generation date so
+ * re-downloads stay distinguishable" - also "(assumption — needs confirmation)"), so re-downloading the same
  * palette on a different day (or a different brand color) never collides.
  * The leading `#` of the brand HEX is stripped since it is not filename-safe
  * on every platform. `date` defaults to `new Date()` but is injectable for

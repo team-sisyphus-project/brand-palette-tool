@@ -25,6 +25,6 @@ describe('VibeKeywords', () => {
 
   it('renders nothing but plain text - no Korean text', () => {
     render(<VibeKeywords keywords={keywords} />)
-    expect(document.body.textContent ?? '').not.toMatch(/[ㄱ-힝]/)
+    expect(document.body.textContent ?? '').not.toMatch(/[\u3131-\uD79D]/)
   })
 })

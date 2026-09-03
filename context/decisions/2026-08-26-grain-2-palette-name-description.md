@@ -58,7 +58,7 @@
 ## Rejected alternatives
 
 - Returning a single description string instead of an array - rejected:
-  the card's "설명 목록(Description List)" wording and this grain's
+  the card's "Description List" wording and this grain's
   "description sentences" (plural) both point to a list of >=1 items; an
   array also lets a future UI grain render each sentence as its own list
   item without re-splitting a paragraph.

@@ -1,6 +1,6 @@
 /**
  * Renders the current palette onto a canvas as a downloadable PNG snapshot -
- * spec C "파일 내보내기 (PNG...)". Draws one row per palette slot: a filled
+ * spec C "file export (PNG...)". Draws one row per palette slot: a filled
  * color swatch, its HEX code, and its mapped role label
  * (`roleForSlot` from paletteExport.ts, so the PNG and JSON exports never
  * disagree on role names).
@@ -19,7 +19,7 @@ import { roleForSlot } from './paletteExport'
  * Layout & color decisions for the PNG snapshot. No visual/typography Token
  * Group existed in the design spec yet (checked `$GENOSIS_SPEC_PATH` before
  * choosing these - only `content-copy` was registered), so per
- * `policy/coding.md` "정의가 없을 때" these values are new - but not
+ * `policy/coding.md` "when no definition exists" these values are new - but not
  * invented from scratch: they mirror this project's existing, already-used
  * design tokens (`src/index.css`, `src/components/PaletteSwatch.css`) so
  * the PNG matches the on-screen palette's look. The PNG is a static file
@@ -136,8 +136,8 @@ export function paletteToPngCanvas(palette: PaletteColor[]): HTMLCanvasElement {
 }
 
 /**
- * Renders the palette and encodes it as a PNG `Blob` - the "PNG 파일...
- * 다운로드" feature (spec C). Wraps the callback-based `canvas.toBlob` in a
+ * Renders the palette and encodes it as a PNG `Blob` - the "PNG file...
+ * download" feature (spec C). Wraps the callback-based `canvas.toBlob` in a
  * Promise; rejects if encoding fails (canvas.toBlob calls back with `null`).
  */
 export function paletteToPngBlob(palette: PaletteColor[]): Promise<Blob> {

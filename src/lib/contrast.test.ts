@@ -112,7 +112,7 @@ describe('WCAG AA contrast — neutral gray action/focus tokens vs --color-text-
   // --color-border-focus / --color-action-bg were narrowed from --color-accent
   // (blue) to opaque neutral grays so the only remaining accent usage is the
   // selected ModeSelector chip (via --color-action-bg-strong). Any element
-  // painted with --color-action-bg (e.g. the "재생성"/Regenerate button)
+  // painted with --color-action-bg (e.g. the Regenerate button)
   // renders --color-text-on-action text/icon on top of it, so that pairing
   // must still clear WCAG AA.
   const textOnAction = readBaseRootToken('--color-text-on-action')

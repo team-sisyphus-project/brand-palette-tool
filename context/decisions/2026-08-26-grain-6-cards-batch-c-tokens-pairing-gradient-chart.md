@@ -53,10 +53,10 @@ Registered both as a Design Spec Extension of `color-study`
   These are screen *content* describing the user's generated palette (the
   same status `SemanticRolesCard`'s hex codes and `GradientCard`'s
   `linear-gradient(...)` CSS strings already have), not this project's own
-  Design Spec tokens - `policy/recording.md`'s Token 기록 section governs
+  Design Spec tokens - `policy/recording.md`'s Token recording section governs
   the project's actual reusable CSS custom properties, not per-render
   derived data. Registering them as Design Spec Tokens would also violate
-  `recording.md`'s "Token 이름은 Component 이름을 포함하지 않는다" /
+  `recording.md`'s "a Token name must not contain a Component name" /
   reusability rule, since a `color-primary` "token" here is really one
   palette's derived value, not a project-wide design token.
 

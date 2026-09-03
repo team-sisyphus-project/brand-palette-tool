@@ -1,6 +1,6 @@
 /**
  * Pure Markdown formatter/validator for handing a generated palette to
- * *another* LLM as design context (spec C "LLM 입력용 Markdown(.md) 내보내기",
+ * *another* LLM as design context (spec C "Markdown (.md) export for LLM input",
  * M-4). Unlike `paletteToJsonText` (grain-1 of paletteExport.ts), which
  * emits palette/role data only, this emits a self-contained explanatory
  * document: brand color, full palette + roles, the generation mode's own
@@ -19,8 +19,8 @@ import { roleForSlot } from './paletteExport'
 /**
  * Per-mode harmony explanation, reproduced **verbatim** from `GenerationMode`'s
  * own JSDoc in `src/lib/palette.ts` (the single source of truth spec C
- * requires: "이 해설 문구는 스펙 A... 그대로 가져와 쓰며, 이 문서에서 새로
- * 짓지 않는다"). If `GenerationMode`'s JSDoc wording ever changes, update
+ * requires: "these explanatory sentences are taken verbatim from spec A...
+ * and are not newly written in this document"). If `GenerationMode`'s JSDoc wording ever changes, update
  * these strings to match - do not paraphrase.
  */
 export const MODE_DESCRIPTIONS: Record<GenerationMode, string> = {
@@ -35,7 +35,7 @@ export const MODE_DESCRIPTIONS: Record<GenerationMode, string> = {
 
 /**
  * The 60-30-10 placement-guideline prompt paragraph (spec C item 5). Both
- * the ratio and the CTA-only accent rule are flagged "(가정 — 확인 필요)" in
+ * the ratio and the CTA-only accent rule are flagged "(assumption — needs confirmation)" in
  * spec C itself - there is no conversation/spec basis for a specific ratio,
  * so the industry-standard 60-30-10 split is adopted as a placeholder.
  * Exported as a constant (rather than inlined in `buildMarkdownExportText`)
@@ -71,7 +71,7 @@ function paletteTableRow(color: PaletteColor, index: number): string {
  * the aesthetic line is included only when `aestheticMatch` is non-null -
  * when the on-screen `AestheticMatch` component would render nothing (spec
  * A's "no forced match" rule), this file omits the aesthetic item entirely
- * too (spec C: "화면 표시 규칙... 파일에도 동일하게 적용한다").
+ * too (spec C: "the on-screen display rule... applies identically to the file").
  */
 function moodAestheticSection(moodTags: string[], aestheticMatch: string | null): string {
   const lines = [`- Mood tags: ${moodTags.join(', ')}`]
@@ -140,15 +140,16 @@ export interface MarkdownExportValidationResult {
 /**
  * Validates that `text` completely and correctly represents spec C's 5
  * required items for the given `palette`/`mode`/`moodTags`/`aestheticMatch`
- * (M-4: "5개 항목이 파일 텍스트 안에 실제로 존재하는지, 그중 3번(모드
- * 해설)·4번(무드/Aesthetic)은 스펙 A의 현재 값과 일치하는지"). Checks, in
+ * (M-4: "whether the 5 items actually exist in the file text, and whether
+ * items 3 (mode description) and 4 (mood/Aesthetic) match spec A's current
+ * values"). Checks, in
  * order:
  *
  * - Non-empty input.
  * - Item 1: the brand slot's Hex/RGB/HSL text all present.
  * - Item 2: every slot's Hex/RGB/HSL and `roleForSlot` role text present.
  * - Item 3: the current mode's `MODE_DESCRIPTIONS` text present verbatim
- *   (this is the "일치" check - a stale/wrong mode description fails here).
+ *   (this is the "match" check - a stale/wrong mode description fails here).
  * - Item 4: every current mood tag present; when `aestheticMatch` is
  *   non-null its name must be present, when null the "Aesthetic match" line
  *   must be entirely absent (mirrors the on-screen omission rule).
@@ -168,49 +169,49 @@ export function validateMarkdownExportText(
 ): MarkdownExportValidationResult {
   const trimmed = text.trim()
   if (!trimmed) {
-    return { valid: false, errors: ['입력이 비어 있습니다.'] }
+    return { valid: false, errors: ['Input is empty.'] }
   }
 
   const errors: string[] = []
 
   const brand = palette[BRAND_SLOT_INDEX]
   if (brand) {
-    if (!text.includes(brand.hex)) errors.push('브랜드 메인 컬러의 Hex 값이 없습니다.')
-    if (!text.includes(formatRgb(brand.rgb))) errors.push('브랜드 메인 컬러의 RGB 값이 없습니다.')
-    if (!text.includes(formatHsl(brand.hsl))) errors.push('브랜드 메인 컬러의 HSL 값이 없습니다.')
+    if (!text.includes(brand.hex)) errors.push('The brand main color Hex value is missing.')
+    if (!text.includes(formatRgb(brand.rgb))) errors.push('The brand main color RGB value is missing.')
+    if (!text.includes(formatHsl(brand.hsl))) errors.push('The brand main color HSL value is missing.')
   } else {
-    errors.push('브랜드 메인 컬러가 없습니다.')
+    errors.push('The brand main color is missing.')
   }
 
   if (palette.length !== PALETTE_SIZE) {
-    errors.push(`팔레트 길이가 ${PALETTE_SIZE}이 아닙니다 (실제: ${palette.length}).`)
+    errors.push(`Palette length is not ${PALETTE_SIZE} (actual: ${palette.length}).`)
   }
 
   palette.forEach((color, index) => {
-    if (!text.includes(color.hex)) errors.push(`colors[${index}]: Hex 값이 없습니다.`)
-    if (!text.includes(formatRgb(color.rgb))) errors.push(`colors[${index}]: RGB 값이 없습니다.`)
-    if (!text.includes(formatHsl(color.hsl))) errors.push(`colors[${index}]: HSL 값이 없습니다.`)
-    if (!text.includes(roleForSlot(index))) errors.push(`colors[${index}]: 역할(role) 값이 없습니다.`)
+    if (!text.includes(color.hex)) errors.push(`colors[${index}]: Hex value is missing.`)
+    if (!text.includes(formatRgb(color.rgb))) errors.push(`colors[${index}]: RGB value is missing.`)
+    if (!text.includes(formatHsl(color.hsl))) errors.push(`colors[${index}]: HSL value is missing.`)
+    if (!text.includes(roleForSlot(index))) errors.push(`colors[${index}]: role value is missing.`)
   })
 
   if (!text.includes(MODE_DESCRIPTIONS[mode])) {
-    errors.push('생성 모드(Harmony Mode) 해설이 없거나 현재 모드 값과 일치하지 않습니다.')
+    errors.push('The generation mode (harmony mode) description is missing or does not match the current mode.')
   }
 
   moodTags.forEach((tag) => {
-    if (!text.includes(tag)) errors.push(`무드 태그가 없습니다: "${tag}"`)
+    if (!text.includes(tag)) errors.push(`Mood tag is missing: "${tag}"`)
   })
 
   if (aestheticMatch !== null) {
     if (!text.includes(`Aesthetic match: ${aestheticMatch}`)) {
-      errors.push('Aesthetic 매칭 이름이 없거나 현재 값과 일치하지 않습니다.')
+      errors.push('The Aesthetic match name is missing or does not match the current value.')
     }
   } else if (text.includes('Aesthetic match')) {
-    errors.push('Aesthetic 매칭이 없을 때는 관련 항목을 파일에 포함하지 않아야 합니다.')
+    errors.push('When there is no Aesthetic match, the file must not include the Aesthetic item.')
   }
 
   if (!text.includes(EXTERNAL_LLM_GUIDELINE_TEXT)) {
-    errors.push('60-30-10 배치 가이드라인 프롬프트가 없습니다.')
+    errors.push('The 60-30-10 placement-guideline prompt is missing.')
   }
 
   return { valid: errors.length === 0, errors }
@@ -227,8 +228,8 @@ function formatYyyyMmDd(date: Date): string {
 /**
  * Builds the `.md` export filename: `brand-palette-{HEX}-{YYYYMMDD}.md`,
  * mirroring `paletteJsonFilename`/`palettePngFilename`'s convention (spec C:
- * "파일명은 브랜드 메인 컬러 Hex와 생성 일시를 포함해 재다운로드 시 구분
- * 가능하게 한다" - also "(가정 — 확인 필요)") so re-downloading the same
+ * "the filename includes the brand main color Hex and the generation date so
+ * re-downloads stay distinguishable" - also "(assumption — needs confirmation)") so re-downloading the same
  * palette on a different day, or as a different export format, never
  * collides. The leading `#` of the brand HEX is stripped since it is not
  * filename-safe on every platform. `date` defaults to `new Date()` but is

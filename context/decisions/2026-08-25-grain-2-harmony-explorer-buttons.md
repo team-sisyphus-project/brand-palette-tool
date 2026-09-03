@@ -76,4 +76,4 @@ reuse from `ModeSelector` (same Token Group values, `--color-action-bg`
 substituted for `--color-action-bg-strong` on the pressed state for the
 reason above). `design-spec/index.md`'s Components table now lists
 `harmony-explorer` under color-study's Extensions. Audit check recorded in
-`design-spec/audit/2026-08-25.md` under "grain-2 추가 점검".
+`design-spec/audit/2026-08-25.md` under "grain-2 follow-up checks".

@@ -20,8 +20,8 @@
 
 ## Why
 
-- Spec A's "페이지 여백/간격" delta text is explicit: "아래 수치들은 그 스펙이 쓰는
-  `--space-*` 토큰 체계 대신 지시받은 고정 px 값을 그대로 사용한다" — the spec
+- Spec A's "page margins/spacing" delta text is explicit: "the numbers below use the instructed fixed px values as-is,
+  instead of the `--space-*` token system that spec uses" — the spec
   itself instructs a deliberate deviation from the existing 8px-multiple
   `--space-1`(4px)…`--space-9`(64px) scale, not an oversight to be
   normalized into it.
@@ -35,7 +35,7 @@
   literal: a reader scanning `index.css`'s `--space-*` block would
   reasonably assume every entry follows the established multiple.
 - Still recorded the two values as Design Spec Tokens (new `spacing` group)
-  rather than treating them as pure "구현 설정값" — per `policy/coding.md`'s
+  rather than treating them as pure "implementation config values" — per `policy/coding.md`'s
   own classification, a value the user visually perceives (spacing) is a
   design token by definition, regardless of whether the token happens to be
   implemented as a CSS custom property or a literal in this one case. The
@@ -57,5 +57,5 @@
 - Leaving the values fully unregistered in the Design Spec (treating them as
   pure implementation config, like a breakpoint) — rejected: `policy/
   coding.md` classifies padding/gap as user-perceptible design tokens, so
-  skipping Design Spec registration would violate "오염 금지" even though the
+  skipping Design Spec registration would violate "no contamination" even though the
   CSS itself is a literal rather than a `var()` reference.

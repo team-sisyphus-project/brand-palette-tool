@@ -14,7 +14,7 @@
  * the form's full cross-axis width. Setting an explicit `width` here
  * overrides that stretch for the two fields the spec calls out (Brand main
  * color, Mood keyword — see ColorGenerator.tsx), shrinking them to 60% of
- * the form's width per spec A's "홈페이지 인테이크 레이아웃" delta (M-8). This
+ * the form's width per spec A's "homepage intake layout" delta (M-8). This
  * is a direct spec-given percentage, not a `--space-*`/sizing scale value —
  * recorded as `input-width-narrow` in
  * design-spec/token-groups/sizing/base.md.

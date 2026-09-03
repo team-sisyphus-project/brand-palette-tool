@@ -18,13 +18,13 @@
  * doubles as the stacked column's full-width sizing once `flex-direction`
  * switches to `column` under 768px.
  *
- * grain-5 (2026-08-27, M-10 column gap): spec A's "페이지 여백/간격" delta calls
+ * grain-5 (2026-08-27, M-10 column gap): spec A's "page margins/spacing" delta calls
  * out a specific 120px gap between this row's title/form columns, given as a
  * literal instruction rather than a step on the `--space-*` scale (max rung
  * is `--space-9` / 64px - 120px doesn't land on it and isn't a new rhythm
  * step, just the one instructed number). Hardcoded `120px` in place of the
  * former `--space-6` (32px) token reference - documented here per
- * policy/coding.md's "토큰 체계 이탈 시 사유 기록" rule; see also
+ * policy/coding.md's "record the rationale when deviating from the token system" rule; see also
  * design-spec/token-groups/spacing/base.md and
  * context/decisions/2026-08-27-grain-5-fixed-px-spacing.md.
  */
@@ -39,8 +39,9 @@
    * Study blurb) instead of shrink-wrapping to its own shorter form-field
    * content. This is what lets the form's border box (see
    * `.color-generator__intake-form` below) visually balance against the
-   * title column's rendered height, per the card's "테두리 상자의 전체
-   * 높이가 좌측 타이틀 텍스트의 렌더링 높이와 가급적 일치" instruction. Note
+   * title column's rendered height, per the card's "the border box's overall
+   * height should match the rendered height of the left title text as closely
+   * as possible" instruction. Note
    * `.color-generator__intake-form` itself sets an explicit `height` (M-7,
    * below), so stretch has no effect there - it only stretches
    * `.color-generator__intro`, which has no explicit height of its own, up
@@ -125,7 +126,7 @@
  * prior fixed `420px` basis - see that rule's history above).
  *
  * grain-2 (2026-08-27, M-7 rectangular border + title-height match): spec
- * A's "홈페이지 인테이크 레이아웃" delta asks for a rectangular (square-corner)
+ * A's "homepage intake layout" delta asks for a rectangular (square-corner)
  * border around this whole section, visually separating it from the title
  * column, using a semantic chrome color rather than a brand/generated
  * color (M-5 principle carried over). `--color-border-default` /
@@ -415,12 +416,12 @@
 
 /*
  * design-spec components/action-button (variant: regenerate) - grain-2
- * (2026-08-27, M-13): spec A's "결과 화면 레이아웃" delta gives Regenerate its
+ * (2026-08-27, M-13): spec A's "result screen layout" delta gives Regenerate its
  * own padding/font-size/font-family/border-radius, diverging from Generate's
  * shared action-button style above (Generate is explicitly out of this
  * grain's scope and stays byte-for-byte unchanged). Declares its own full
  * rule (rather than layering overrides on the shared selector) per this
- * grain's "액션버튼 셀렉터 분리" boundary.
+ * grain's "action-button selector split" boundary.
  *   - padding: 32px all sides -> reuses the existing (previously-unused)
  *     --content-padding-lg (2rem/32px) token, no new spacing value.
  *   - font-size: 24px -> no existing step matches (Action family only has

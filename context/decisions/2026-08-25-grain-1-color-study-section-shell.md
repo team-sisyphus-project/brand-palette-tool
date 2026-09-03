@@ -35,7 +35,7 @@
   `ColorWheel` internals and palette.ts untouched" and Out of scope
   excludes harmony buttons/custom base selection/shades UI. Moving the
   section fully outside `app-shell`'s row layout (which the broader card's
-  "독립 레이아웃 구성" wording could be read as inviting) would require
+  "standalone layout composition" wording could be read as inviting) would require
   additional `app-shell`/`App.tsx` layout changes (e.g. `flex-wrap`) beyond
   what this narrower grain's Do/Done fields ask for; deferred to whichever
   later grain actually needs the harmony buttons/custom base

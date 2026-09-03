@@ -1,4 +1,4 @@
-# grain-1 (this job): Toss 디자인 look-and-feel reskin
+# grain-1 (this job): Toss design look-and-feel reskin
 
 ## Decision
 
