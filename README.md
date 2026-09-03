@@ -27,12 +27,12 @@ npm run dev
 
 ```bash
 npm run build   # generates static output in dist/
-npm run start   # serves the dist/ output on the PORT environment variable (vite preview)
+PORT=4173 npm run start   # serves dist/ at 0.0.0.0:$PORT
 ```
 
-If the `PORT` environment variable is not set, `start` defaults to port 4173
-and `dev` defaults to port 5173. In deployment environments, the
-platform-injected `PORT` value is used as-is.
+`start` requires the `PORT` environment variable, matching the production
+runtime contract. The development server defaults to port 5173 when `PORT` is
+unset.
 
 ## Scripts
 
@@ -40,7 +40,7 @@ platform-injected `PORT` value is used as-is.
 |---|---|
 | `npm run dev` | Development server (HMR) |
 | `npm run build` | Type check + production build (`dist/`) |
-| `npm run start` | Preview server for the build output (for deployment/local verification) |
+| `npm run start` | Production static server for `dist/`, bound to `0.0.0.0:$PORT` |
 | `npm run lint` | ESLint check |
 | `npm run test` | Runs the unit test suite (Vitest) |
 
