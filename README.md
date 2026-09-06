@@ -13,7 +13,7 @@ algorithms.
 
 Prerequisites: Node.js 18+ (20+ recommended), npm.
 
-From a clean checkout:
+Three commands, from a clean checkout of this repository:
 
 ```bash
 npm ci                    # install exactly what package-lock.json pins
@@ -22,14 +22,31 @@ PORT=8080 npm run start   # serve dist/ on http://localhost:8080
 ```
 
 `http://localhost:8080/` then returns the generator's first screen with
-HTTP 200.
+HTTP 200 and the title `Brand Color Palette Generator`; the hashed assets
+that page references return 200 as well.
 
-For development with hot reload, use `npm run dev` instead of
-`build` + `start` (it serves on `PORT`, defaulting to 5173).
+`PORT` is optional for a local run: omit it and `start` listens on 4173.
+Any valid port is honoured as given, and an unusable value (non-numeric, or
+outside 1–65535) falls back to the default instead of failing the boot.
 
-- There are no migrations, seed data, or dummy accounts — this is a static
-  frontend that uses no database or cache. `DATABASE_URL` / `REDIS_URL` are
-  not read.
+For development with hot reload, run `npm run dev` instead of
+`build` + `start`. It reads the same `PORT`, defaulting to 5173.
+
+### Database, Migrations, Seed, Accounts
+
+There are none of these. This is a static frontend:
+
+- **No database, no cache.** `DATABASE_URL` and `REDIS_URL` are never read,
+  so the app starts identically whether or not the platform injects them.
+- **No migrations.** The repository contains no migration directory, tooling,
+  or command — there is nothing to run before or after `build`.
+- **No seed.** No seed step, no seed data, no fixtures to load.
+- **No accounts and no dummy credentials.** There is no login; every screen is
+  reachable from `/` without authentication.
+
+Palette state lives in the browser for the lifetime of the page. Nothing is
+persisted server-side, so a green-field run and a hundredth run behave the
+same.
 
 ## Environment Variables
 
@@ -53,6 +70,27 @@ ALLOWED_HOSTS=palette.example.com PORT=8080 npm run start
 ```
 
 Requests with any other `Host` then get a 403.
+
+## Run Shape
+
+| Aspect | Value |
+|---|---|
+| Model | build-static — `build` emits a static bundle, the runtime serves that directory |
+| Project location | repository root (`package.json`, `index.html`, `vite.config.ts` all live here) |
+| Build command | `npm run build` (`tsc -b && vite build`) |
+| Output directory | `dist/` (Vite's default, not overridden) |
+| Listening port | `$PORT` |
+| Ports exposed | one — the same server returns the HTML and every asset |
+
+The repository ships no `preview.toml`. Every field such a manifest could
+carry is the value auto-detection already derives from the standard Vite
+layout above, so committing one would add a second source of truth for the
+run shape without changing what happens. The reasoning, and the manifest
+variants that were tried and rejected, are recorded in
+`context/decisions/2026-09-06-grain-2-no-preview-manifest.md`.
+
+If the build command or the output directory ever stops being the Vite
+default, add the manifest at that point — not before.
 
 ## Serving Notes
 
