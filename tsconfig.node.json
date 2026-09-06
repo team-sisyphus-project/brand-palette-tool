@@ -13,5 +13,5 @@
 
     "strict": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "preview-config.ts", "preview-config.test.ts", "vitest.config.ts"]
 }

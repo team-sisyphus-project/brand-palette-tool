@@ -13,34 +13,64 @@ algorithms.
 
 Prerequisites: Node.js 18+ (20+ recommended), npm.
 
+From a clean checkout:
+
 ```bash
-npm install
-npm run dev
+npm ci                    # install exactly what package-lock.json pins
+npm run build             # type check + production build into dist/
+PORT=8080 npm run start   # serve dist/ on http://localhost:8080
 ```
 
-- `npm run dev` starts the Vite dev server, binding it to the `PORT`
-  environment variable (defaults to 5173 if unset).
+`http://localhost:8080/` then returns the generator's first screen with
+HTTP 200.
+
+For development with hot reload, use `npm run dev` instead of
+`build` + `start` (it serves on `PORT`, defaulting to 5173).
+
 - There are no migrations, seed data, or dummy accounts — this is a static
-  frontend that does not use a database.
+  frontend that uses no database or cache. `DATABASE_URL` / `REDIS_URL` are
+  not read.
 
-## Build / Production Preview
+## Environment Variables
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `PORT` | no | 5173 (`dev`) / 4173 (`start`) | Port the server listens on. Injected by the platform in deployment. |
+| `ALLOWED_HOSTS` | no | accept any host | Comma-separated `Host` allow-list for the dev/preview server. |
+
+No secrets are required, and none are baked into the client bundle.
+
+### Why `ALLOWED_HOSTS` defaults to "any"
+
+Vite rejects requests whose `Host` header is not on its allow-list
+(DNS-rebinding protection). This app runs behind the platform's TLS
+terminator, which forwards the *public* hostname — assigned at runtime and
+therefore unknowable at build time — so the default accepts any host and lets
+the proxy own hostname routing. When the hostname is known, narrow it:
 
 ```bash
-npm run build   # generates static output in dist/
-npm run start   # serves the dist/ output on the PORT environment variable (vite preview)
+ALLOWED_HOSTS=palette.example.com PORT=8080 npm run start
 ```
 
-If the `PORT` environment variable is not set, `start` defaults to port 4173
-and `dev` defaults to port 5173. In deployment environments, the
-platform-injected `PORT` value is used as-is.
+Requests with any other `Host` then get a 403.
+
+## Serving Notes
+
+- The server binds `0.0.0.0` on `PORT`, so both loopback (local preview) and
+  container-IP (deployed health check) requests reach it.
+- Plain HTTP only. TLS is terminated upstream; the app issues no HTTPS
+  redirects and hardcodes no absolute URLs.
+- `start` uses `strictPort`: if `PORT` is already taken the process exits with
+  an error instead of quietly moving to another port the proxy cannot reach.
+- Client-side routes fall back to `index.html`, so deep links load the app.
 
 ## Scripts
 
 | Script | Description |
 |---|---|
-| `npm run dev` | Development server (HMR) |
+| `npm run dev` | Development server (HMR) on `PORT` |
 | `npm run build` | Type check + production build (`dist/`) |
-| `npm run start` | Preview server for the build output (for deployment/local verification) |
+| `npm run start` | Serves the `dist/` build output on `PORT` (deployment / local verification) |
 | `npm run lint` | ESLint check |
 | `npm run test` | Runs the unit test suite (Vitest) |
 
